@@ -1,0 +1,92 @@
+<?xml version="1.0"?>
+<block>
+  <name>sidekiq_source_s</name>
+  <key>sidekiq_source_s</key>
+  <category>Sources</category>
+  <throttle>1</throttle>
+  <import>import sidekiq</import>
+  <make>sidekiq.sidekiq_source_s($ip_address, $port)
+self.$(id).set_center_freq($freq)
+self.$(id).set_sample_rate($sample_rate)
+self.$(id).set_rx_gain($rx_gain)
+self.$(id).set_rx_gain_mode($rx_gain_mode)  
+  </make>
+
+  <callback>set_center_freq($freq)</callback>
+  <callback>set_sample_rate($sample_rate)</callback>
+  <callback>set_front_lna($front_lna)</callback>
+  <callback>set_second_lna($second_lna)</callback>
+  <callback>set_rx_gain($rx_gain)</callback>
+  <callback>set_step_attenuator($atten)</callback>
+  <callback>set_rx_gain_mode($rx_gain_mode)</callback>
+
+  <param>
+    <name>Sidekiq IP Address</name>
+    <key>ip_address</key>
+    <value>"127.0.0.1"</value>
+    <type>string</type>
+  </param>
+  <param>
+    <name>Sidekiq Port</name>
+    <key>port</key>
+    <value>7737</value>
+    <type>int</type>
+  </param>
+  <param>
+    <name>Frequency (Hz)</name>
+    <key>freq</key>
+    <value>800000000</value>
+    <type>real</type>
+  </param>
+  <param>
+    <name>Sample Rate</name>
+    <key>sample_rate</key>
+    <value>1000000</value>
+    <type>real</type>
+  </param>
+  <param>
+    <name>Rx Gain</name>
+    <key>rx_gain</key>
+    <value>50</value>
+    <type>int</type>
+  </param>
+  <param>
+    <name>Rx Gain Mode</name>
+    <key>rx_gain_mode</key>
+    <value>0</value>
+    <type>int</type>
+    <option>
+      <name>manual</name>
+      <key>0</key>
+    </option>
+  </param>
+
+  <check>($freq &gt;= 47e6) and ($freq &lt;= 6000e6)</check>
+  <check>($sample_rate &gt;= 1e6) and ($sample_rate &lt;= 40e6)</check>
+  <check>($rx_gain &gt;= 0) and ($rx_gain &lt;= 76)</check>
+
+  <source>
+    <name>out</name>
+    <type>short</type>
+  </source>
+
+  <doc>
+    This block supports using the Sidekiq as a source block.
+
+    * Frequency:
+       The center frequency in Hz
+
+    * Sample Rate:
+       A/D converter's sample rate.  To calculte the rate of
+       samples delivered, the decimation stage needs to be factored in.
+
+    * Rx Gain (rx_gain):
+
+    * Step Attenuator:
+       Attenuation in dB (0-31 in 1 dB steps)
+
+    * Rx Gain Mode:
+
+  </doc>
+
+</block>
