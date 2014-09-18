@@ -27,6 +27,10 @@
 
 namespace gr {
   namespace sidekiq {
+    
+      static const pmt::pmt_t RX_FREQ_KEY = pmt::string_to_symbol("rx_freq_key");
+      static const pmt::pmt_t RX_SAMP_RATE_KEY = pmt::string_to_symbol("rx_samp_rate_key");
+      static const pmt::pmt_t RX_GAIN = pmt::string_to_symbol("rx_gain");
 
     class sidekiq_source_s_impl;
     typedef boost::shared_ptr<sidekiq_source_s_impl> sidekiq_source_s_impl_sptr;

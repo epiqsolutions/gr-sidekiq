@@ -64,7 +64,7 @@ namespace gr {
 	    void stop();
 
 	    // read the data from sidekiq
-	    int read(char* buf, int len);
+	    int read(char* buf, bool *p_add_tag, int len);
 
 	    uint64_t set_center_freq(uint64_t freq);
 	    uint64_t center_freq(void);

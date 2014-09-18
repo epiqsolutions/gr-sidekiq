@@ -145,12 +145,11 @@ namespace gr {
 	  int num_bytes_rcvd = 0;
 	  int out_idx = 0;
 	  int recv_result = 0;
-	
-	  for(int i=0; i<floor(noutput_items*1.0/(2*SIDEKIQ_SAMPLES_PER_PACKET));i++)
-	  { 
-	      recv_result = rcv->read( &buffer[0], BUF_LEN );
-	      if( recv_result < 0 )
-	      {
+          bool add_tag=false;
+
+	  for(int i=0; i<floor(noutput_items*1.0/(2*SIDEKIQ_SAMPLES_PER_PACKET));i++) { 
+	      recv_result = rcv->read( &buffer[0], &add_tag, BUF_LEN );
+	      if( recv_result < 0 ) {
 		  // no data available, send back 0
 		  goto end_work;
 	      }
@@ -158,6 +157,16 @@ namespace gr {
 	      out_idx = num_bytes_rcvd/2;
 	      memcpy(&out1[out_idx], buffer, SIDEKIQ_SAMPLES_PER_PACKET * sizeof(short)*2);
 	  }	
+
+          if( add_tag ) {
+              add_item_tag(0, nitems_written(0), RX_SAMP_RATE_KEY, 
+                           pmt::from_double(rcv->sample_rate()));
+              add_item_tag(0, nitems_written(0), RX_FREQ_KEY, 
+                           pmt::from_double(rcv->center_freq()));
+              add_item_tag(0, nitems_written(0), RX_GAIN,
+                           pmt::from_long((rcv->rx_gain())));
+          }
+
 	  
       end_work:
 	  return (num_bytes_rcvd/2);

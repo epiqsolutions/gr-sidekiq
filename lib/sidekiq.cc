@@ -528,12 +528,12 @@ sidekiq::config_src()
 }
 
 int 
-sidekiq::read(char* buf, int size)
+sidekiq::read(char* buf, bool *p_add_tag, int size)
 {
     static char data[BUF_SIZE];
     static uint32_t dataIndex=BUF_SIZE;  // initialize to max, forcing data retrieval
     static uint64_t old_timestamp;
-
+    static uint32_t config_id=0xFFFFFFFF;
     uint64_t timestamp_diff;
     ssize_t num_bytes;
     char header[IQ_HEADER_SIZE];
@@ -594,6 +594,12 @@ sidekiq::read(char* buf, int size)
 	srfs::BINARY_IQ_to_host( binary_iq );
 	// get the length of the payload from the header
 	uint32_t length = binary_iq->binary.length - IQ_HEADER_SIZE + BINARY_HEADER_SIZE;
+        // see if the config has been updated, if so, generate tag
+        if( config_id != binary_iq->config_id ) {
+            *p_add_tag = true;
+            printf("config id %u\r\n", config_id);
+            config_id = binary_iq->config_id;
+        }
 
 	num_bytes = 0;
 	dataIndex = 0;
@@ -623,6 +629,7 @@ sidekiq::read(char* buf, int size)
 	timestamp_diff = binary_iq->timestamp - old_timestamp;
 	if ( timestamp_diff > (16384) )
 	{
+            // TODO: add tag on dropout??
 	    printf("Dropped %lu samples\n", timestamp_diff-16384 );
 	}
 	old_timestamp = binary_iq->timestamp;
