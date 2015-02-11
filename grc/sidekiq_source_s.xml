@@ -62,7 +62,7 @@ self.$(id).set_rx_gain_mode($rx_gain_mode)
   </param>
 
   <check>($freq &gt;= 47e6) and ($freq &lt;= 6000e6)</check>
-  <check>($sample_rate &gt;= 1e6) and ($sample_rate &lt;= 40e6)</check>
+  <check>($sample_rate &gt;= 233e3) and ($sample_rate &lt;= 40e6)</check>
   <check>($rx_gain &gt;= 0) and ($rx_gain &lt;= 76)</check>
 
   <source>
