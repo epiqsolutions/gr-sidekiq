@@ -44,12 +44,16 @@ namespace gr {
        */
       sidekiq_source_s_impl::sidekiq_source_s_impl(const std::string ip_address,
 						   uint32_t port)
-	  : gr::sync_block("sidekiq",
+	  : gr::sync_block("sidekiq_source",
 			   gr::io_signature::make(0, 0, 0),
 			   gr::io_signature::make(1, 1, sizeof(short)))
       {
 	  rcv.reset( new sidekiq(ip_address.c_str(), port) );
 	  set_output_multiple(SIDEKIQ_SAMPLES_PER_PACKET*2);
+
+          std::stringstream str;
+          str << name() << "_" << unique_id();
+          _id = pmt::string_to_symbol(str.str());
       }
 
       /*
@@ -179,11 +183,13 @@ namespace gr {
 
           if( add_tag ) {
               add_item_tag(0, nitems_written(0), RX_SAMP_RATE_KEY, 
-                           pmt::from_double(rcv->sample_rate()));
+                           pmt::from_double(rcv->sample_rate()), _id);
+              add_item_tag(0, nitems_written(0), RX_BANDWIDTH_KEY, 
+                           pmt::from_double(rcv->bandwidth()), _id);
               add_item_tag(0, nitems_written(0), RX_FREQ_KEY, 
-                           pmt::from_double(rcv->center_freq()));
+                           pmt::from_double(rcv->center_freq()), _id);
               add_item_tag(0, nitems_written(0), RX_GAIN,
-                           pmt::from_long((rcv->rx_gain())));
+                           pmt::from_long((rcv->rx_gain())), _id);
           }
 
 	  

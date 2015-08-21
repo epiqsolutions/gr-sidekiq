@@ -30,6 +30,7 @@ namespace gr {
     
       static const pmt::pmt_t RX_FREQ_KEY = pmt::string_to_symbol("rx_freq_key");
       static const pmt::pmt_t RX_SAMP_RATE_KEY = pmt::string_to_symbol("rx_samp_rate_key");
+      static const pmt::pmt_t RX_BANDWIDTH_KEY = pmt::string_to_symbol("rx_bandwidth_key");
       static const pmt::pmt_t RX_GAIN = pmt::string_to_symbol("rx_gain");
 
     class sidekiq_source_s_impl;
@@ -39,6 +40,7 @@ namespace gr {
     {
     private:
 	boost::scoped_ptr<sidekiq> rcv;
+        pmt::pmt_t _id;
 
     public:
 	sidekiq_source_s_impl(const std::string ip_adress, uint32_t port);

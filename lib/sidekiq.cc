@@ -57,7 +57,7 @@ namespace gr {
 // This value accounts for the frequency in which sample data is
 // provided.  The higher the packet size, the greater latency but 
 // improved performance
-#define PKT_SIZE (40960)
+#define PKT_SIZE (40960*5) 
 #define NUM_SAMPLES (PKT_SIZE/sizeof(uint32_t))
 
 #define NUM_RECV_ATTEMPTS (3)
