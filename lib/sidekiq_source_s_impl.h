@@ -59,6 +59,10 @@ namespace gr {
 	uint32_t set_sample_rate(uint32_t sample_rate);
 	uint32_t set_sample_rate(float sample_rate);
 	uint32_t sample_rate(void);
+
+	uint32_t set_bandwidth(uint32_t bandwidth);
+	uint32_t set_bandwidth(float bandwidth);
+	uint32_t bandwidth(void);
 	
 	uint8_t set_rx_gain(uint8_t gain);
 	uint8_t rx_gain(void);

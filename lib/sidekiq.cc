@@ -67,8 +67,12 @@ namespace gr {
 #define FREQUENCY_RESOLUTION 1
 
 #define SAMPLE_RATE_MIN   233000
-#define SAMPLE_RATE_MAX 40000000
+#define SAMPLE_RATE_MAX 50000000
 #define SAMPLE_RATE_RESOLUTION 1
+
+#define BANDWIDTH_MIN   (SAMPLE_RATE_MIN)
+#define BANDWIDTH_MAX   (SAMPLE_RATE_MAX)
+#define BANDWIDTH_RESOLUTION (SAMPLE_RATE_RESOLUTION)
 
 #define RX_GAIN_MIN        0
 #define RX_GAIN_MAX       76
@@ -111,6 +115,7 @@ sidekiq::sidekiq(const char* addr, unsigned short port)
     // set default values
     d_rx_freq = FREQUENCY_MIN;
     d_rx_sample_rate = SAMPLE_RATE_MIN;
+    d_rx_bandwidth = BANDWIDTH_MIN;
     d_rx_gain = 50;
     d_rx_gain_mode = GAIN_MODE_MANUAL;
     d_srfs_src_status = STATUS_DISABLED;
@@ -149,6 +154,15 @@ sidekiq::init_srfs_params(void)
 		    SAMPLE_RATE_MIN,
 		    SAMPLE_RATE_MAX,
 		    SAMPLE_RATE_RESOLUTION,
+		    NULL );
+
+    // bandwidth
+    add_srfs_param( "bandwidth",
+		    srfs::SRFS_UINT32,
+		    (void*)(&d_rx_bandwidth),
+		    BANDWIDTH_MIN,
+		    BANDWIDTH_MAX,
+		    BANDWIDTH_RESOLUTION,
 		    NULL );
 
     // rx gain
@@ -236,6 +250,19 @@ uint32_t
 sidekiq::sample_rate(void)
 {
     return d_rx_sample_rate;
+}
+
+uint32_t
+sidekiq::set_bandwidth(uint32_t rx_bandwidth)
+{
+    set_param("bandwidth", &rx_bandwidth);
+    return d_rx_bandwidth;
+}
+
+uint32_t
+sidekiq::bandwidth(void)
+{
+    return d_rx_bandwidth;
 }
 	    
 uint8_t 
@@ -473,7 +500,7 @@ sidekiq::config_src()
 
     param_map::iterator iter;
 
-    index = snprintf(cmd, 1024, "config! block SIDEKIQ-RX:%d", d_src_port);
+    index = snprintf(cmd, 1024, "config! block SIDEKIQ-RX:%d data_flow_mode continuous", d_src_port);
     // configure all of the parameters
     for( iter=sidekiq_params.begin(); 
 	 iter != sidekiq_params.end(); 

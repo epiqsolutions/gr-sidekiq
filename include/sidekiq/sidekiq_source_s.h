@@ -107,6 +107,33 @@ namespace gr {
 	*/
        virtual uint32_t sample_rate(void) = 0;
 
+       /*! 
+	* \brief Set the bandwidth
+	* \param bandwidth The channel bandwidth
+	* \return the actual bandwidth
+	*
+	* Set the channel bandwidth of the Sidekiq. 
+	*/
+       virtual uint32_t set_bandwidth(uint32_t bandwidth) = 0;
+
+       /*! 
+	* \brief Set the bandwidth
+	* \param bandwidth The channel bandwidth
+	* \return the actual bandwidth
+	*
+	* Convenience function that uses float parameter to all engineering
+	* notation to be used in GRC.
+	*/
+       virtual uint32_t set_bandwidth(float bandwidth) = 0;
+
+       /*! 
+	* \brief Get the channel bandwidth
+	* \return the actual channel bandwidth
+	*
+	* Get the channel bandwidth of the Sidekiq. 
+	*/
+       virtual uint32_t bandwidth(void) = 0;
+
        /*!
 	* \brief Set the value of the Rx gain 
 	* \param gain rx gain value (0-76 dB)

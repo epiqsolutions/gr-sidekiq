@@ -72,6 +72,9 @@ namespace gr {
 	    uint32_t set_sample_rate(uint32_t sample_rate);
 	    uint32_t sample_rate(void);
 
+	    uint32_t set_bandwidth(uint32_t bandwidth);
+	    uint32_t bandwidth(void);
+
 	    uint8_t set_rx_gain(uint8_t gain);
 	    uint8_t rx_gain(void);
 	    
@@ -82,6 +85,7 @@ namespace gr {
 	    // sidekiq parameters
 	    uint64_t d_rx_freq;
 	    uint32_t d_rx_sample_rate;
+	    uint32_t d_rx_bandwidth;
 	    uint8_t d_rx_gain;
 	    GAIN_MODE d_rx_gain_mode;
 
