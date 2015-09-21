@@ -57,10 +57,10 @@ namespace gr {
 // This value accounts for the frequency in which sample data is
 // provided.  The higher the packet size, the greater latency but 
 // improved performance
-#define PKT_SIZE (40960*5) 
+#define PKT_SIZE (40960) 
 #define NUM_SAMPLES (PKT_SIZE/sizeof(uint32_t))
 
-#define NUM_RECV_ATTEMPTS (3)
+#define NUM_RECV_ATTEMPTS (10)
 
 #define FREQUENCY_MIN  47000000ULL
 #define FREQUENCY_MAX 6000000000ULL
@@ -119,6 +119,8 @@ sidekiq::sidekiq(const char* addr, unsigned short port)
     d_rx_gain = 50;
     d_rx_gain_mode = GAIN_MODE_MANUAL;
     d_srfs_src_status = STATUS_DISABLED;
+
+    d_usleep_period = (1.0/((float)(d_rx_sample_rate)/1000000.0))*((float)(NUM_SAMPLES));
 
     d_state = STATE_STOPPED;
 
@@ -243,6 +245,7 @@ uint32_t
 sidekiq::set_sample_rate(uint32_t rx_sample_rate)
 {
     set_param("sample_rate", &rx_sample_rate);
+    d_usleep_period = (1.0/((float)(d_rx_sample_rate)/1000000.0))*((float)(NUM_SAMPLES));
     return d_rx_sample_rate;
 }
 
@@ -614,7 +617,7 @@ sidekiq::read(char* buf, bool *p_add_tag, int size)
 		    first = true;
 		    goto end_recv;
 		}
-		usleep(10*1000);
+                usleep(d_usleep_period*10);
 	    }
 	    else
 	    {
@@ -651,7 +654,7 @@ sidekiq::read(char* buf, bool *p_add_tag, int size)
 		    first = true;
 		    goto end_recv;
 		}
-		usleep(10*1000);
+		usleep(d_usleep_period);
 	    }
 	    else {
 		count = 0;

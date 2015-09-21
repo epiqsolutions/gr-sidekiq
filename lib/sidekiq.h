@@ -104,6 +104,8 @@ namespace gr {
 
 	    bool first; // indicates if first block of data
 
+            uint32_t d_usleep_period;
+
 	    // string to srfs_param_t map
 	    typedef std::map<const std::string, srfs::srfs_param_t> param_map;
 	    // pair string to srfs_param_t
