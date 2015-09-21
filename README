@@ -3,7 +3,9 @@ use of GNU radio with Epiq Solutions' Sidekiq hardware
 (http://epiqsolutions.com/sidekiq)
 
 What's New:
-  * Initial version
+  * Updated for SRFS ICD v1.0 (Sidekiq SDK v2.0)
+  * Added control of channel bandwidth
+  * Added example GRC flow graph
 
 Know Limitations:
   * Supports only continuous mode operation
@@ -26,4 +28,5 @@ To Build and Install (from the gr-sidekiq directory)
       > sudo make install
   6) Update dynamic linker for new library (Linux only)
       > ldconfig
+  7) Refer to the example GRC source block located at examples/grc/sidekiq_source.grc
  
