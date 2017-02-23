@@ -177,8 +177,8 @@ namespace gr {
 		  goto end_work;
 	      }
 	      num_bytes_rcvd += recv_result;
-	      out_idx = num_bytes_rcvd/2;
 	      memcpy(&out1[out_idx], buffer, SIDEKIQ_SAMPLES_PER_PACKET * sizeof(short)*2);
+              out_idx = num_bytes_rcvd/2;
 	  }	
 
           if( add_tag ) {
