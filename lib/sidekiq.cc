@@ -62,20 +62,20 @@ namespace gr {
 
 #define NUM_RECV_ATTEMPTS (10)
 
-#define FREQUENCY_MIN  47000000ULL
+#define FREQUENCY_MIN  7000000ULL
 #define FREQUENCY_MAX 6000000000ULL
 #define FREQUENCY_RESOLUTION 1
 
-#define SAMPLE_RATE_MIN   233000
-#define SAMPLE_RATE_MAX 50000000
+#define SAMPLE_RATE_MIN   30720000
+#define SAMPLE_RATE_MAX 122880000
 #define SAMPLE_RATE_RESOLUTION 1
 
 #define BANDWIDTH_MIN   (SAMPLE_RATE_MIN)
 #define BANDWIDTH_MAX   (SAMPLE_RATE_MAX)
 #define BANDWIDTH_RESOLUTION (SAMPLE_RATE_RESOLUTION)
 
-#define RX_GAIN_MIN        0
-#define RX_GAIN_MAX       76
+#define RX_GAIN_MIN        195
+#define RX_GAIN_MAX       255
 #define RX_GAIN_RESOLUTION 1
 
 sidekiq::sidekiq(const char* addr, unsigned short port)

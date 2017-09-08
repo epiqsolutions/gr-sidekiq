@@ -40,19 +40,19 @@ self.$(id).set_rx_gain_mode($rx_gain_mode)
   <param>
     <name>Sample Rate</name>
     <key>sample_rate</key>
-    <value>233000</value>
+    <value>30720000</value>
     <type>real</type>
   </param>
   <param>
     <name>Bandwidth</name>
     <key>bandwidth</key>
-    <value>233000</value>
+    <value>30720000</value>
     <type>real</type>
   </param>
   <param>
     <name>Rx Gain</name>
     <key>rx_gain</key>
-    <value>50</value>
+    <value>255</value>
     <type>int</type>
   </param>
   <param>
@@ -67,9 +67,6 @@ self.$(id).set_rx_gain_mode($rx_gain_mode)
   </param>
 
   <check>($freq &gt;= 47e6) and ($freq &lt;= 6000e6)</check>
-  <check>($sample_rate &gt;= 233e3) and ($sample_rate &lt;= 50e6)</check>
-  <check>($bandwidth &gt;= 233e3) and ($bandwidth &lt;= 50e6)</check>
-  <check>($rx_gain &gt;= 0) and ($rx_gain &lt;= 76)</check>
 
   <source>
     <name>out</name>
