@@ -1,16 +1,17 @@
 title: The SIDEKIQ OOT Module
-brief: Short description of gr-sidekiq
+brief: Basic implementation of source and sink blocks for Sidekiq radios
 tags: # Tags are arbitrary, but look at CGRAN what other authors are using
-  - sdr
+  - sdr, sidekiq, epiq
 author:
   - Author Name <authors@email.address>
 copyright_owner:
-  - Copyright Owner 1
+  - Copyright Owner 2
+  - Copyright US Naval Research Lab
+  - Copyright Epiq Solutions
 license:
-#repo: # Put the URL of the repository here, or leave blank for default
-#website: <module_website> # If you have a separate project website, put it here
+#repo: # https://github.com/epiqsolutions/gr-sidekiq
+#website: # https://epiqsolutions.com/ 
 #icon: <icon_url> # Put a URL to a square image here that will be used as an icon on CGRAN
 ---
-A longer, multi-line description of gr-sidekiq.
-You may use some *basic* Markdown here.
-If left empty, it will try to find a README file instead.
+Provides receive and transmit functionality for Epiq Solution's Sidekiq radios via
+GNU radio.  Note: availability of libsidekiq is required for use.
