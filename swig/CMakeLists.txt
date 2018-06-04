@@ -25,6 +25,8 @@ if(NOT sidekiq_sources)
 	return()
 endif(NOT sidekiq_sources)
 
+link_directories(${CMAKE_INSTALL_PREFIX}/lib64)
+
 ########################################################################
 # Include swig generation macros
 ########################################################################

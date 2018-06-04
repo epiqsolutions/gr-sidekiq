@@ -5,7 +5,9 @@ include(GrPlatform) #define LIB_SUFFIX
 
 include_directories(${Boost_INCLUDE_DIR})
 
-link_directories(${Boost_LIBRARY_DIRS})
+link_directories(${Boost_LIBRARY_DIRS}
+        ${CMAKE_INSTALL_PREFIX}/lib64
+)
 
 list(APPEND sidekiq_sources
         sidekiq_rx_impl.cc
@@ -22,7 +24,7 @@ endif (NOT sidekiq_sources)
 add_library(gnuradio-sidekiq SHARED ${sidekiq_sources})
 message(WARNING "Searching for libsidekiq in ${CMAKE_SOURCE_DIR}/lib...")
 find_library(SIDEKIQ NAMES sidekiq PATHS ${CMAKE_SOURCE_DIR}/lib)
-target_link_libraries(gnuradio-sidekiq ${Boost_LIBRARIES} ${GNURADIO_ALL_LIBRARIES} ${SIDEKIQ} glib-2.0 usb-1.0)
+target_link_libraries(gnuradio-sidekiq ${Boost_LIBRARIES} gnuradio-blocks ${SIDEKIQ} glib-2.0 usb-1.0)
 set_target_properties(gnuradio-sidekiq PROPERTIES DEFINE_SYMBOL "gnuradio_sidekiq_EXPORTS")
 
 if (APPLE)
@@ -61,6 +63,8 @@ target_link_libraries(
         test-sidekiq
         ${GNURADIO_RUNTIME_LIBRARIES}
         gnuradio-blocks
+        gnuradio-pmt
+        gnuradio-filter
         ${Boost_LIBRARIES}
         ${CPPUNIT_LIBRARIES}
         ${SIDEKIQ}

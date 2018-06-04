@@ -260,8 +260,8 @@ void sidekiq_tx_impl::handle_tx_freq_tag(tag_t tag) {
 }
 
 void sidekiq_tx_impl::handle_tx_time_tag(tag_t tag) {
-	auto seconds{pmt::to_uint64(pmt::tuple_ref(tag.value, 0))};
-	auto fractional{pmt::to_double(pmt::tuple_ref(tag.value, 1))};
+	uint64_t seconds{pmt::to_uint64(pmt::tuple_ref(tag.value, 0))};
+	double fractional{pmt::to_double(pmt::tuple_ref(tag.value, 1))};
 	auto time = static_cast<double>(seconds) + fractional;
 	timestamp = static_cast<uint64_t>(time * sample_rate);
 }

@@ -22,8 +22,8 @@
 ########################################################################
 cmake_minimum_required(VERSION 2.6)
 set(CMAKE_CXX_STANDARD 14)
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -Wextra")
 project(gr-sidekiq CXX C)
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -Wextra -std=c++11")
 enable_testing()
 
 #install to PyBOMBS target prefix if defined
@@ -125,7 +125,7 @@ find_package(Doxygen)
 # components required to the list of GR_REQUIRED_COMPONENTS (in all
 # caps such as FILTER or FFT) and change the version to the minimum
 # API compatible version required.
-set(GR_REQUIRED_COMPONENTS RUNTIME FILTER)
+set(GR_REQUIRED_COMPONENTS BLOCKS RUNTIME FILTER PMT)
 find_package(Gnuradio "3.7.11" REQUIRED)
 list(INSERT CMAKE_MODULE_PATH 0 ${CMAKE_SOURCE_DIR}/cmake/Modules)
 include(GrVersion)
