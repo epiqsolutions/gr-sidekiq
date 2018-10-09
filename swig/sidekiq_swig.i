@@ -8,10 +8,16 @@
 %include "sidekiq_swig_doc.i"
 
 %{
-#include "sidekiq/sidekiq_source_s.h"
+#include "sidekiq/sidekiq_rx.h"
+#include "sidekiq/sidekiq_tx.h"
+#include "sidekiq/tx_burst_test.h"
 %}
 
-%include "sidekiq/sidekiq_defs.h"
 
-%include "sidekiq/sidekiq_source_s.h"
-GR_SWIG_BLOCK_MAGIC2(sidekiq, sidekiq_source_s);
+%include "sidekiq/sidekiq_rx.h"
+GR_SWIG_BLOCK_MAGIC2(sidekiq, sidekiq_rx);
+%include "sidekiq/sidekiq_tx.h"
+GR_SWIG_BLOCK_MAGIC2(sidekiq, sidekiq_tx);
+
+%include "sidekiq/tx_burst_test.h"
+GR_SWIG_BLOCK_MAGIC2(sidekiq, tx_burst_test);
