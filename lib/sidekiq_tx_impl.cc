@@ -20,9 +20,9 @@
 */
 
 #include <gnuradio/io_signature.h>
-#include "sidekiq_tx_impl.h"
 #include <volk/volk.h>
 #include <boost/algorithm/string.hpp>
+#include "sidekiq_tx_impl.h"
 
 using namespace gr::sidekiq;
 using pmt::pmt_t;

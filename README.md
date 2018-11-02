@@ -28,5 +28,5 @@ To Build and Install (from the gr-sidekiq directory)
   6) Install it
       > sudo make install
   7) Update dynamic linker for new library (Linux only)
-      > ldconfig
+      > sudo ldconfig
   8) Refer to examples of sink/source blocks located in examples

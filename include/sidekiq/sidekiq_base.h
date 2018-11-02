@@ -23,8 +23,8 @@
 #define INCLUDED_SIDEKIQ_SIDEKIQ_BASE_H
 
 #include <sidekiq/api.h>
-#include <sidekiq_api.h>
 #include <pmt/pmt.h>
+#include <sidekiq_api.h>
 #include "sidekiq_functions.h"
 
 using pmt::pmt_t;
