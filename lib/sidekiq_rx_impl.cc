@@ -283,7 +283,7 @@ int sidekiq_rx_impl::work(
 			volk_16i_s32f_convert_32f_u(
 					(float *) out,
 					(const int16_t *) p_rx_block->data,
-					ADC_12BIT_SCALING_FACTOR,
+					adc_scaling,
 					(buffer_sample_count * IQ_SHORT_COUNT));
 
 			if (p_rx_block->rf_timestamp != next_timestamp && next_timestamp != 0) {

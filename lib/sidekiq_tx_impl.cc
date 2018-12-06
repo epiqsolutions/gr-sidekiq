@@ -192,7 +192,6 @@ void sidekiq_tx_impl::set_tx_filter_override_taps(const std::vector<float> &taps
 	// is equal to tap length of custom filter we are trying to set
 
 	float MAX_SIZE{65536.0f / 4.0f};
-//	float MAX_SIZE{ADC_12BIT_SCALING_FACTOR};
 
 	filter_override_taps.clear();
 	for (unsigned int count{0}; count < taps.size(); count++) {
@@ -336,7 +335,7 @@ int sidekiq_tx_impl::work(
 		volk_32f_s32f_multiply_32f(
 				reinterpret_cast<float *>(&temp_buffer[0]),
 				reinterpret_cast<const float *>(in),
-				ADC_12BIT_SCALING_FACTOR,
+				dac_scaling,
 				static_cast<unsigned int>(tx_buffer_size * 2));
 		volk_32fc_convert_16ic(
 				reinterpret_cast<lv_16sc_t *>(tx_data_block->data),
