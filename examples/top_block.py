@@ -3,7 +3,7 @@
 ##################################################
 # GNU Radio Python Flow Graph
 # Title: Top Block
-# Generated: Fri Dec  7 07:36:40 2018
+# Generated: Fri Dec  7 08:43:44 2018
 ##################################################
 
 from distutils.version import StrictVersion
@@ -223,15 +223,17 @@ class top_block(gr.top_block, Qt.QWidget):
         self.top_layout.addWidget(self._qtgui_freq_sink_x_0_win)
         self.blocks_tag_debug_0 = blocks.tag_debug(gr.sizeof_gr_complex*1, '', ""); self.blocks_tag_debug_0.set_display(True)
         self.blocks_message_debug_0 = blocks.message_debug()
+        self.blocks_conjugate_cc_0 = blocks.conjugate_cc()
 
         ##################################################
         # Connections
         ##################################################
         self.msg_connect((self.sidekiq_sidekiq_rx_0, 'telemetry'), (self.blocks_message_debug_0, 'print'))
-        self.connect((self.sidekiq_sidekiq_rx_0, 0), (self.blocks_probe_rate_0, 0))
-        self.connect((self.sidekiq_sidekiq_rx_0, 0), (self.blocks_tag_debug_0, 0))
-        self.connect((self.sidekiq_sidekiq_rx_0, 0), (self.qtgui_freq_sink_x_0, 0))
-        self.connect((self.sidekiq_sidekiq_rx_0, 0), (self.qtgui_time_sink_x_1, 0))
+        self.connect((self.blocks_conjugate_cc_0, 0), (self.blocks_probe_rate_0, 0))
+        self.connect((self.blocks_conjugate_cc_0, 0), (self.blocks_tag_debug_0, 0))
+        self.connect((self.blocks_conjugate_cc_0, 0), (self.qtgui_freq_sink_x_0, 0))
+        self.connect((self.blocks_conjugate_cc_0, 0), (self.qtgui_time_sink_x_1, 0))
+        self.connect((self.sidekiq_sidekiq_rx_0, 0), (self.blocks_conjugate_cc_0, 0))
 
     def closeEvent(self, event):
         self.settings = Qt.QSettings("GNU Radio", "top_block")

@@ -154,7 +154,7 @@ void sidekiq_rx_impl::set_rx_gain_mode(uint8_t value) {
 	}
 }
 
-float sidekiq_rx_impl::get_rx_gain() {
+double sidekiq_rx_impl::get_rx_gain() {
         double cal_offset;
 
 	if (skiq_read_rx_cal_offset(card, hdl, &cal_offset) != 0) {
@@ -162,6 +162,19 @@ float sidekiq_rx_impl::get_rx_gain() {
 	}
 
 	return cal_offset;
+}
+
+void sidekiq_rx_impl::get_rx_gain_range( double *p_min_gain, double *p_max_gain )
+{
+       // determine the minimum and maximum gain we can achieve
+    skiq_read_rx_cal_offset_by_gain_index( card,
+                                           hdl,
+                                           sidekiq_params.rx_param[hdl].gain_index_min,
+                                           p_min_gain );
+    skiq_read_rx_cal_offset_by_gain_index( card,
+                                           hdl,
+                                           sidekiq_params.rx_param[hdl].gain_index_max,
+                                           p_max_gain );
 }
 
 void sidekiq_rx_impl::set_rx_gain(double value) {    
@@ -172,15 +185,7 @@ void sidekiq_rx_impl::set_rx_gain(double value) {
     double prev_cal_offset=0;
     bool found_gain_index=false;
 
-    // determine the minimum and maximum gain we can achieve
-    skiq_read_rx_cal_offset_by_gain_index( card,
-                                           hdl,
-                                           sidekiq_params.rx_param[hdl].gain_index_min,
-                                           &min_cal_offset );
-    skiq_read_rx_cal_offset_by_gain_index( card,
-                                           hdl,
-                                           sidekiq_params.rx_param[hdl].gain_index_max,
-                                           &max_cal_offset );
+    get_rx_gain_range( &min_cal_offset, &max_cal_offset );
     printf("Gain range for current frequency is %f - %f\n", min_cal_offset, max_cal_offset);
 
     if( value <= min_cal_offset )
@@ -223,7 +228,7 @@ void sidekiq_rx_impl::set_rx_gain(double value) {
     }
     printf("Updated gain is %f for gain index %u\n",
            updated_cal_offset, updated_gain_index);
-    
+
     if (skiq_write_rx_gain(card, hdl, updated_gain_index) != 0) {
         printf("Error: could not set gain to %f\n", value);
     } else {

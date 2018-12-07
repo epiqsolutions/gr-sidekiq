@@ -63,8 +63,8 @@ sidekiq_base<HdlType>::sidekiq_base(
         // determine radio capabilities
         skiq_read_parameters( card, &sidekiq_params );
         // update scaling parameters based on radio capabilities
-        adc_scaling = pow(2.0f, sidekiq_params.rx_param[handle_type].iq_resolution);
-        dac_scaling = pow(2.0f, sidekiq_params.tx_param[handle_type].iq_resolution);
+        adc_scaling = (pow(2.0f, sidekiq_params.rx_param[handle_type].iq_resolution) / 2.0)-1;
+        dac_scaling = (pow(2.0f, sidekiq_params.tx_param[handle_type].iq_resolution) / 2.0)-1;
         
 	set_sync_type(sync_type);
 }
@@ -119,7 +119,7 @@ void sidekiq_base<HdlType>::set_sync_type(int type) {
 template<typename HdlType>
 void sidekiq_base<HdlType>::get_configuration_limits() {
 
-    printf("Number of RX channels available: %u\n", sidekiq_params.rf_param.num_rx_channels);
+    printf("\nNumber of RX channels available: %u\n", sidekiq_params.rf_param.num_rx_channels);
     for( int i=0; i<sidekiq_params.rf_param.num_rx_channels; i++ )
     {
         printf("        RX Channel %u\n", i);
@@ -129,10 +129,11 @@ void sidekiq_base<HdlType>::get_configuration_limits() {
 			static_cast<double >(sidekiq_params.rx_param[i].lo_freq_max) / 1e6
 	);
 	printf(
-			"\tRX Sample Rate Min/Max: %1.3fMsps,%1.3fMsps\n\n",
+			"\tRX Sample Rate Min/Max: %1.3fMsps,%1.3fMsps\n",
 			static_cast<double >(sidekiq_params.rx_param[i].sample_rate_min) / 1e6,
 			static_cast<double >(sidekiq_params.rx_param[i].sample_rate_max) / 1e6
 	);
+        printf("\tResolution %u\n", sidekiq_params.rx_param[i].iq_resolution);
     }
 
     printf("Number of TX channels available: %u\n", sidekiq_params.rf_param.num_tx_channels);
@@ -145,10 +146,11 @@ void sidekiq_base<HdlType>::get_configuration_limits() {
 			static_cast<double >(sidekiq_params.tx_param[i].lo_freq_max) / 1e6
 	);
 	printf(
-			"TX Sample Rate Min/Max: %1.3fMsps,%1.3fMsps\n\n",
+			"TX Sample Rate Min/Max: %1.3fMsps,%1.3fMsps\n",
 			static_cast<double >(sidekiq_params.tx_param[i].sample_rate_min) / 1e6,
 			static_cast<double >(sidekiq_params.tx_param[i].sample_rate_max) / 1e6
 	);
+        printf("\tResolution %u\n", sidekiq_params.rx_param[i].iq_resolution);
     }
 }
 
