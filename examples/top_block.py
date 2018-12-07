@@ -3,8 +3,10 @@
 ##################################################
 # GNU Radio Python Flow Graph
 # Title: Top Block
-# Generated: Mon Jan 29 14:02:18 2018
+# Generated: Fri Dec  7 07:36:40 2018
 ##################################################
+
+from distutils.version import StrictVersion
 
 if __name__ == '__main__':
     import ctypes
@@ -16,7 +18,8 @@ if __name__ == '__main__':
         except:
             print "Warning: failed to XInitThreads()"
 
-from PyQt4 import Qt
+from PyQt5 import Qt
+from PyQt5 import Qt, QtCore
 from gnuradio import blocks
 from gnuradio import eng_notation
 from gnuradio import gr
@@ -57,8 +60,11 @@ class top_block(gr.top_block, Qt.QWidget):
         self.top_layout.addLayout(self.top_grid_layout)
 
         self.settings = Qt.QSettings("GNU Radio", "top_block")
-        self.restoreGeometry(self.settings.value("geometry").toByteArray())
 
+        if StrictVersion(Qt.qVersion()) < StrictVersion("5.0.0"):
+            self.restoreGeometry(self.settings.value("geometry").toByteArray())
+        else:
+            self.restoreGeometry(self.settings.value("geometry", type=QtCore.QByteArray))
 
         ##################################################
         # Variables
@@ -68,7 +74,7 @@ class top_block(gr.top_block, Qt.QWidget):
         self.vector_length = vector_length = 1
         self.variable_qtgui_label_0 = variable_qtgui_label_0 = variable_function_probe_0
         self.sample_rate = sample_rate = 50e6
-        self.gain = gain = 55
+        self.gain = gain = 0
         self.center_freq = center_freq = 915e6
         self.bandwidth = bandwidth = max_sample_rate
 
@@ -77,17 +83,25 @@ class top_block(gr.top_block, Qt.QWidget):
         ##################################################
         self._sample_rate_range = Range(1e6, max_sample_rate, 1e6, 50e6, 200)
         self._sample_rate_win = RangeWidget(self._sample_rate_range, self.set_sample_rate, 'Sample Rate', "counter_slider", float)
-        self.top_grid_layout.addWidget(self._sample_rate_win, 1,0,1,1)
-        self._gain_range = Range(1, 76, 1, 55, 200)
+        self.top_grid_layout.addWidget(self._sample_rate_win, 1, 0, 1, 1)
+        [self.top_grid_layout.setRowStretch(r,1) for r in range(1,2)]
+        [self.top_grid_layout.setColumnStretch(c,1) for c in range(0,1)]
+        self._gain_range = Range(0, 2000, 1, 0, 200)
         self._gain_win = RangeWidget(self._gain_range, self.set_gain, 'Gain', "counter_slider", float)
-        self.top_grid_layout.addWidget(self._gain_win, 0,1,1,1)
+        self.top_grid_layout.addWidget(self._gain_win, 0, 1, 1, 1)
+        [self.top_grid_layout.setRowStretch(r,1) for r in range(0,1)]
+        [self.top_grid_layout.setColumnStretch(c,1) for c in range(1,2)]
         self._center_freq_range = Range(100e6, 6000e6, 1e6, 915e6, 200)
         self._center_freq_win = RangeWidget(self._center_freq_range, self.set_center_freq, 'Frequency', "counter_slider", float)
-        self.top_grid_layout.addWidget(self._center_freq_win, 0,0,1,1)
+        self.top_grid_layout.addWidget(self._center_freq_win, 0, 0, 1, 1)
+        [self.top_grid_layout.setRowStretch(r,1) for r in range(0,1)]
+        [self.top_grid_layout.setColumnStretch(c,1) for c in range(0,1)]
         self.blocks_probe_rate_0 = blocks.probe_rate(gr.sizeof_gr_complex*1, 500.0, 0.15)
         self._bandwidth_range = Range(.1e6, max_sample_rate, 0.1e6, max_sample_rate, 200)
         self._bandwidth_win = RangeWidget(self._bandwidth_range, self.set_bandwidth, 'Bandwidth', "counter_slider", float)
-        self.top_grid_layout.addWidget(self._bandwidth_win, 1,1,1,1)
+        self.top_grid_layout.addWidget(self._bandwidth_win, 1, 1, 1, 1)
+        [self.top_grid_layout.setRowStretch(r,1) for r in range(1,2)]
+        [self.top_grid_layout.setColumnStretch(c,1) for c in range(1,2)]
         self._variable_qtgui_label_0_tool_bar = Qt.QToolBar(self)
 
         if None:
@@ -99,7 +113,6 @@ class top_block(gr.top_block, Qt.QWidget):
         self._variable_qtgui_label_0_label = Qt.QLabel(str(self._variable_qtgui_label_0_formatter(self.variable_qtgui_label_0)))
         self._variable_qtgui_label_0_tool_bar.addWidget(self._variable_qtgui_label_0_label)
         self.top_layout.addWidget(self._variable_qtgui_label_0_tool_bar)
-
 
         def _variable_function_probe_0_probe():
             while True:
@@ -113,7 +126,7 @@ class top_block(gr.top_block, Qt.QWidget):
         _variable_function_probe_0_thread.daemon = True
         _variable_function_probe_0_thread.start()
 
-        self.sidekiq_sidekiq_rx_1 = sidekiq.sidekiq_rx(sample_rate, gain, 0, center_freq, bandwidth, 1, vector_length, ())
+        self.sidekiq_sidekiq_rx_0 = sidekiq.sidekiq_rx(sample_rate, gain, 0, center_freq, bandwidth, 1, vector_length, ())
         self.qtgui_time_sink_x_1 = qtgui.time_sink_c(
         	2**14, #size
         	sample_rate, #samp_rate
@@ -131,6 +144,7 @@ class top_block(gr.top_block, Qt.QWidget):
         self.qtgui_time_sink_x_1.enable_grid(False)
         self.qtgui_time_sink_x_1.enable_axis_labels(True)
         self.qtgui_time_sink_x_1.enable_control_panel(False)
+        self.qtgui_time_sink_x_1.enable_stem_plot(False)
 
         if not True:
           self.qtgui_time_sink_x_1.disable_legend()
@@ -210,16 +224,14 @@ class top_block(gr.top_block, Qt.QWidget):
         self.blocks_tag_debug_0 = blocks.tag_debug(gr.sizeof_gr_complex*1, '', ""); self.blocks_tag_debug_0.set_display(True)
         self.blocks_message_debug_0 = blocks.message_debug()
 
-
-
         ##################################################
         # Connections
         ##################################################
-        self.msg_connect((self.sidekiq_sidekiq_rx_1, 'telemetry'), (self.blocks_message_debug_0, 'print'))
-        self.connect((self.sidekiq_sidekiq_rx_1, 0), (self.blocks_probe_rate_0, 0))
-        self.connect((self.sidekiq_sidekiq_rx_1, 0), (self.blocks_tag_debug_0, 0))
-        self.connect((self.sidekiq_sidekiq_rx_1, 0), (self.qtgui_freq_sink_x_0, 0))
-        self.connect((self.sidekiq_sidekiq_rx_1, 0), (self.qtgui_time_sink_x_1, 0))
+        self.msg_connect((self.sidekiq_sidekiq_rx_0, 'telemetry'), (self.blocks_message_debug_0, 'print'))
+        self.connect((self.sidekiq_sidekiq_rx_0, 0), (self.blocks_probe_rate_0, 0))
+        self.connect((self.sidekiq_sidekiq_rx_0, 0), (self.blocks_tag_debug_0, 0))
+        self.connect((self.sidekiq_sidekiq_rx_0, 0), (self.qtgui_freq_sink_x_0, 0))
+        self.connect((self.sidekiq_sidekiq_rx_0, 0), (self.qtgui_time_sink_x_1, 0))
 
     def closeEvent(self, event):
         self.settings = Qt.QSettings("GNU Radio", "top_block")
@@ -258,7 +270,7 @@ class top_block(gr.top_block, Qt.QWidget):
 
     def set_sample_rate(self, sample_rate):
         self.sample_rate = sample_rate
-        self.sidekiq_sidekiq_rx_1.set_rx_sample_rate(self.sample_rate)
+        self.sidekiq_sidekiq_rx_0.set_rx_sample_rate(self.sample_rate)
         self.qtgui_time_sink_x_1.set_samp_rate(self.sample_rate)
         self.qtgui_freq_sink_x_0.set_frequency_range(self.center_freq, self.sample_rate)
 
@@ -267,14 +279,14 @@ class top_block(gr.top_block, Qt.QWidget):
 
     def set_gain(self, gain):
         self.gain = gain
-        self.sidekiq_sidekiq_rx_1.set_rx_gain(self.gain)
+        self.sidekiq_sidekiq_rx_0.set_rx_gain(self.gain)
 
     def get_center_freq(self):
         return self.center_freq
 
     def set_center_freq(self, center_freq):
         self.center_freq = center_freq
-        self.sidekiq_sidekiq_rx_1.set_rx_frequency(self.center_freq)
+        self.sidekiq_sidekiq_rx_0.set_rx_frequency(self.center_freq)
         self.qtgui_freq_sink_x_0.set_frequency_range(self.center_freq, self.sample_rate)
 
     def get_bandwidth(self):
@@ -282,13 +294,12 @@ class top_block(gr.top_block, Qt.QWidget):
 
     def set_bandwidth(self, bandwidth):
         self.bandwidth = bandwidth
-        self.sidekiq_sidekiq_rx_1.set_rx_bandwidth(self.bandwidth)
+        self.sidekiq_sidekiq_rx_0.set_rx_bandwidth(self.bandwidth)
 
 
 def main(top_block_cls=top_block, options=None):
 
-    from distutils.version import StrictVersion
-    if StrictVersion(Qt.qVersion()) >= StrictVersion("4.5.0"):
+    if StrictVersion("4.5.0") <= StrictVersion(Qt.qVersion()) < StrictVersion("5.0.0"):
         style = gr.prefs().get_string('qtgui', 'style', 'raster')
         Qt.QApplication.setGraphicsSystem(style)
     qapp = Qt.QApplication(sys.argv)
@@ -300,7 +311,7 @@ def main(top_block_cls=top_block, options=None):
     def quitting():
         tb.stop()
         tb.wait()
-    qapp.connect(qapp, Qt.SIGNAL("aboutToQuit()"), quitting)
+    qapp.aboutToQuit.connect(quitting)
     qapp.exec_()
 
 
