@@ -150,6 +150,11 @@ void sidekiq_base<HdlType>::get_configuration_limits() {
 			static_cast<double >(sidekiq_params.tx_param[i].sample_rate_min) / 1e6,
 			static_cast<double >(sidekiq_params.tx_param[i].sample_rate_max) / 1e6
 	);
+        printf(
+                        "TX Attenuation Min/Max (in quarter dB): %u,%u\n",
+                        sidekiq_params.tx_param[i].atten_quarter_db_min,
+			sidekiq_params.tx_param[i].atten_quarter_db_max
+	);
         printf("\tResolution %u\n", sidekiq_params.rx_param[i].iq_resolution);
     }
 }
