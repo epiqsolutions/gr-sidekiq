@@ -58,15 +58,15 @@
     <param>
         <name>Suppress Tune Transients</name>
         <key>suppress_tune_transients</key>
-        <value>1</value>
+        <value>True</value>
         <type>bool</type>
         <option>
             <name>False</name>
-            <key>0</key>
+            <key>False</key>
         </option>
         <option>
             <name>True</name>
-            <key>1</key>
+            <key>True</key>
         </option>
     </param>
     <param>
