@@ -51,6 +51,8 @@ const size_t DATA_MAX_BUFFER_SIZE{SKIQ_MAX_RX_BLOCK_SIZE_IN_WORDS - SKIQ_RX_HEAD
 
 static const double STATUS_UPDATE_RATE_SECONDS{1.0};
 
+//#define DEBUG_1PPS_TIMESTAMP (1)
+
 sidekiq_rx::sptr sidekiq_rx::make(
 		double sample_rate,
 		double gain,
@@ -112,7 +114,6 @@ sidekiq_rx_impl::sidekiq_rx_impl(
 	set_rx_gain(gain);
 	set_rx_filter_override_taps(taps);
 	get_configuration_limits();
-	get_rx_gain_range();
 
 	auto alignment_multiple = static_cast<int>(volk_get_alignment() / sizeof(short));
 	set_alignment(alignment_multiple);
@@ -138,16 +139,6 @@ bool sidekiq_rx_impl::stop() {
 	return block::stop();
 }
 
-void sidekiq_rx_impl::get_rx_gain_range() {
-	uint8_t gain_min;
-	uint8_t gain_max;
-
-	if (skiq_read_rx_gain_index_range(card, hdl, &gain_min, &gain_max) != 0) {
-		printf("Error: could not get gain index range\n");
-	}
-	printf("\n\nGain min/max: %d %d\n", gain_min, gain_max);
-}
-
 uint8_t sidekiq_rx_impl::get_rx_gain_mode() {
 	skiq_rx_gain_t result;
 
@@ -163,21 +154,86 @@ void sidekiq_rx_impl::set_rx_gain_mode(uint8_t value) {
 	}
 }
 
-uint8_t sidekiq_rx_impl::get_rx_gain() {
-	uint8_t result;
+double sidekiq_rx_impl::get_rx_gain() {
+        double cal_offset;
 
-	if (skiq_read_rx_gain(card, hdl, &result) != 0) {
-		printf("Error: could not get gain\n");
+	if (skiq_read_rx_cal_offset(card, hdl, &cal_offset) != 0) {
+		printf("Error: could not get calibration offset\n");
 	}
-	return result;
+
+	return cal_offset;
 }
 
-void sidekiq_rx_impl::set_rx_gain(double value) {
-	if (skiq_write_rx_gain(card, hdl, static_cast<uint8_t>(value)) != 0) {
-		printf("Error: could not set gain to %f\n", value);
-	} else {
-		tag_now = true;
-	}
+void sidekiq_rx_impl::get_rx_gain_range( double *p_min_gain, double *p_max_gain )
+{
+       // determine the minimum and maximum gain we can achieve
+    skiq_read_rx_cal_offset_by_gain_index( card,
+                                           hdl,
+                                           sidekiq_params.rx_param[hdl].gain_index_min,
+                                           p_min_gain );
+    skiq_read_rx_cal_offset_by_gain_index( card,
+                                           hdl,
+                                           sidekiq_params.rx_param[hdl].gain_index_max,
+                                           p_max_gain );
+}
+
+void sidekiq_rx_impl::set_rx_gain(double value) {    
+    double min_cal_offset;
+    double max_cal_offset;
+    uint8_t updated_gain_index=0;
+    double updated_cal_offset=0;
+    double prev_cal_offset=0;
+    bool found_gain_index=false;
+
+    get_rx_gain_range( &min_cal_offset, &max_cal_offset );
+    printf("Gain range for current frequency is %f - %f\n", min_cal_offset, max_cal_offset);
+
+    if( value <= min_cal_offset )
+    {
+        updated_gain_index = sidekiq_params.rx_param[hdl].gain_index_min;
+        updated_cal_offset = min_cal_offset;
+    }
+    else if( value >= max_cal_offset )
+    {
+        updated_gain_index = sidekiq_params.rx_param[hdl].gain_index_max;
+        updated_cal_offset = max_cal_offset;
+    }
+    else
+    {
+        // TODO: a more effective search should be used to determine optimal gain index
+        prev_cal_offset = min_cal_offset;
+        for( uint8_t i=(sidekiq_params.rx_param[hdl].gain_index_min)+1;
+             (i<sidekiq_params.rx_param[hdl].gain_index_max) && (found_gain_index==false);
+             i++ )
+        {
+            // new read the actual calibration offset with the new gain index
+            skiq_read_rx_cal_offset_by_gain_index( card,
+                                                   hdl,
+                                                   i,
+                                                   &updated_cal_offset );
+            if( value >= prev_cal_offset &&
+                value <= updated_cal_offset )
+            {
+                found_gain_index = true;
+                updated_gain_index=i--;
+                updated_cal_offset=prev_cal_offset;
+                printf("Found gain index %u, actual gain is %f\n",
+                       updated_gain_index, updated_cal_offset);
+            }
+            else
+            {
+                prev_cal_offset = updated_cal_offset;
+            }
+        }
+    }
+    printf("Updated gain is %f for gain index %u\n",
+           updated_cal_offset, updated_gain_index);
+
+    if (skiq_write_rx_gain(card, hdl, updated_gain_index) != 0) {
+        printf("Error: could not set gain to %f\n", value);
+    } else {
+        tag_now = true;
+    }
 }
 
 void sidekiq_rx_impl::set_rx_sample_rate(double value) {
@@ -266,11 +322,17 @@ int sidekiq_rx_impl::work(
 	unsigned int data_length_bytes{};
 	skiq_rx_block_t *p_rx_block{};
 	auto out = static_cast<gr_complex *>(output_items[output_port]);
+        static size_t last_timestamp_gap_update = 0;
 
 	if (nitems_written(output_port) - last_status_update_sample > status_update_rate_in_samples) {
+            if( timestamp_gap_count != last_timestamp_gap_update ) {
 		printf("Timestamp gap count: %ld\n", timestamp_gap_count);
+                last_timestamp_gap_update = timestamp_gap_count;
+            }
 		last_status_update_sample = nitems_written(output_port);
+#ifdef DEBUG_1PPS_TIMESTAMP                
 		printf("Last System Timestamp: %ld\n", get_last_pps_timestamp());
+#endif                
 	}
 
 	while ((unsigned int)(noutput_items - samples_receive_count) >= (DATA_MAX_BUFFER_SIZE)) {
@@ -283,7 +345,7 @@ int sidekiq_rx_impl::work(
 			volk_16i_s32f_convert_32f_u(
 					(float *) out,
 					(const int16_t *) p_rx_block->data,
-					ADC_12BIT_SCALING_FACTOR,
+					adc_scaling,
 					(buffer_sample_count * IQ_SHORT_COUNT));
 
 			if (p_rx_block->rf_timestamp != next_timestamp && next_timestamp != 0) {

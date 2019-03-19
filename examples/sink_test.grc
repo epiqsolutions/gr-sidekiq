@@ -1,5 +1,5 @@
 <?xml version='1.0' encoding='utf-8'?>
-<?grc format='1' created='3.7.12'?>
+<?grc format='1' created='3.7.11'?>
 <flow_graph>
   <timestamp>Tue Dec  5 21:23:48 2017</timestamp>
   <block>
@@ -73,20 +73,12 @@
       <value>True</value>
     </param>
     <param>
-      <key>sizing_mode</key>
-      <value>fixed</value>
-    </param>
-    <param>
       <key>thread_safe_setters</key>
       <value></value>
     </param>
     <param>
       <key>title</key>
       <value></value>
-    </param>
-    <param>
-      <key>placement</key>
-      <value>(0,0)</value>
     </param>
   </block>
   <block>
@@ -105,7 +97,7 @@
     </param>
     <param>
       <key>_coordinate</key>
-      <value>(472, 8)</value>
+      <value>(544, 4)</value>
     </param>
     <param>
       <key>gui_hint</key>
@@ -117,11 +109,11 @@
     </param>
     <param>
       <key>id</key>
-      <value>attenuation</value>
+      <value>atten_quart_db</value>
     </param>
     <param>
       <key>label</key>
-      <value>Attenuation</value>
+      <value>Attenuation </value>
     </param>
     <param>
       <key>min_len</key>
@@ -231,7 +223,7 @@
     </param>
     <param>
       <key>_coordinate</key>
-      <value>(336, 8)</value>
+      <value>(408, 4)</value>
     </param>
     <param>
       <key>gui_hint</key>
@@ -290,7 +282,7 @@
     </param>
     <param>
       <key>_coordinate</key>
-      <value>(600, 12)</value>
+      <value>(200, 140)</value>
     </param>
     <param>
       <key>_rotation</key>
@@ -302,7 +294,7 @@
     </param>
     <param>
       <key>value</key>
-      <value>359</value>
+      <value>5000</value>
     </param>
   </block>
   <block>
@@ -329,7 +321,7 @@
     </param>
     <param>
       <key>value</key>
-      <value>56e6</value>
+      <value>122.88e6</value>
     </param>
   </block>
   <block>
@@ -662,7 +654,7 @@
     </param>
     <param>
       <key>_coordinate</key>
-      <value>(280, 352)</value>
+      <value>(120, 356)</value>
     </param>
     <param>
       <key>_rotation</key>
@@ -695,6 +687,45 @@
     <param>
       <key>waveform</key>
       <value>analog.GR_COS_WAVE</value>
+    </param>
+  </block>
+  <block>
+    <key>blocks_conjugate_cc</key>
+    <param>
+      <key>alias</key>
+      <value></value>
+    </param>
+    <param>
+      <key>comment</key>
+      <value></value>
+    </param>
+    <param>
+      <key>affinity</key>
+      <value></value>
+    </param>
+    <param>
+      <key>_enabled</key>
+      <value>True</value>
+    </param>
+    <param>
+      <key>_coordinate</key>
+      <value>(328, 392)</value>
+    </param>
+    <param>
+      <key>_rotation</key>
+      <value>0</value>
+    </param>
+    <param>
+      <key>id</key>
+      <value>blocks_conjugate_cc_0</value>
+    </param>
+    <param>
+      <key>maxoutbuf</key>
+      <value>0</value>
+    </param>
+    <param>
+      <key>minoutbuf</key>
+      <value>0</value>
     </param>
   </block>
   <block>
@@ -897,7 +928,7 @@
     <key>sidekiq_sidekiq_tx</key>
     <param>
       <key>attenuation</key>
-      <value>attenuation</value>
+      <value>atten_quart_db</value>
     </param>
     <param>
       <key>bandwidth</key>
@@ -997,6 +1028,12 @@
   </block>
   <connection>
     <source_block_id>analog_sig_source_x_0</source_block_id>
+    <sink_block_id>blocks_conjugate_cc_0</sink_block_id>
+    <source_key>0</source_key>
+    <sink_key>0</sink_key>
+  </connection>
+  <connection>
+    <source_block_id>blocks_conjugate_cc_0</source_block_id>
     <sink_block_id>blocks_throttle_0</sink_block_id>
     <source_key>0</source_key>
     <sink_key>0</sink_key>

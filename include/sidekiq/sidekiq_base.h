@@ -60,8 +60,6 @@ namespace gr {
 
 		static const pmt_t TX_GAIN_KEY{pmt::string_to_symbol("tx_gain")};
 
-		const float ADC_12BIT_SCALING_FACTOR{powf(2.0f, 12.0f) / 2.0f};
-
 		const int IQ_SHORT_COUNT{2};
 
 
@@ -78,6 +76,9 @@ namespace gr {
 			size_t sidekiq_system_time_interval_nanos;
 			size_t timestamp_frequency;
 			gr::sidekiq::sidekiq_functions<HdlType> sidekiq_functions;
+                        skiq_param_t sidekiq_params;
+                        float adc_scaling;
+                        float dac_scaling;
 
 			pmt::pmt_t get_pmt_tuple_from_timestamp(size_t timestamp);
 			pmt::pmt_t get_pmt_cons_from_timestamp(size_t timestamp);

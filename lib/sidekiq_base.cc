@@ -60,7 +60,12 @@ sidekiq_base<HdlType>::sidekiq_base(
 	timestamp_frequency = get_sys_timestamp_frequency();
 	sidekiq_system_time_interval_nanos = NANOSECONDS_IN_SECOND / timestamp_frequency;
 
-
+        // determine radio capabilities
+        skiq_read_parameters( card, &sidekiq_params );
+        // update scaling parameters based on radio capabilities
+        adc_scaling = (pow(2.0f, sidekiq_params.rx_param[handle_type].iq_resolution) / 2.0)-1;
+        dac_scaling = (pow(2.0f, sidekiq_params.tx_param[handle_type].iq_resolution) / 2.0)-1;
+        
 	set_sync_type(sync_type);
 }
 
@@ -113,30 +118,45 @@ void sidekiq_base<HdlType>::set_sync_type(int type) {
 
 template<typename HdlType>
 void sidekiq_base<HdlType>::get_configuration_limits() {
-	uint64_t lo_min;
-	uint64_t lo_max;
-	uint32_t min_sample_rate;
-	uint32_t max_sample_rate;
 
-	if (skiq_read_rx_LO_freq_range(card, &lo_max, &lo_min) != 0) {
-		printf("Error: failed to get LO freq range\n");
-	}
-	if (skiq_read_min_sample_rate(card, &min_sample_rate) != 0) {
-		printf("Error: failed to get min sample rate\n");
-	}
-	if (skiq_read_max_sample_rate(card, &max_sample_rate) != 0) {
-		printf("Error: failed to get max sample rate\n");
-	}
+    printf("\nNumber of RX channels available: %u\n", sidekiq_params.rf_param.num_rx_channels);
+    for( int i=0; i<sidekiq_params.rf_param.num_rx_channels; i++ )
+    {
+        printf("        RX Channel %u\n", i);
 	printf(
-			"LO Range Min/Max: %1.1fMHz,%1.1fMHz\n",
-			static_cast<double >(lo_min) / 1e6,
-			static_cast<double >(lo_max) / 1e6
+			"\tRX LO Range Min/Max: %1.1fMHz,%1.1fMHz\n",
+			static_cast<double >(sidekiq_params.rx_param[i].lo_freq_min) / 1e6,
+			static_cast<double >(sidekiq_params.rx_param[i].lo_freq_max) / 1e6
 	);
 	printf(
-			"Sample Rate Min/Max: %1.3fMsps,%1.3fMsps\n\n",
-			static_cast<double >(min_sample_rate) / 1e6,
-			static_cast<double >(max_sample_rate) / 1e6
+			"\tRX Sample Rate Min/Max: %1.3fMsps,%1.3fMsps\n",
+			static_cast<double >(sidekiq_params.rx_param[i].sample_rate_min) / 1e6,
+			static_cast<double >(sidekiq_params.rx_param[i].sample_rate_max) / 1e6
 	);
+        printf("\tResolution %u\n", sidekiq_params.rx_param[i].iq_resolution);
+    }
+
+    printf("Number of TX channels available: %u\n", sidekiq_params.rf_param.num_tx_channels);
+    for( int i=0; i<sidekiq_params.rf_param.num_tx_channels; i++ )
+    {
+        printf("        TX Channel %u\n", i);
+        printf(
+			"TX LO Range Min/Max: %1.1fMHz,%1.1fMHz\n",
+			static_cast<double >(sidekiq_params.tx_param[i].lo_freq_min) / 1e6,
+			static_cast<double >(sidekiq_params.tx_param[i].lo_freq_max) / 1e6
+	);
+	printf(
+			"TX Sample Rate Min/Max: %1.3fMsps,%1.3fMsps\n",
+			static_cast<double >(sidekiq_params.tx_param[i].sample_rate_min) / 1e6,
+			static_cast<double >(sidekiq_params.tx_param[i].sample_rate_max) / 1e6
+	);
+        printf(
+                        "TX Attenuation Min/Max (in quarter dB): %u,%u\n",
+                        sidekiq_params.tx_param[i].atten_quarter_db_min,
+			sidekiq_params.tx_param[i].atten_quarter_db_max
+	);
+        printf("\tResolution %u\n", sidekiq_params.rx_param[i].iq_resolution);
+    }
 }
 
 template<typename HdlType>

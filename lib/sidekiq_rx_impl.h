@@ -70,10 +70,10 @@ namespace gr {
 			size_t status_update_rate_in_samples{};
 			std::vector<int16_t> filter_override_taps;
 
-			void get_rx_gain_range();
 			uint8_t get_rx_gain_mode();
 			void set_rx_gain_mode(uint8_t value);
-			uint8_t get_rx_gain();
+			double get_rx_gain();
+                        void get_rx_gain_range( double *p_min_gain, double *p_max_gain );
 			void output_telemetry_message();
 			void handle_control_message(pmt::pmt_t message);
 			void apply_all_tags(size_t sample_index, size_t timestamp);
