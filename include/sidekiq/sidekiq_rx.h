@@ -45,7 +45,8 @@ namespace gr {
 					double bandwidth,
 					int sync_type,
 					size_t num_items,
-					const std::vector<float> &taps);
+					const std::vector<float> &taps,
+                                        uint8_t trigger_src);
 
 			virtual void set_rx_sample_rate(double value) = 0;
 

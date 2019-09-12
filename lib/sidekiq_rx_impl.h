@@ -38,7 +38,8 @@ namespace gr {
 					double bandwitdh,
 					int sync_type,
 					size_t num_items,
-					const std::vector<float> &taps);
+					const std::vector<float> &taps,
+                                        uint8_t trigger_src);
 
 			int work(
 					int noutput_items,
@@ -69,6 +70,7 @@ namespace gr {
 			size_t last_status_update_sample{};
 			size_t status_update_rate_in_samples{};
 			std::vector<int16_t> filter_override_taps;
+                        uint8_t _trigger_src;
 
 			uint8_t get_rx_gain_mode();
 			void set_rx_gain_mode(uint8_t value);

@@ -4,7 +4,7 @@
     <key>sidekiq_sidekiq_rx</key>
     <category>[sidekiq]</category>
     <import>import sidekiq</import>
-    <make>sidekiq.sidekiq_rx($sample_rate, $gain, $gain_mode, $frequency, $bandwidth, $sync, $num_items, $filter_override_taps)</make>
+    <make>sidekiq.sidekiq_rx($sample_rate, $gain, $gain_mode, $frequency, $bandwidth, $sync, $num_items, $filter_override_taps,$trigger_src)</make>
     <callback>set_rx_sample_rate($sample_rate)</callback>
     <callback>set_rx_gain($gain)</callback>
     <callback>set_rx_frequency($frequency)</callback>
@@ -33,6 +33,20 @@
         </option>
         <option>
             <name>Auto Gain</name>
+            <key>1</key>
+        </option>
+    </param>
+    <param>
+        <name>Trigger Source</name>
+        <key>trigger_src</key>
+        <value>0</value>
+        <type>int</type>
+        <option>
+            <name>Immediate</name>
+            <key>0</key>
+        </option>
+        <option>
+            <name>1PPS</name>
             <key>1</key>
         </option>
     </param>

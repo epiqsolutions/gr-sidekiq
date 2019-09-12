@@ -42,6 +42,7 @@ namespace gr {
 					std::function<int32_t(uint8_t, uint8_t *, uint8_t *)> get_rfic_fir_config_func,
 					std::function<int32_t(uint8_t, int16_t *)> set_rfic_fir_coeffs_func,
 					std::function<int32_t(uint8_t, int16_t *)> get_rfic_fir_coeffs_func) :
+                    
 					start_streaming_func{start_streaming_func},
 					stop_streaming_func{stop_streaming_func},
 					set_frequency_func{set_frequency_func},

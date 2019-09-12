@@ -61,7 +61,8 @@ sidekiq_rx::sptr sidekiq_rx::make(
 		double bandwidth,
 		int sync_type,
 		size_t num_items,
-		const std::vector<float> &taps) {
+		const std::vector<float> &taps,
+                uint8_t trigger_src) {
 	return boost::make_shared<sidekiq_rx_impl>(
 			sample_rate,
 			gain,
@@ -70,7 +71,8 @@ sidekiq_rx::sptr sidekiq_rx::make(
 			bandwidth,
 			sync_type,
 			num_items,
-			taps
+			taps,
+                        trigger_src
 	);
 }
 
@@ -82,7 +84,8 @@ sidekiq_rx_impl::sidekiq_rx_impl(
 		double bandwidth,
 		int sync_type,
 		size_t num_items,
-		const std::vector<float> &taps) :
+		const std::vector<float> &taps,
+                uint8_t trigger_src) :
 		gr::sync_block{
 				"sidekiq_rx",
 				gr::io_signature::make(0, 0, 0),
@@ -121,16 +124,41 @@ sidekiq_rx_impl::sidekiq_rx_impl(
 	message_port_register_in(CONTROL_MESSAGE_PORT);
 	set_msg_handler(CONTROL_MESSAGE_PORT, bind(&sidekiq_rx_impl::handle_control_message, this, _1));
 	message_port_register_out(TELEMETRY_MESSAGE_PORT);
+
+        _trigger_src = trigger_src;
 }
 
 bool sidekiq_rx_impl::start() {
-	if (skiq_set_rx_transfer_timeout(card, RX_TRANSFER_WAIT_FOREVER) != 0) {
-		printf("Error: unable to set RX transfer timeout\n");
-		this->stop();
-	}
-	output_telemetry_message();
-	start_streaming();
-	return block::start();
+    int32_t status=0;
+    
+    if (skiq_set_rx_transfer_timeout(card, RX_TRANSFER_WAIT_FOREVER) != 0) {
+        printf("Error: unable to set RX transfer timeout\n");
+        this->stop();
+    }
+    output_telemetry_message();
+    
+    if( _trigger_src == skiq_trigger_src_1pps )
+    {
+        // for now, force the 1PPS to be host
+        skiq_write_1pps_source( card, skiq_1pps_source_host );
+        // setup timestamp to reset on 1PPS
+        skiq_write_timestamp_reset_on_1pps(card, 0);
+        // start streaming on 1PPS
+        if( (status=skiq_start_rx_streaming_multi_on_trigger( card,
+                                                              &hdl,
+                                                              1,
+                                                              skiq_trigger_src_1pps,
+                                                              0 )) != 0 )
+        {
+            printf("Unable to start streaming on 1PPS with error code=%d\n", status);
+            return false;
+        }
+    }
+    else
+    {
+        start_streaming();
+    }
+    return block::start();
 }
 
 bool sidekiq_rx_impl::stop() {
@@ -156,10 +184,12 @@ void sidekiq_rx_impl::set_rx_gain_mode(uint8_t value) {
 
 double sidekiq_rx_impl::get_rx_gain() {
         double cal_offset;
-
+        // calibration offset not yet supported for Stretch
+#if 0
 	if (skiq_read_rx_cal_offset(card, hdl, &cal_offset) != 0) {
 		printf("Error: could not get calibration offset\n");
 	}
+#endif        
 
 	return cal_offset;
 }

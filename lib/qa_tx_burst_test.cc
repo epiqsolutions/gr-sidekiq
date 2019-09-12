@@ -71,7 +71,7 @@ namespace gr {
 			const std::vector<float> filter_override_taps = {0.1, 0.2, 0.34};
 
 			gr::top_block_sptr top_block = gr::make_top_block("test");
-			auto sidekiq_recv = sidekiq_rx::make(sample_rate, 1, 1, frequency, .5e6, 1, 1, filter_override_taps);
+			auto sidekiq_recv = sidekiq_rx::make(sample_rate, 1, 1, frequency, .5e6, 1, 1, filter_override_taps, 0);
 			auto nullsink = blocks::null_sink::make(sizeof(gr_complex));
 
 			auto rrc_filter = filter::firdes::root_raised_cosine(
