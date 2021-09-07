@@ -49,26 +49,21 @@ include_directories(
         $ENV{SIDEKIQ_SDK}/sidekiq_core/inc)
 
 list(APPEND test_sidekiq_sources
-        ${CMAKE_CURRENT_SOURCE_DIR}/test_sidekiq.cc
-        ${CMAKE_CURRENT_SOURCE_DIR}/qa_sidekiq.cc
-        ${CMAKE_CURRENT_SOURCE_DIR}/qa_tx_burst_test.cc
         )
 
-add_executable(test-sidekiq ${test_sidekiq_sources})
+# Anything we need to link to for the unit tests go here
+list(APPEND GR_TEST_TARGET_DEPS gnuradio-sidekiq)
 
-target_link_libraries(
-        test-sidekiq
-        ${GNURADIO_RUNTIME_LIBRARIES}
-        gnuradio-blocks
-        gnuradio-pmt
-        gnuradio-filter
-        ${Boost_LIBRARIES}
-        ${CPPUNIT_LIBRARIES}
-        ${SIDEKIQ}
-        gnuradio-sidekiq
-)
+if(NOT test_sidekiq_sources)
+    MESSAGE(STATUS "No C++ unit tests... skipping")
+    return()
+endif(NOT test_sidekiq_sources)
 
-GR_ADD_TEST(test_sidekiq test-sidekiq)
+foreach(qa_file ${test_sidekiq_sources})
+    GR_ADD_CPP_TEST("sidekiq_${qa_file}"
+        ${CMAKE_CURRENT_SOURCE_DIR}/${qa_file}
+    )
+endforeach(qa_file)
 
 ########################################################################
 # Print summary

@@ -68,8 +68,9 @@ tx_burst_test_impl::tx_burst_test_impl(double sample_rate, double burst_len_mill
 	set_burst_interval(burst_interval_millis);
 	update_nco();
 
-	message_port_register_in(TELEMETRY_MESSAGE_PORT);
-	set_msg_handler(TELEMETRY_MESSAGE_PORT, bind(&tx_burst_test_impl::handle_current_usrp_time_message, this, _1));
+	//message_port_register_in(TELEMETRY_MESSAGE_PORT);
+	// TODO: MZ
+	//set_msg_handler(TELEMETRY_MESSAGE_PORT, bind(&tx_burst_test_impl::handle_current_usrp_time_message, this, _1));
 }
 
 bool tx_burst_test_impl::start() {

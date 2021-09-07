@@ -35,7 +35,7 @@ namespace gr {
 	namespace sidekiq {
 		class SIDEKIQ_API sidekiq_tx : virtual public gr::sync_block {
 		public:
-			typedef boost::shared_ptr<sidekiq_tx> sptr;
+			typedef std::shared_ptr<sidekiq_tx> sptr;
 			static sptr make(
 					double sample_rate,
 					double attenuation,

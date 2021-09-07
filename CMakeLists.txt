@@ -182,10 +182,9 @@ add_custom_target(uninstall
 #    ${SIDEKIQ_INCLUDE_DIRS}
 #)
 
-#link_directories(
-#    ${GNURADIO_RUNTIME_LIBRARY_DIRS}
-#    $ENV{EPIQ_LIBS}
-#)
+link_directories(
+    $ENV{EPIQ_LIBS}
+)
 
 # Set component parameters
 #set(GR_SIDEKIQ_INCLUDE_DIRS ${CMAKE_CURRENT_SOURCE_DIR}/include CACHE INTERNAL "" FORCE)

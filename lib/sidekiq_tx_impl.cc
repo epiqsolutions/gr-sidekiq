@@ -22,6 +22,7 @@
 #include <gnuradio/io_signature.h>
 #include <volk/volk.h>
 #include <boost/algorithm/string.hpp>
+#include <boost/foreach.hpp>
 #include "sidekiq_tx_impl.h"
 
 using namespace gr::sidekiq;
@@ -131,7 +132,8 @@ sidekiq_tx_impl::sidekiq_tx_impl(
 	set_alignment(alignment_multiple);
 
 	message_port_register_in(CONTROL_MESSAGE_PORT);
-	set_msg_handler(CONTROL_MESSAGE_PORT, bind(&sidekiq_tx_impl::handle_control_message, this, _1));
+	// TODO: MZ
+	//set_msg_handler(CONTROL_MESSAGE_PORT, bind(&sidekiq_tx_impl::handle_control_message, this, _1));
 	message_port_register_out(TELEMETRY_MESSAGE_PORT);
 }
 

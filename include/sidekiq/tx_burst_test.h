@@ -36,7 +36,7 @@ namespace gr {
 
 		class SIDEKIQ_API tx_burst_test : virtual public gr::sync_block {
 		public:
-			typedef boost::shared_ptr<tx_burst_test> sptr;
+			typedef std::shared_ptr<tx_burst_test> sptr;
 
 			static sptr make(double sample_rate, double burst_len_millis, double burst_interval_millis);
 
