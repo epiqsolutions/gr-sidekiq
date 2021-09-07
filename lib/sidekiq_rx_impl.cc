@@ -23,7 +23,6 @@
 #include "sidekiq_rx_impl.h"
 #include <volk/volk.h>
 #include <chrono>
-#include <boost/make_shared.hpp>
 #include <boost/asio.hpp>
 
 using namespace gr::sidekiq;
@@ -62,7 +61,7 @@ sidekiq_rx::sptr sidekiq_rx::make(
 		int sync_type,
 		size_t num_items,
 		const std::vector<float> &taps) {
-	return boost::make_shared<sidekiq_rx_impl>(
+	return std::make_shared<sidekiq_rx_impl>(
 			sample_rate,
 			gain,
 			gain_mode,
@@ -119,8 +118,9 @@ sidekiq_rx_impl::sidekiq_rx_impl(
 	set_alignment(alignment_multiple);
 
 	message_port_register_in(CONTROL_MESSAGE_PORT);
-	// TODO: MZ
-	//set_msg_handler(CONTROL_MESSAGE_PORT, bind(&sidekiq_rx_impl::handle_control_message, this, _1));
+	set_msg_handler( CONTROL_MESSAGE_PORT, [this](pmt::pmt_t msg) { this->handle_control_message(msg); });
+
+
 	message_port_register_out(TELEMETRY_MESSAGE_PORT);
 }
 
