@@ -68,9 +68,8 @@ tx_burst_test_impl::tx_burst_test_impl(double sample_rate, double burst_len_mill
 	set_burst_interval(burst_interval_millis);
 	update_nco();
 
-	//message_port_register_in(TELEMETRY_MESSAGE_PORT);
-	// TODO: MZ
-	//set_msg_handler(TELEMETRY_MESSAGE_PORT, bind(&tx_burst_test_impl::handle_current_usrp_time_message, this, _1));
+	message_port_register_in(TELEMETRY_MESSAGE_PORT);
+	set_msg_handler(TELEMETRY_MESSAGE_PORT, [this](pmt::pmt_t msg) { this->handle_current_usrp_time_message(msg); });
 }
 
 bool tx_burst_test_impl::start() {
@@ -79,11 +78,11 @@ bool tx_burst_test_impl::start() {
 
 void tx_burst_test_impl::handle_current_usrp_time_message(pmt_t message) {
 	uint64_t time_full_seconds{};
-	double time_fractional_seconds{};
+//	double time_fractional_seconds{};
 	pmt::pmt_t timespec_p = pmt::dict_ref(message, CMD_CURRENT_USRP_TIME, pmt::PMT_NIL);
 
 	time_full_seconds = pmt::to_uint64(pmt::car(timespec_p));
-	time_fractional_seconds = pmt::to_double(pmt::cdr(timespec_p));
+//	time_fractional_seconds = pmt::to_double(pmt::cdr(timespec_p));
 //	printf("USRP Time: %ld %1.9f\n", time_full_seconds, time_fractional_seconds);
 	if (current_time_nanos == TX_START_TIME_INVALID) {
 		current_time_nanos = time_full_seconds + TX_START_TIME_ADVANCE_SECONDS;
@@ -135,6 +134,8 @@ int tx_burst_test_impl::work(
 	int num_burst_samples{static_cast<int>(sample_rate * burst_len_seconds)};
 	int input_index{};
 
+	(void)(input_items);
+	
 	if (current_time_nanos == TX_START_TIME_INVALID) {
 		//we wait for the telemetry message to come in to set initial time
 		noutput_items = 0;

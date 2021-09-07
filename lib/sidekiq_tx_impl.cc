@@ -233,6 +233,7 @@ void sidekiq_tx_impl::handle_control_message(pmt_t message) {
 }
 
 void sidekiq_tx_impl::forecast(int noutput_items, gr_vector_int &ninput_items_required) {
+	(void)(noutput_items);
 	ninput_items_required[0] = tx_buffer_size;
 }
 
@@ -308,6 +309,8 @@ int sidekiq_tx_impl::work(
 	int samples_written{};
 	int32_t result;
 	std::vector<tag_t> tags;
+	
+	(void)(output_items);
 
 	//TODO: this will not work when noutput_items < tx_buffer_size, it will return 0. Fix it...
 	auto ninput_items = noutput_items - (noutput_items % tx_buffer_size);
