@@ -132,8 +132,7 @@ sidekiq_tx_impl::sidekiq_tx_impl(
 	set_alignment(alignment_multiple);
 
 	message_port_register_in(CONTROL_MESSAGE_PORT);
-	// TODO: MZ
-	//set_msg_handler(CONTROL_MESSAGE_PORT, bind(&sidekiq_tx_impl::handle_control_message, this, _1));
+	set_msg_handler(CONTROL_MESSAGE_PORT, [this](pmt::pmt_t msg) { this->handle_control_message(msg); });
 	message_port_register_out(TELEMETRY_MESSAGE_PORT);
 }
 
