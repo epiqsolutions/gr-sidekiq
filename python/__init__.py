@@ -23,12 +23,14 @@ This is the GNU Radio SIDEKIQ module. Place your Python package
 description here (python/__init__.py).
 '''
 
-# import swig generated symbols into the sidekiq namespace
+import os
+
+# import pybind11 generated symbols into the sidekiq namespace
 try:
-	# this might fail if the module is python-only
-	from sidekiq_swig import *
-except ImportError:
-	pass
+    # this might fail if the module is python-only
+    from .sidekiq_python import *
+except ModuleNotFoundError:
+    pass
 
 # import any pure python here
 #
