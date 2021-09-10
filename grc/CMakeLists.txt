@@ -1,5 +1,9 @@
+#install(FILES
+#    sidekiq_sidekiq_rx.yml
+#    sidekiq_sidekiq_tx.yml
+#    sidekiq_tx_burst_test.yml DESTINATION share/gnuradio/grc/blocks
+# )
+
 install(FILES
-    sidekiq_sidekiq_rx.xml
-    sidekiq_sidekiq_tx.xml
-    sidekiq_tx_burst_test.xml DESTINATION share/gnuradio/grc/blocks
+    sidekiq_sidekiq_rx.block.yml DESTINATION share/gnuradio/grc/blocks
 )
