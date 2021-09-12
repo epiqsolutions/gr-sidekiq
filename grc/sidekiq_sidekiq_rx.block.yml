@@ -1,4 +1,4 @@
-id: blocks_sidekiq_rx
+id: sidekiq_rx
 label: Sidekiq RX Source
 category: '[sidekiq]'
 
@@ -7,6 +7,10 @@ templates:
   make: sidekiq.sidekiq_rx(${sample_rate}, ${gain}, ${gain_mode}, ${frequency}, ${bandwidth}, ${sync_type}, ${num_items}, ${&taps})
   callbacks: 
   - set_rx_sample_rate(${sample_rate})
+  - set_rx_gain(${gain})
+  - set_rx_frequency(${frequency})
+  - set_rx_bandwidth(${bandwidth})
+  - set_rx_filter_override_taps(${filter_override_taps})
   
 #  Make one 'parameters' list entry for every parameter you want settable from the GUI.
 #     Keys include:
@@ -17,7 +21,39 @@ templates:
 parameters:
 - id: sample_rate
   label: Sample Rate
-  dtype: 1e6
+  dtype: real
+  default: 1e6
+- id: gain
+  label: Gain
+  dtype: int
+  default: 1
+- id: gain_mode
+  label: Gain Mode
+  dtype: enum
+  options: ['0', '1']
+  option_labels: ['Manual', 'Auto']
+  default: 0
+- id: frequency
+  label: Frequency
+  dtype: real
+  default: 2400e6
+- id: bandwidth
+  label: Bandwidth
+  default: 1e6
+  dtype: real
+- id: sync
+  label: Sync
+  dtype: enum
+  options: ['1','2', '3']
+  option_labels: ['Zero', 'GPS PPS', 'PC Clock']
+  default: 1
+- id: filter_override_taps
+  label: Filter Override Taps
+  dtype: real_vector
+- id: num_items
+  label: Vector Length
+  dtype: int
+  default: 4096
 
 #  Make one 'inputs' list entry per input and one 'outputs' list entry per output.
 #  Keys include:
@@ -26,7 +62,7 @@ parameters:
 #      * dtype (e.g. int, float, complex, byte, short, xxx_vector, ...)
 #      * vlen (optional - data stream vector length. Default is 1)
 #      * optional (optional - set to 1 for optional inputs. Default is 0)
-inputs:
+outputs:
 - label: Samples
   domain: stream
   dtype: complex
