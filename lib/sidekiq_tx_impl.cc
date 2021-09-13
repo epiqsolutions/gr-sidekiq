@@ -49,8 +49,7 @@ sidekiq_tx::sptr sidekiq_tx::make(
 		int sync_type,
 		bool suppress_tune_transients,
 		uint8_t dataflow_mode,
-		int buffer_size,
-		const std::vector<float> &taps) {
+		int buffer_size) {  
 	return gnuradio::get_initial_sptr(
 			new sidekiq_tx_impl(
 					sample_rate,
@@ -60,8 +59,7 @@ sidekiq_tx::sptr sidekiq_tx::make(
 					sync_type,
 					suppress_tune_transients,
 					dataflow_mode,
-					buffer_size,
-					taps
+					buffer_size
 			));
 }
 
@@ -73,8 +71,7 @@ sidekiq_tx_impl::sidekiq_tx_impl(
 		int sync_type,
 		bool suppress_tune_transients,
 		uint8_t dataflow_mode,
-		int buffer_size,
-		const std::vector<float> &taps)
+		int buffer_size) 
 		: gr::sync_block(
 		"sidekiq_tx",
 		gr::io_signature::make(1, 1, sizeof(gr_complex)),
@@ -103,7 +100,6 @@ sidekiq_tx_impl::sidekiq_tx_impl(
 	set_tx_bandwidth(bandwidth);
 	set_tx_suppress_tune_transients(suppress_tune_transients);
 	set_tx_attenuation(attenuation);
-	set_tx_filter_override_taps(taps);
 //	get_filter_parameters();
 	if (skiq_write_tx_data_flow_mode(card, hdl, this->dataflow_mode) != 0) {
 		printf("Error: could not set TX dataflow mode\n");

@@ -14,7 +14,7 @@
 /* BINDTOOL_GEN_AUTOMATIC(0)                                                       */
 /* BINDTOOL_USE_PYGCCXML(0)                                                        */
 /* BINDTOOL_HEADER_FILE(sidekiq_tx.h)                                        */
-/* BINDTOOL_HEADER_FILE_HASH(7d68f1a5058bdc9abc01f006ffa4deff)                     */
+/* BINDTOOL_HEADER_FILE_HASH(d92c6e9380e083b638d1a5abcaceabf1)                     */
 /***********************************************************************************/
 
 #include <pybind11/complex.h>
@@ -33,7 +33,7 @@ void bind_sidekiq_tx(py::module& m)
     using sidekiq_tx    = gr::sidekiq::sidekiq_tx;
 
 
-    py::class_<sidekiq_tx,
+    py::class_<sidekiq_tx, gr::block, gr::basic_block,
         std::shared_ptr<sidekiq_tx>>(m, "sidekiq_tx", D(sidekiq_tx))
 
         .def(py::init(&sidekiq_tx::make),
@@ -45,7 +45,6 @@ void bind_sidekiq_tx(py::module& m)
            py::arg("suppress_tune_transients"),
            py::arg("dataflow_mode"),
            py::arg("buffer_size"),
-           py::arg("taps"),
            D(sidekiq_tx,make)
         )
         

@@ -40,8 +40,7 @@ namespace gr {
 					int sync_type,
 					bool suppress_tune_transients,
 					uint8_t dataflow_mode,
-					int buffer_size,
-					const std::vector<float> &taps);
+					int buffer_size);
 
 			int work(
 					int noutput_items,

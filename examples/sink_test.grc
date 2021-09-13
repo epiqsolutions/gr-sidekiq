@@ -44,7 +44,7 @@ blocks:
     start: '1'
     step: '1'
     stop: max_attenuation
-    value: '55'
+    value: '5'
     widget: counter_slider
   states:
     bus_sink: false
@@ -260,7 +260,7 @@ blocks:
     bus_sink: false
     bus_source: false
     bus_structure: null
-    coordinate: [328, 392]
+    coordinate: [520, 384.0]
     rotation: 0
     state: enabled
 - name: blocks_message_debug_0
@@ -295,7 +295,7 @@ blocks:
     bus_structure: null
     coordinate: [792, 492]
     rotation: 0
-    state: enabled
+    state: disabled
 - name: blocks_tag_debug_0
   id: blocks_tag_debug
   parameters:
@@ -314,7 +314,7 @@ blocks:
     bus_structure: null
     coordinate: [792, 564]
     rotation: 0
-    state: enabled
+    state: disabled
 - name: blocks_throttle_0
   id: blocks_throttle
   parameters:
@@ -331,9 +331,9 @@ blocks:
     bus_sink: false
     bus_source: false
     bus_structure: null
-    coordinate: [544, 380]
+    coordinate: [352, 396.0]
     rotation: 0
-    state: bypassed
+    state: true
 - name: sidekiq_tx_0
   id: sidekiq_tx
   parameters:
@@ -341,7 +341,7 @@ blocks:
     alias: ''
     attenuation: '1'
     bandwidth: 1e6
-    buffer_size: '16380'
+    buffer_size: '1020'
     comment: ''
     dataflow_mode: '0'
     filter_override_taps: ''
@@ -349,7 +349,7 @@ blocks:
     maxoutbuf: '0'
     minoutbuf: '0'
     sample_rate: 1e6
-    suppress_tune_transients: ''
+    suppress_tune_transients: '0'
     sync: '1'
   states:
     bus_sink: false
@@ -373,11 +373,9 @@ blocks:
     state: enabled
 
 connections:
-- [analog_sig_source_x_0, '0', blocks_conjugate_cc_0, '0']
-- [blocks_conjugate_cc_0, '0', blocks_throttle_0, '0']
-- [blocks_throttle_0, '0', blocks_probe_rate_0, '0']
-- [blocks_throttle_0, '0', blocks_tag_debug_0, '0']
-- [blocks_throttle_0, '0', sidekiq_tx_0, '0']
+- [analog_sig_source_x_0, '0', blocks_throttle_0, '0']
+- [blocks_conjugate_cc_0, '0', sidekiq_tx_0, '0']
+- [blocks_throttle_0, '0', blocks_conjugate_cc_0, '0']
 - [sidekiq_tx_0, telemetry, virtual_sink_0, '0']
 
 metadata:

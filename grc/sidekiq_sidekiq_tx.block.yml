@@ -4,7 +4,7 @@ category: '[sidekiq]'
 
 templates:
   imports: import sidekiq
-  make: sidekiq.sidekiq_tx(${sample_rate}, ${attenuation}, ${frequency}, ${bandwidth}, ${sync}, ${suppress_tune_transients}, ${dataflow_mode}, ${buffer_size}, ${filter_override_taps})
+  make: sidekiq.sidekiq_tx(${sample_rate}, ${attenuation}, ${frequency}, ${bandwidth}, ${sync}, ${suppress_tune_transients}, ${dataflow_mode}, ${buffer_size} )
   callbacks: 
   - set_tx_sample_rate(${sample_rate})
   - set_tx_attenuation(${attenuation})
@@ -44,8 +44,10 @@ parameters:
   default: 1
 - id: suppress_tune_transients
   label: Suppress Tune Transients
-  dtype: bool
-  value: True
+  dtype: enum
+  default: 0
+  options: [ '0', '1' ]
+  option_labels: [ 'False', 'True' ]
 - id: dataflow_mode
   label: Dataflow Mode
   options: ['0', '1']
@@ -57,7 +59,7 @@ parameters:
 - id: buffer_size
   label: Buffer Size
   dtype: int
-  default: 16380
+  default: 1020
   options: [1020, 4092, 16380, 32764]
   option_labels: ['1K', '4K', '16k', '32k']
 
