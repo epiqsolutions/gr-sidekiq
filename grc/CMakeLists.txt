@@ -5,5 +5,6 @@
 # )
 
 install(FILES
-    sidekiq_sidekiq_rx.block.yml DESTINATION share/gnuradio/grc/blocks
+    sidekiq_sidekiq_rx.block.yml
+    sidekiq_sidekiq_tx.block.yml DESTINATION share/gnuradio/grc/blocks
 )
