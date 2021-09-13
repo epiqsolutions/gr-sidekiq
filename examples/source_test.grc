@@ -184,7 +184,7 @@ blocks:
     bus_sink: false
     bus_source: false
     bus_structure: null
-    coordinate: [288, 440.0]
+    coordinate: [288, 280.0]
     rotation: 0
     state: enabled
 - name: blocks_message_debug_0
@@ -198,7 +198,7 @@ blocks:
     bus_sink: false
     bus_source: false
     bus_structure: null
-    coordinate: [288, 280]
+    coordinate: [352, 408.0]
     rotation: 0
     state: enabled
 - name: blocks_probe_rate_0
@@ -217,7 +217,7 @@ blocks:
     bus_sink: false
     bus_source: false
     bus_structure: null
-    coordinate: [800, 340]
+    coordinate: [800, 364.0]
     rotation: 0
     state: enabled
 - name: blocks_tag_debug_0
@@ -236,7 +236,7 @@ blocks:
     bus_sink: false
     bus_source: false
     bus_structure: null
-    coordinate: [800, 412]
+    coordinate: [800, 444.0]
     rotation: 0
     state: enabled
 - name: blocks_vector_to_stream_0
@@ -254,7 +254,7 @@ blocks:
     bus_sink: false
     bus_source: false
     bus_structure: null
-    coordinate: [488, 384.0]
+    coordinate: [504, 280.0]
     rotation: 0
     state: bypassed
 - name: qtgui_freq_sink_x_0
@@ -529,7 +529,7 @@ blocks:
     bus_sink: false
     bus_source: false
     bus_structure: null
-    coordinate: [800, 500]
+    coordinate: [800, 548.0]
     rotation: 0
     state: enabled
 - name: sidekiq_rx_0
@@ -564,6 +564,7 @@ connections:
 - [blocks_vector_to_stream_0, '0', qtgui_time_sink_x_0, '0']
 - [blocks_vector_to_stream_0, '0', qtgui_time_sink_x_1, '0']
 - [sidekiq_rx_0, '0', blocks_conjugate_cc_0, '0']
+- [sidekiq_rx_0, telemetry, blocks_message_debug_0, print]
 
 metadata:
   file_format: 1
