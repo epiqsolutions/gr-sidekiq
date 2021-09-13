@@ -4,7 +4,7 @@ category: '[sidekiq]'
 
 templates:
   imports: import sidekiq
-  make: sidekiq.sidekiq_rx(${sample_rate}, ${gain}, ${gain_mode}, ${frequency}, ${bandwidth}, ${sync_type}, ${num_items}, ${&taps})
+  make: sidekiq.sidekiq_rx(${sample_rate}, ${gain}, ${gain_mode}, ${frequency}, ${bandwidth}, ${sync_type}, ${num_items}, ${&filter_override_taps})
   callbacks: 
   - set_rx_sample_rate(${sample_rate})
   - set_rx_gain(${gain})
