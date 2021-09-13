@@ -14,7 +14,7 @@
 /* BINDTOOL_GEN_AUTOMATIC(0)                                                       */
 /* BINDTOOL_USE_PYGCCXML(0)                                                        */
 /* BINDTOOL_HEADER_FILE(sidekiq_rx.h)                                        */
-/* BINDTOOL_HEADER_FILE_HASH(0ee75829dd916db552bb27b2caaa35ef)                     */
+/* BINDTOOL_HEADER_FILE_HASH(98d47518b39652e7a8928dc9ce754c95)                     */
 /***********************************************************************************/
 
 #include <pybind11/complex.h>
@@ -44,7 +44,6 @@ void bind_sidekiq_rx(py::module& m)
            py::arg("bandwidth"),
            py::arg("sync_type"),
            py::arg("num_items"),
-           py::arg("taps"),
            D(sidekiq_rx,make)
         )
         

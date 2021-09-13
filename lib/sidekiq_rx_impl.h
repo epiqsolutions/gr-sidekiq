@@ -37,8 +37,7 @@ namespace gr {
 					double frequency,
 					double bandwitdh,
 					int sync_type,
-					size_t num_items,
-					const std::vector<float> &taps);
+					size_t num_items);
 
 			int work(
 					int noutput_items,

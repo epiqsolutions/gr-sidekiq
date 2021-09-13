@@ -44,8 +44,7 @@ namespace gr {
 					double frequency,
 					double bandwidth,
 					int sync_type,
-					size_t num_items,
-					const std::vector<float> &taps);
+					size_t num_items );
 
 			virtual void set_rx_sample_rate(double value) = 0;
 

@@ -59,8 +59,7 @@ sidekiq_rx::sptr sidekiq_rx::make(
 		double frequency,
 		double bandwidth,
 		int sync_type,
-		size_t num_items,
-		const std::vector<float> &taps) {
+		size_t num_items) {
 	return std::make_shared<sidekiq_rx_impl>(
 			sample_rate,
 			gain,
@@ -68,8 +67,7 @@ sidekiq_rx::sptr sidekiq_rx::make(
 			frequency,
 			bandwidth,
 			sync_type,
-			num_items,
-			taps
+			num_items
 	);
 }
 
@@ -80,8 +78,7 @@ sidekiq_rx_impl::sidekiq_rx_impl(
 		double frequency,
 		double bandwidth,
 		int sync_type,
-		size_t num_items,
-		const std::vector<float> &taps) :
+		size_t num_items) :
 		gr::sync_block{
 				"sidekiq_rx",
 				gr::io_signature::make(0, 0, 0),
@@ -111,7 +108,6 @@ sidekiq_rx_impl::sidekiq_rx_impl(
 	set_rx_frequency(frequency);
 	set_rx_gain_mode(gain_mode);
 	set_rx_gain(gain);
-	set_rx_filter_override_taps(taps);
 	get_configuration_limits();
 
 	auto alignment_multiple = static_cast<int>(volk_get_alignment() / sizeof(short));

@@ -4,7 +4,7 @@ category: '[sidekiq]'
 
 templates:
   imports: import sidekiq
-  make: sidekiq.sidekiq_rx(${sample_rate}, ${gain}, ${gain_mode}, ${frequency}, ${bandwidth}, ${sync_type}, ${num_items}, ${&filter_override_taps})
+  make: sidekiq.sidekiq_rx(${sample_rate}, ${gain}, ${gain_mode}, ${frequency}, ${bandwidth}, ${sync_type}, ${num_items} )
   callbacks: 
   - set_rx_sample_rate(${sample_rate})
   - set_rx_gain(${gain})
@@ -41,8 +41,8 @@ parameters:
   label: Bandwidth
   default: 1e6
   dtype: real
-- id: sync
-  label: Sync
+- id: sync_type
+  label: Sync Type
   dtype: enum
   options: ['1','2', '3']
   option_labels: ['Zero', 'GPS PPS', 'PC Clock']
