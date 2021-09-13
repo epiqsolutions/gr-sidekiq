@@ -33,7 +33,7 @@ void bind_sidekiq_rx(py::module& m)
     using sidekiq_rx    = gr::sidekiq::sidekiq_rx;
 
 
-    py::class_<sidekiq_rx,
+    py::class_<sidekiq_rx, gr::block, gr::basic_block,
         std::shared_ptr<sidekiq_rx>>(m, "sidekiq_rx", D(sidekiq_rx))
 
         .def(py::init(&sidekiq_rx::make),

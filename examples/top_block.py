@@ -79,18 +79,18 @@ class top_block(gr.top_block, Qt.QWidget):
         # Variables
         ##################################################
         self.variable_function_probe_0 = variable_function_probe_0 = 0
-        self.max_sample_rate = max_sample_rate = 56e6
         self.vector_length = vector_length = 1
         self.variable_qtgui_label_0 = variable_qtgui_label_0 = variable_function_probe_0
-        self.samp_rate = samp_rate = 40e6
-        self.gain = gain = 0
+        self.samp_rate = samp_rate = 10e6
+        self.max_sample_rate = max_sample_rate = 56e6
+        self.gain = gain = 2000
         self.center_freq = center_freq = 915e6
-        self.bandwidth = bandwidth = max_sample_rate
+        self.bandwidth = bandwidth = 10e6
 
         ##################################################
         # Blocks
         ##################################################
-        self._samp_rate_range = Range(1e6, max_sample_rate, 1e6, 40e6, 200)
+        self._samp_rate_range = Range(1e6, max_sample_rate, 1e6, 10e6, 200)
         self._samp_rate_win = RangeWidget(self._samp_rate_range, self.set_samp_rate, 'Sample Rate', "counter_slider", float, QtCore.Qt.Horizontal)
         self.top_grid_layout.addWidget(self._samp_rate_win, 1, 0, 1, 1)
         for r in range(1, 2):
@@ -104,21 +104,20 @@ class top_block(gr.top_block, Qt.QWidget):
             self.top_grid_layout.setRowStretch(r, 1)
         for c in range(0, 1):
             self.top_grid_layout.setColumnStretch(c, 1)
-        self._gain_range = Range(0, 2000, 1, 0, 200)
+        self._gain_range = Range(0, 2000, 1, 2000, 200)
         self._gain_win = RangeWidget(self._gain_range, self.set_gain, 'Gain', "counter_slider", float, QtCore.Qt.Horizontal)
         self.top_grid_layout.addWidget(self._gain_win, 0, 1, 1, 1)
         for r in range(0, 1):
             self.top_grid_layout.setRowStretch(r, 1)
         for c in range(1, 2):
             self.top_grid_layout.setColumnStretch(c, 1)
-        self._bandwidth_range = Range(.1e6, max_sample_rate, 0.1e6, max_sample_rate, 200)
+        self._bandwidth_range = Range(.1e6, max_sample_rate, 0.1e6, 10e6, 200)
         self._bandwidth_win = RangeWidget(self._bandwidth_range, self.set_bandwidth, 'Bandwidth', "counter_slider", float, QtCore.Qt.Horizontal)
         self.top_grid_layout.addWidget(self._bandwidth_win, 1, 1, 1, 1)
         for r in range(1, 2):
             self.top_grid_layout.setRowStretch(r, 1)
         for c in range(1, 2):
             self.top_grid_layout.setColumnStretch(c, 1)
-        self.blocks_probe_rate_0 = blocks.probe_rate(gr.sizeof_gr_complex*1, 500.0, 0.15)
         self._variable_qtgui_label_0_tool_bar = Qt.QToolBar(self)
 
         if None:
@@ -145,7 +144,7 @@ class top_block(gr.top_block, Qt.QWidget):
         _variable_function_probe_0_thread = threading.Thread(target=_variable_function_probe_0_probe)
         _variable_function_probe_0_thread.daemon = True
         _variable_function_probe_0_thread.start()
-        self.sidekiq_rx_0 = sidekiq.sidekiq_rx(1e6, 1, 0, 2400e6, 1e6, 1, vector_length )
+        self.sidekiq_rx_0 = sidekiq.sidekiq_rx(1e6, 1500, 0, 2400e6, 1e6, 1, vector_length )
         self.qtgui_time_sink_x_1 = qtgui.time_sink_c(
             2**14, #size
             samp_rate, #samp_rate
@@ -197,57 +196,6 @@ class top_block(gr.top_block, Qt.QWidget):
 
         self._qtgui_time_sink_x_1_win = sip.wrapinstance(self.qtgui_time_sink_x_1.pyqwidget(), Qt.QWidget)
         self.top_layout.addWidget(self._qtgui_time_sink_x_1_win)
-        self.qtgui_time_sink_x_0 = qtgui.time_sink_c(
-            1024*64, #size
-            samp_rate, #samp_rate
-            "", #name
-            1, #number of inputs
-            None # parent
-        )
-        self.qtgui_time_sink_x_0.set_update_time(0.10)
-        self.qtgui_time_sink_x_0.set_y_axis(-1, 1)
-
-        self.qtgui_time_sink_x_0.set_y_label('Amplitude', "")
-
-        self.qtgui_time_sink_x_0.enable_tags(True)
-        self.qtgui_time_sink_x_0.set_trigger_mode(qtgui.TRIG_MODE_TAG, qtgui.TRIG_SLOPE_POS, 0.0, 0, 0, "rx_rate")
-        self.qtgui_time_sink_x_0.enable_autoscale(False)
-        self.qtgui_time_sink_x_0.enable_grid(False)
-        self.qtgui_time_sink_x_0.enable_axis_labels(True)
-        self.qtgui_time_sink_x_0.enable_control_panel(False)
-        self.qtgui_time_sink_x_0.enable_stem_plot(False)
-
-
-        labels = ['', '', '', '', '',
-            '', '', '', '', '']
-        widths = [1, 1, 1, 1, 1,
-            1, 1, 1, 1, 1]
-        colors = ['blue', 'red', 'green', 'black', 'cyan',
-            'magenta', 'yellow', 'dark red', 'dark green', 'dark blue']
-        alphas = [1.0, 1.0, 1.0, 1.0, 1.0,
-            1.0, 1.0, 1.0, 1.0, 1.0]
-        styles = [1, 1, 1, 1, 1,
-            1, 1, 1, 1, 1]
-        markers = [-1, -1, -1, -1, -1,
-            -1, -1, -1, -1, -1]
-
-
-        for i in range(2):
-            if len(labels[i]) == 0:
-                if (i % 2 == 0):
-                    self.qtgui_time_sink_x_0.set_line_label(i, "Re{{Data {0}}}".format(i/2))
-                else:
-                    self.qtgui_time_sink_x_0.set_line_label(i, "Im{{Data {0}}}".format(i/2))
-            else:
-                self.qtgui_time_sink_x_0.set_line_label(i, labels[i])
-            self.qtgui_time_sink_x_0.set_line_width(i, widths[i])
-            self.qtgui_time_sink_x_0.set_line_color(i, colors[i])
-            self.qtgui_time_sink_x_0.set_line_style(i, styles[i])
-            self.qtgui_time_sink_x_0.set_line_marker(i, markers[i])
-            self.qtgui_time_sink_x_0.set_line_alpha(i, alphas[i])
-
-        self._qtgui_time_sink_x_0_win = sip.wrapinstance(self.qtgui_time_sink_x_0.pyqwidget(), Qt.QWidget)
-        self.top_layout.addWidget(self._qtgui_time_sink_x_0_win)
         self.qtgui_freq_sink_x_0 = qtgui.freq_sink_c(
             4096*2, #size
             window.WIN_BLACKMAN_hARRIS, #wintype
@@ -290,10 +238,8 @@ class top_block(gr.top_block, Qt.QWidget):
 
         self._qtgui_freq_sink_x_0_win = sip.wrapinstance(self.qtgui_freq_sink_x_0.pyqwidget(), Qt.QWidget)
         self.top_layout.addWidget(self._qtgui_freq_sink_x_0_win)
-        self.blocks_throttle_0 = blocks.throttle(gr.sizeof_gr_complex*1, samp_rate,True)
         self.blocks_tag_debug_0 = blocks.tag_debug(gr.sizeof_gr_complex*1, '', "")
         self.blocks_tag_debug_0.set_display(True)
-        self.blocks_message_debug_0 = blocks.message_debug(True)
         self.blocks_conjugate_cc_0 = blocks.conjugate_cc()
 
 
@@ -301,14 +247,10 @@ class top_block(gr.top_block, Qt.QWidget):
         ##################################################
         # Connections
         ##################################################
-        self.msg_connect((self.sidekiq_rx_0, 'telemetry'), (self.blocks_message_debug_0, 'print'))
-        self.connect((self.blocks_conjugate_cc_0, 0), (self.blocks_probe_rate_0, 0))
+        self.connect((self.blocks_conjugate_cc_0, 0), (self.blocks_tag_debug_0, 0))
         self.connect((self.blocks_conjugate_cc_0, 0), (self.qtgui_freq_sink_x_0, 0))
-        self.connect((self.blocks_conjugate_cc_0, 0), (self.qtgui_time_sink_x_0, 0))
         self.connect((self.blocks_conjugate_cc_0, 0), (self.qtgui_time_sink_x_1, 0))
-        self.connect((self.blocks_throttle_0, 0), (self.blocks_conjugate_cc_0, 0))
-        self.connect((self.blocks_vector_to_stream_0, 0), (self.blocks_tag_debug_0, 0))
-        self.connect((self.sidekiq_rx_0, 0), (self.blocks_throttle_0, 0))
+        self.connect((self.sidekiq_rx_0, 0), (self.blocks_conjugate_cc_0, 0))
 
 
     def closeEvent(self, event):
@@ -325,13 +267,6 @@ class top_block(gr.top_block, Qt.QWidget):
     def set_variable_function_probe_0(self, variable_function_probe_0):
         self.variable_function_probe_0 = variable_function_probe_0
         self.set_variable_qtgui_label_0(self._variable_qtgui_label_0_formatter(self.variable_function_probe_0))
-
-    def get_max_sample_rate(self):
-        return self.max_sample_rate
-
-    def set_max_sample_rate(self, max_sample_rate):
-        self.max_sample_rate = max_sample_rate
-        self.set_bandwidth(self.max_sample_rate)
 
     def get_vector_length(self):
         return self.vector_length
@@ -351,10 +286,14 @@ class top_block(gr.top_block, Qt.QWidget):
 
     def set_samp_rate(self, samp_rate):
         self.samp_rate = samp_rate
-        self.blocks_throttle_0.set_sample_rate(self.samp_rate)
         self.qtgui_freq_sink_x_0.set_frequency_range(self.center_freq, self.samp_rate)
-        self.qtgui_time_sink_x_0.set_samp_rate(self.samp_rate)
         self.qtgui_time_sink_x_1.set_samp_rate(self.samp_rate)
+
+    def get_max_sample_rate(self):
+        return self.max_sample_rate
+
+    def set_max_sample_rate(self, max_sample_rate):
+        self.max_sample_rate = max_sample_rate
 
     def get_gain(self):
         return self.gain

@@ -44,7 +44,7 @@ blocks:
     start: .1e6
     step: 0.1e6
     stop: max_sample_rate
-    value: max_sample_rate
+    value: 10e6
     widget: counter_slider
   states:
     bus_sink: false
@@ -86,7 +86,7 @@ blocks:
     start: '0'
     step: '1'
     stop: '2000'
-    value: '0'
+    value: '2000'
     widget: counter_slider
   states:
     bus_sink: false
@@ -119,7 +119,7 @@ blocks:
     start: 1e6
     step: 1e6
     stop: max_sample_rate
-    value: 40e6
+    value: 10e6
     widget: counter_slider
   states:
     bus_sink: false
@@ -184,21 +184,7 @@ blocks:
     bus_sink: false
     bus_source: false
     bus_structure: null
-    coordinate: [360, 224.0]
-    rotation: 0
-    state: enabled
-- name: blocks_message_debug_0
-  id: blocks_message_debug
-  parameters:
-    affinity: ''
-    alias: ''
-    comment: ''
-    en_uvec: 'True'
-  states:
-    bus_sink: false
-    bus_source: false
-    bus_structure: null
-    coordinate: [352, 408.0]
+    coordinate: [472, 312.0]
     rotation: 0
     state: enabled
 - name: blocks_probe_rate_0
@@ -219,7 +205,7 @@ blocks:
     bus_structure: null
     coordinate: [800, 364.0]
     rotation: 0
-    state: enabled
+    state: disabled
 - name: blocks_tag_debug_0
   id: blocks_tag_debug
   parameters:
@@ -239,43 +225,6 @@ blocks:
     coordinate: [800, 444.0]
     rotation: 0
     state: enabled
-- name: blocks_throttle_0
-  id: blocks_throttle
-  parameters:
-    affinity: ''
-    alias: ''
-    comment: ''
-    ignoretag: 'True'
-    maxoutbuf: '0'
-    minoutbuf: '0'
-    samples_per_second: samp_rate
-    type: complex
-    vlen: '1'
-  states:
-    bus_sink: false
-    bus_source: false
-    bus_structure: null
-    coordinate: [200, 200.0]
-    rotation: 0
-    state: true
-- name: blocks_vector_to_stream_0
-  id: blocks_vector_to_stream
-  parameters:
-    affinity: ''
-    alias: ''
-    comment: ''
-    maxoutbuf: '0'
-    minoutbuf: '0'
-    num_items: vector_length
-    type: complex
-    vlen: '1'
-  states:
-    bus_sink: false
-    bus_source: false
-    bus_structure: null
-    coordinate: [544, 208.0]
-    rotation: 0
-    state: bypassed
 - name: qtgui_freq_sink_x_0
   id: qtgui_freq_sink_x
   parameters:
@@ -453,7 +402,7 @@ blocks:
     bus_structure: null
     coordinate: [800, 164]
     rotation: 0
-    state: enabled
+    state: disabled
 - name: qtgui_time_sink_x_1
   id: qtgui_time_sink_x
   parameters:
@@ -560,13 +509,13 @@ blocks:
     comment: ''
     filter_override_taps: ''
     frequency: 2400e6
-    gain: '1'
+    gain: '1500'
     gain_mode: '0'
     maxoutbuf: '0'
     minoutbuf: '0'
     num_items: vector_length
     sample_rate: 1e6
-    sync: '1'
+    sync_type: '1'
   states:
     bus_sink: false
     bus_source: false
@@ -576,15 +525,12 @@ blocks:
     state: true
 
 connections:
-- [blocks_conjugate_cc_0, '0', blocks_vector_to_stream_0, '0']
-- [blocks_throttle_0, '0', blocks_conjugate_cc_0, '0']
-- [blocks_vector_to_stream_0, '0', blocks_probe_rate_0, '0']
-- [blocks_vector_to_stream_0, '0', blocks_tag_debug_0, '0']
-- [blocks_vector_to_stream_0, '0', qtgui_freq_sink_x_0, '0']
-- [blocks_vector_to_stream_0, '0', qtgui_time_sink_x_0, '0']
-- [blocks_vector_to_stream_0, '0', qtgui_time_sink_x_1, '0']
-- [sidekiq_rx_0, '0', blocks_throttle_0, '0']
-- [sidekiq_rx_0, telemetry, blocks_message_debug_0, print]
+- [blocks_conjugate_cc_0, '0', blocks_probe_rate_0, '0']
+- [blocks_conjugate_cc_0, '0', blocks_tag_debug_0, '0']
+- [blocks_conjugate_cc_0, '0', qtgui_freq_sink_x_0, '0']
+- [blocks_conjugate_cc_0, '0', qtgui_time_sink_x_0, '0']
+- [blocks_conjugate_cc_0, '0', qtgui_time_sink_x_1, '0']
+- [sidekiq_rx_0, '0', blocks_conjugate_cc_0, '0']
 
 metadata:
   file_format: 1
