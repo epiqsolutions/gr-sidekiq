@@ -53,7 +53,7 @@ parameters:
 - id: num_items
   label: Vector Length
   dtype: int
-  default: 4096
+  default: 1024
 
 #  Make one 'inputs' list entry per input and one 'outputs' list entry per output.
 #  Keys include:

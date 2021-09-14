@@ -320,7 +320,9 @@ int sidekiq_rx_impl::work(
 	skiq_rx_block_t *p_rx_block{};
 	auto out = static_cast<gr_complex *>(output_items[output_port]);
         static size_t last_timestamp_gap_update = 0;
-
+	int samples_to_rx = noutput_items*vector_length;
+	int num_vectors=0;
+	
 	if (nitems_written(output_port) - last_status_update_sample > status_update_rate_in_samples) {
             if( timestamp_gap_count != last_timestamp_gap_update ) {
 		printf("Timestamp gap count: %ld\n", timestamp_gap_count);
@@ -332,7 +334,7 @@ int sidekiq_rx_impl::work(
 #endif                
 	}
 
-	while ((unsigned int)(noutput_items - samples_receive_count) >= (DATA_MAX_BUFFER_SIZE)) {
+	while ((unsigned int)(samples_to_rx - samples_receive_count) >= (DATA_MAX_BUFFER_SIZE)) {
 		if (skiq_receive(card, &hdl, &p_rx_block, &data_length_bytes) == skiq_rx_status_success) {
 			unsigned int buffer_sample_count{
                             static_cast<unsigned int>((data_length_bytes) / (sizeof(short) * IQ_SHORT_COUNT)) -
@@ -356,9 +358,10 @@ int sidekiq_rx_impl::work(
 				auto ts = p_rx_block->sys_timestamp * sidekiq_system_time_interval_nanos;
 				apply_all_tags(nitems_written(output_port) + samples_receive_count, ts);
 			}
+			num_vectors++;
 			samples_receive_count += buffer_sample_count;
 			out += buffer_sample_count;
 		}
 	}
-	return samples_receive_count;
+	return num_vectors;
 }

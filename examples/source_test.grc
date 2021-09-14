@@ -53,7 +53,7 @@ blocks:
     coordinate: [712, 0]
     rotation: 0
     state: enabled
-- name: center_freq
+- name: frequency
   id: variable_qtgui_range
   parameters:
     comment: ''
@@ -99,12 +99,12 @@ blocks:
   id: variable
   parameters:
     comment: ''
-    value: 56e6
+    value: 492e6
   states:
     bus_sink: false
     bus_source: false
     bus_structure: null
-    coordinate: [192, 68]
+    coordinate: [48, 84.0]
     rotation: 0
     state: enabled
 - name: samp_rate
@@ -126,6 +126,18 @@ blocks:
     bus_source: false
     bus_structure: null
     coordinate: [584, 0]
+    rotation: 0
+    state: enabled
+- name: vector_length
+  id: variable
+  parameters:
+    comment: ''
+    value: '1024'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [40, 164.0]
     rotation: 0
     state: enabled
 - name: blocks_conjugate_cc_0
@@ -181,6 +193,24 @@ blocks:
     coordinate: [800, 444.0]
     rotation: 0
     state: disabled
+- name: blocks_vector_to_stream_0
+  id: blocks_vector_to_stream
+  parameters:
+    affinity: ''
+    alias: ''
+    comment: ''
+    maxoutbuf: '0'
+    minoutbuf: '0'
+    num_items: vector_length
+    type: complex
+    vlen: '1'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [272, 280.0]
+    rotation: 0
+    state: true
 - name: qtgui_freq_sink_x_0
   id: qtgui_freq_sink_x
   parameters:
@@ -212,7 +242,7 @@ blocks:
     color9: '"dark green"'
     comment: ''
     ctrlpanel: 'False'
-    fc: center_freq
+    fc: frequency
     fftsize: 4096*2
     freqhalf: 'True'
     grid: 'False'
@@ -461,16 +491,16 @@ blocks:
   parameters:
     affinity: ''
     alias: ''
-    bandwidth: 1e6
+    bandwidth: bandwidth
     comment: ''
     filter_override_taps: ''
-    frequency: 2400e6
-    gain: '1500'
+    frequency: frequency
+    gain: gain
     gain_mode: '0'
     maxoutbuf: '0'
     minoutbuf: '0'
-    num_items: '1'
-    sample_rate: 1e6
+    num_items: vector_length
+    sample_rate: samp_rate
     sync_type: '1'
   states:
     bus_sink: false
@@ -484,7 +514,8 @@ connections:
 - [blocks_conjugate_cc_0, '0', qtgui_freq_sink_x_0, '0']
 - [blocks_conjugate_cc_0, '0', qtgui_time_sink_x_0, '0']
 - [blocks_conjugate_cc_0, '0', qtgui_time_sink_x_1, '0']
-- [sidekiq_rx_0, '0', blocks_conjugate_cc_0, '0']
+- [blocks_vector_to_stream_0, '0', blocks_conjugate_cc_0, '0']
+- [sidekiq_rx_0, '0', blocks_vector_to_stream_0, '0']
 
 metadata:
   file_format: 1
