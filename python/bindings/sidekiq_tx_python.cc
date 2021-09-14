@@ -30,10 +30,10 @@ namespace py = pybind11;
 void bind_sidekiq_tx(py::module& m)
 {
 
-    using sidekiq_tx    = gr::sidekiq::sidekiq_tx;
+    using sidekiq_tx    = ::gr::sidekiq::sidekiq_tx;
 
 
-    py::class_<sidekiq_tx, gr::block, gr::basic_block,
+    py::class_<sidekiq_tx, gr::sync_block, gr::block, gr::basic_block,
         std::shared_ptr<sidekiq_tx>>(m, "sidekiq_tx", D(sidekiq_tx))
 
         .def(py::init(&sidekiq_tx::make),
@@ -50,6 +50,48 @@ void bind_sidekiq_tx(py::module& m)
         
 
 
+
+
+        
+        .def("set_tx_sample_rate",&sidekiq_tx::set_tx_sample_rate,       
+            py::arg("value"),
+            D(sidekiq_tx,set_tx_sample_rate)
+        )
+
+
+        
+        .def("set_tx_attenuation",&sidekiq_tx::set_tx_attenuation,       
+            py::arg("value"),
+            D(sidekiq_tx,set_tx_attenuation)
+        )
+
+
+        
+        .def("set_tx_frequency",&sidekiq_tx::set_tx_frequency,       
+            py::arg("value"),
+            D(sidekiq_tx,set_tx_frequency)
+        )
+
+
+        
+        .def("set_tx_bandwidth",&sidekiq_tx::set_tx_bandwidth,       
+            py::arg("value"),
+            D(sidekiq_tx,set_tx_bandwidth)
+        )
+
+
+        
+        .def("set_tx_suppress_tune_transients",&sidekiq_tx::set_tx_suppress_tune_transients,       
+            py::arg("suppress_tune_transients"),
+            D(sidekiq_tx,set_tx_suppress_tune_transients)
+        )
+
+
+        
+        .def("set_tx_filter_override_taps",&sidekiq_tx::set_tx_filter_override_taps,       
+            py::arg("taps"),
+            D(sidekiq_tx,set_tx_filter_override_taps)
+        )
 
         ;
 

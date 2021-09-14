@@ -30,10 +30,10 @@ namespace py = pybind11;
 void bind_sidekiq_rx(py::module& m)
 {
 
-    using sidekiq_rx    = gr::sidekiq::sidekiq_rx;
+    using sidekiq_rx    = ::gr::sidekiq::sidekiq_rx;
 
 
-    py::class_<sidekiq_rx, gr::block, gr::basic_block,
+    py::class_<sidekiq_rx, gr::sync_block, gr::block, gr::basic_block,
         std::shared_ptr<sidekiq_rx>>(m, "sidekiq_rx", D(sidekiq_rx))
 
         .def(py::init(&sidekiq_rx::make),
@@ -49,6 +49,41 @@ void bind_sidekiq_rx(py::module& m)
         
 
 
+
+
+        
+        .def("set_rx_sample_rate",&sidekiq_rx::set_rx_sample_rate,       
+            py::arg("value"),
+            D(sidekiq_rx,set_rx_sample_rate)
+        )
+
+
+        
+        .def("set_rx_gain",&sidekiq_rx::set_rx_gain,       
+            py::arg("value"),
+            D(sidekiq_rx,set_rx_gain)
+        )
+
+
+        
+        .def("set_rx_frequency",&sidekiq_rx::set_rx_frequency,       
+            py::arg("value"),
+            D(sidekiq_rx,set_rx_frequency)
+        )
+
+
+        
+        .def("set_rx_bandwidth",&sidekiq_rx::set_rx_bandwidth,       
+            py::arg("value"),
+            D(sidekiq_rx,set_rx_bandwidth)
+        )
+
+
+        
+        .def("set_rx_filter_override_taps",&sidekiq_rx::set_rx_filter_override_taps,       
+            py::arg("taps"),
+            D(sidekiq_rx,set_rx_filter_override_taps)
+        )
 
         ;
 

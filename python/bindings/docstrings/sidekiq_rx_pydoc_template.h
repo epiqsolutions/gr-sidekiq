@@ -19,6 +19,27 @@
  static const char *__doc_gr_sidekiq_sidekiq_rx = R"doc()doc";
 
 
+ static const char *__doc_gr_sidekiq_sidekiq_rx_sidekiq_rx_0 = R"doc()doc";
+
+
+ static const char *__doc_gr_sidekiq_sidekiq_rx_sidekiq_rx_1 = R"doc()doc";
+
+
  static const char *__doc_gr_sidekiq_sidekiq_rx_make = R"doc()doc";
+
+
+ static const char *__doc_gr_sidekiq_sidekiq_rx_set_rx_sample_rate = R"doc()doc";
+
+
+ static const char *__doc_gr_sidekiq_sidekiq_rx_set_rx_gain = R"doc()doc";
+
+
+ static const char *__doc_gr_sidekiq_sidekiq_rx_set_rx_frequency = R"doc()doc";
+
+
+ static const char *__doc_gr_sidekiq_sidekiq_rx_set_rx_bandwidth = R"doc()doc";
+
+
+ static const char *__doc_gr_sidekiq_sidekiq_rx_set_rx_filter_override_taps = R"doc()doc";
 
   
