@@ -74,7 +74,7 @@ sidekiq_tx_impl::sidekiq_tx_impl(
 		int buffer_size) 
 		: gr::sync_block(
 		"sidekiq_tx",
-		gr::io_signature::make(1, 1, sizeof(gr_complex)),
+		gr::io_signature::make(1, 1, sizeof(float)),
 		gr::io_signature::make(0, 0, 0)),
 		  sidekiq_tx_base{
 				  sync_type,
@@ -301,16 +301,15 @@ int sidekiq_tx_impl::work(
 		gr_vector_const_void_star &input_items,
 		gr_vector_void_star &output_items) {
 	unsigned int input_port{};
-	auto in = static_cast<const gr_complex *>(input_items[input_port]);
+	auto in = static_cast<const float *>(input_items[input_port]);
 	int samples_written{};
 	int32_t result;
 	std::vector<tag_t> tags;
-	
 	(void)(output_items);
-
+	
 	//TODO: this will not work when noutput_items < tx_buffer_size, it will return 0. Fix it...
 	auto ninput_items = noutput_items - (noutput_items % tx_buffer_size);
-
+	
 	if (nitems_read(input_port) - last_status_update_sample > status_update_rate_in_samples) {
 		update_tx_error_count();
 		last_status_update_sample = nitems_read(input_port);
@@ -339,9 +338,9 @@ int sidekiq_tx_impl::work(
 				static_cast<unsigned int>(tx_buffer_size * 2));
 		volk_32fc_convert_16ic(
 				reinterpret_cast<lv_16sc_t *>(tx_data_block->data),
-				reinterpret_cast<const lv_32fc_t *>(&temp_buffer[0]),
-				tx_buffer_size
-		);
+				reinterpret_cast<const lv_32fc_t*>(&temp_buffer[0]),
+				tx_buffer_size);
+		
 		skiq_tx_set_block_timestamp(tx_data_block, timestamp);
 		result = skiq_transmit(card, hdl, tx_data_block, nullptr);
 		timestamp += tx_buffer_size;
@@ -352,5 +351,6 @@ int sidekiq_tx_impl::work(
 			printf("Info: sidekiq transmit failed with error: %d\n", result);
 		}
 	}
+	
 	return samples_written;
 }

@@ -78,7 +78,7 @@ inputs:
 - label: Samples
   domain: stream
   optional: false
-  
+  dtype: float  
 outputs:
 - label: telemetry
   domain: message

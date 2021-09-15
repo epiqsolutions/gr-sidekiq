@@ -41,10 +41,10 @@ blocks:
     min_len: '200'
     orient: QtCore.Qt.Horizontal
     rangeType: float
-    start: '1'
+    start: '0'
     step: '1'
     stop: max_attenuation
-    value: '5'
+    value: '50'
     widget: counter_slider
   states:
     bus_sink: false
@@ -71,7 +71,7 @@ blocks:
     bus_sink: false
     bus_source: false
     bus_structure: null
-    coordinate: [864, 8]
+    coordinate: [832, 4.0]
     rotation: 0
     state: enabled
 - name: center_freq
@@ -131,13 +131,13 @@ blocks:
     start: 0.1e6
     step: 0.1e6
     stop: max_sample_rate
-    value: 1e6
+    value: 10e6
     widget: counter_slider
   states:
     bus_sink: false
     bus_source: false
     bus_structure: null
-    coordinate: [736, 8]
+    coordinate: [688, 4.0]
     rotation: 0
     state: enabled
 - name: source_min_output_buffer
@@ -179,51 +179,7 @@ blocks:
     bus_sink: false
     bus_source: false
     bus_structure: null
-    coordinate: [728, 136]
-    rotation: 0
-    state: enabled
-- name: variable_function_probe_0
-  id: variable_function_probe
-  parameters:
-    block_id: blocks_probe_rate_0
-    comment: ''
-    function_args: ''
-    function_name: rate
-    poll_rate: '10'
-    value: '0'
-  states:
-    bus_sink: false
-    bus_source: false
-    bus_structure: null
-    coordinate: [1016, 8]
-    rotation: 0
-    state: enabled
-- name: variable_qtgui_label_0
-  id: variable_qtgui_label
-  parameters:
-    comment: ''
-    formatter: None
-    gui_hint: 5,0,1,1
-    label: Rx Rate
-    type: real
-    value: variable_function_probe_0
-  states:
-    bus_sink: false
-    bus_source: false
-    bus_structure: null
-    coordinate: [1016, 100]
-    rotation: 0
-    state: enabled
-- name: vector_length
-  id: variable
-  parameters:
-    comment: ''
-    value: '1'
-  states:
-    bus_sink: false
-    bus_source: false
-    bus_structure: null
-    coordinate: [208, 12]
+    coordinate: [992, 4.0]
     rotation: 0
     state: enabled
 - name: analog_sig_source_x_0
@@ -231,36 +187,21 @@ blocks:
   parameters:
     affinity: ''
     alias: ''
-    amp: '0'
+    amp: '0.75'
     comment: ''
-    freq: '1000'
+    freq: '16000'
     maxoutbuf: '0'
     minoutbuf: source_min_output_buffer
     offset: '0'
     phase: '0'
     samp_rate: sample_rate
-    type: complex
+    type: float
     waveform: analog.GR_COS_WAVE
   states:
     bus_sink: false
     bus_source: false
     bus_structure: null
-    coordinate: [120, 356]
-    rotation: 0
-    state: enabled
-- name: blocks_conjugate_cc_0
-  id: blocks_conjugate_cc
-  parameters:
-    affinity: ''
-    alias: ''
-    comment: ''
-    maxoutbuf: '0'
-    minoutbuf: '0'
-  states:
-    bus_sink: false
-    bus_source: false
-    bus_structure: null
-    coordinate: [520, 384.0]
+    coordinate: [88, 356.0]
     rotation: 0
     state: enabled
 - name: blocks_message_debug_0
@@ -274,47 +215,9 @@ blocks:
     bus_sink: false
     bus_source: false
     bus_structure: null
-    coordinate: [1064, 432]
+    coordinate: [976, 440.0]
     rotation: 0
     state: enabled
-- name: blocks_probe_rate_0
-  id: blocks_probe_rate
-  parameters:
-    affinity: ''
-    alias: ''
-    alpha: '0.15'
-    comment: ''
-    maxoutbuf: '0'
-    minoutbuf: '0'
-    mintime: '500.0'
-    type: complex
-    vlen: '1'
-  states:
-    bus_sink: false
-    bus_source: false
-    bus_structure: null
-    coordinate: [792, 492]
-    rotation: 0
-    state: disabled
-- name: blocks_tag_debug_0
-  id: blocks_tag_debug
-  parameters:
-    affinity: ''
-    alias: ''
-    comment: ''
-    display: 'True'
-    filter: '""'
-    name: ''
-    num_inputs: '1'
-    type: complex
-    vlen: '1'
-  states:
-    bus_sink: false
-    bus_source: false
-    bus_structure: null
-    coordinate: [792, 564]
-    rotation: 0
-    state: disabled
 - name: blocks_throttle_0
   id: blocks_throttle
   parameters:
@@ -325,7 +228,7 @@ blocks:
     maxoutbuf: '0'
     minoutbuf: '0'
     samples_per_second: sample_rate
-    type: complex
+    type: float
     vlen: '1'
   states:
     bus_sink: false
@@ -339,23 +242,23 @@ blocks:
   parameters:
     affinity: ''
     alias: ''
-    attenuation: '1'
-    bandwidth: 1e6
+    attenuation: atten_quart_db
+    bandwidth: bandwidth
     buffer_size: '1020'
     comment: ''
     dataflow_mode: '0'
     filter_override_taps: ''
-    frequency: 2400e6
+    frequency: center_freq
     maxoutbuf: '0'
     minoutbuf: '0'
-    sample_rate: 1e6
+    sample_rate: sample_rate
     suppress_tune_transients: '0'
     sync: '1'
   states:
     bus_sink: false
     bus_source: false
     bus_structure: null
-    coordinate: [776, 300.0]
+    coordinate: [640, 316.0]
     rotation: 0
     state: true
 - name: virtual_sink_0
@@ -368,14 +271,13 @@ blocks:
     bus_sink: false
     bus_source: false
     bus_structure: null
-    coordinate: [1072, 356.0]
+    coordinate: [944, 380.0]
     rotation: 0
     state: enabled
 
 connections:
 - [analog_sig_source_x_0, '0', blocks_throttle_0, '0']
-- [blocks_conjugate_cc_0, '0', sidekiq_tx_0, '0']
-- [blocks_throttle_0, '0', blocks_conjugate_cc_0, '0']
+- [blocks_throttle_0, '0', sidekiq_tx_0, '0']
 - [sidekiq_tx_0, telemetry, virtual_sink_0, '0']
 
 metadata:
