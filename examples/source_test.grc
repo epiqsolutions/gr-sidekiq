@@ -128,18 +128,6 @@ blocks:
     coordinate: [584, 0]
     rotation: 0
     state: enabled
-- name: vector_length
-  id: variable
-  parameters:
-    comment: ''
-    value: '1024'
-  states:
-    bus_sink: false
-    bus_source: false
-    bus_structure: null
-    coordinate: [40, 164.0]
-    rotation: 0
-    state: enabled
 - name: blocks_conjugate_cc_0
   id: blocks_conjugate_cc
   parameters:
@@ -201,7 +189,7 @@ blocks:
     comment: ''
     maxoutbuf: '0'
     minoutbuf: '0'
-    num_items: vector_length
+    num_items: '1018'
     type: complex
     vlen: '1'
   states:
@@ -499,7 +487,6 @@ blocks:
     gain_mode: '0'
     maxoutbuf: '0'
     minoutbuf: '0'
-    num_items: vector_length
     sample_rate: samp_rate
     sync_type: '1'
   states:

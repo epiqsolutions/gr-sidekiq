@@ -4,7 +4,7 @@ category: '[sidekiq]'
 
 templates:
   imports: import sidekiq
-  make: sidekiq.sidekiq_rx(${sample_rate}, ${gain}, ${gain_mode}, ${frequency}, ${bandwidth}, ${sync_type}, ${num_items} )
+  make: sidekiq.sidekiq_rx(${sample_rate}, ${gain}, ${gain_mode}, ${frequency}, ${bandwidth}, ${sync_type} )
   callbacks: 
   - set_rx_sample_rate(${sample_rate})
   - set_rx_gain(${gain})
@@ -50,10 +50,6 @@ parameters:
 - id: filter_override_taps
   label: Filter Override Taps
   dtype: real_vector
-- id: num_items
-  label: Vector Length
-  dtype: int
-  default: 1024
 
 #  Make one 'inputs' list entry per input and one 'outputs' list entry per output.
 #  Keys include:
@@ -72,7 +68,7 @@ outputs:
 - label: Samples
   domain: stream
   dtype: complex
-  vlen: ${num_items}
+  vlen: 1018
   optional: false
 - label: telemetry
   domain: message

@@ -36,8 +36,7 @@ namespace gr {
 					uint8_t gain_mode,
 					double frequency,
 					double bandwitdh,
-					int sync_type,
-					size_t num_items);
+					int sync_type);
 
 			int work(
 					int noutput_items,

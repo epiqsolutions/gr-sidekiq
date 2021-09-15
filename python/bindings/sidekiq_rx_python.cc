@@ -14,7 +14,7 @@
 /* BINDTOOL_GEN_AUTOMATIC(0)                                                       */
 /* BINDTOOL_USE_PYGCCXML(0)                                                        */
 /* BINDTOOL_HEADER_FILE(sidekiq_rx.h)                                        */
-/* BINDTOOL_HEADER_FILE_HASH(98d47518b39652e7a8928dc9ce754c95)                     */
+/* BINDTOOL_HEADER_FILE_HASH(00c5dc3ca5335bb2f04c72edb8124241)                     */
 /***********************************************************************************/
 
 #include <pybind11/complex.h>
@@ -43,7 +43,6 @@ void bind_sidekiq_rx(py::module& m)
            py::arg("frequency"),
            py::arg("bandwidth"),
            py::arg("sync_type"),
-           py::arg("num_items"),
            D(sidekiq_rx,make)
         )
         

@@ -58,16 +58,14 @@ sidekiq_rx::sptr sidekiq_rx::make(
 		uint8_t gain_mode,
 		double frequency,
 		double bandwidth,
-		int sync_type,
-		size_t num_items) {
+		int sync_type) {
 	return std::make_shared<sidekiq_rx_impl>(
 			sample_rate,
 			gain,
 			gain_mode,
 			frequency,
 			bandwidth,
-			sync_type,
-			num_items
+			sync_type
 	);
 }
 
@@ -77,12 +75,11 @@ sidekiq_rx_impl::sidekiq_rx_impl(
 		uint8_t gain_mode,
 		double frequency,
 		double bandwidth,
-		int sync_type,
-		size_t num_items) :
+		int sync_type) :
 		gr::sync_block{
 				"sidekiq_rx",
 				gr::io_signature::make(0, 0, 0),
-				gr::io_signature::make(1, 1, sizeof(gr_complex) * num_items)
+				gr::io_signature::make(1, 1, sizeof(gr_complex) * DATA_MAX_BUFFER_SIZE)
 		},
 		sidekiq_rx_base{
 				sync_type,
@@ -100,7 +97,6 @@ sidekiq_rx_impl::sidekiq_rx_impl(
 						skiq_read_rfic_rx_fir_coeffs
 				)
 		},
-		vector_length{num_items},
 		tag_now{true},
 		block_id{pmt::string_to_symbol(name())} {
 	set_rx_sample_rate(sample_rate);
@@ -110,6 +106,7 @@ sidekiq_rx_impl::sidekiq_rx_impl(
 	set_rx_gain(gain);
 	get_configuration_limits();
 
+	vector_length = DATA_MAX_BUFFER_SIZE;
 	auto alignment_multiple = static_cast<int>(volk_get_alignment() / sizeof(short));
 	set_alignment(alignment_multiple);
 
