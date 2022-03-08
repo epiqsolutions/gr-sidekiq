@@ -74,7 +74,7 @@ sidekiq_tx_impl::sidekiq_tx_impl(
 		int buffer_size) 
 		: gr::sync_block(
 		"sidekiq_tx",
-		gr::io_signature::make(1, 1, sizeof(float)),
+		gr::io_signature::make(1, 1, sizeof(gr_complex)),
 		gr::io_signature::make(0, 0, 0)),
 		  sidekiq_tx_base{
 				  sync_type,
@@ -301,7 +301,7 @@ int sidekiq_tx_impl::work(
 		gr_vector_const_void_star &input_items,
 		gr_vector_void_star &output_items) {
 	unsigned int input_port{};
-	auto in = static_cast<const float *>(input_items[input_port]);
+	auto in = static_cast<const gr_complex *>(input_items[input_port]);
 	int samples_written{};
 	int32_t result;
 	std::vector<tag_t> tags;
