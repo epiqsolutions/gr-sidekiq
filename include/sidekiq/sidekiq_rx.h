@@ -43,6 +43,7 @@ namespace gr {
 					uint8_t gain_mode,
 					double frequency,
 					double bandwidth,
+                    int port_id,
 					int sync_type );
 
 			virtual void set_rx_sample_rate(double value) = 0;

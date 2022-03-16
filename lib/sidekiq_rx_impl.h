@@ -36,6 +36,7 @@ namespace gr {
 					uint8_t gain_mode,
 					double frequency,
 					double bandwitdh,
+                    int port_id,
 					int sync_type);
 
 			int work(

@@ -58,6 +58,7 @@ sidekiq_rx::sptr sidekiq_rx::make(
 		uint8_t gain_mode,
 		double frequency,
 		double bandwidth,
+        int port_id,
 		int sync_type) {
 	return std::make_shared<sidekiq_rx_impl>(
 			sample_rate,
@@ -65,6 +66,7 @@ sidekiq_rx::sptr sidekiq_rx::make(
 			gain_mode,
 			frequency,
 			bandwidth,
+            port_id,
 			sync_type
 	);
 }
@@ -75,6 +77,7 @@ sidekiq_rx_impl::sidekiq_rx_impl(
 		uint8_t gain_mode,
 		double frequency,
 		double bandwidth,
+        int port_id,
 		int sync_type) :
 		gr::sync_block{
 				"sidekiq_rx",
@@ -83,7 +86,7 @@ sidekiq_rx_impl::sidekiq_rx_impl(
 		},
 		sidekiq_rx_base{
 				sync_type,
-				skiq_rx_hdl_A1,
+				(skiq_rx_hdl_t)port_id,
 				gr::sidekiq::sidekiq_functions<skiq_rx_hdl_t>(
 						skiq_start_rx_streaming,
 						skiq_stop_rx_streaming,
