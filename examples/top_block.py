@@ -78,8 +78,8 @@ class top_block(gr.top_block, Qt.QWidget):
         ##################################################
         self.samp_rate = samp_rate = 10e6
         self.max_sample_rate = max_sample_rate = 492e6
-        self.gain = gain = 1000
-        self.frequency = frequency = 900e6
+        self.gain = gain = 80
+        self.frequency = frequency = 100e6
         self.bandwidth = bandwidth = 10e6
 
         ##################################################
@@ -92,14 +92,14 @@ class top_block(gr.top_block, Qt.QWidget):
             self.top_grid_layout.setRowStretch(r, 1)
         for c in range(0, 1):
             self.top_grid_layout.setColumnStretch(c, 1)
-        self._gain_range = Range(0, 2000, 1, 1000, 200)
+        self._gain_range = Range(0, 2000, 1, 80, 200)
         self._gain_win = RangeWidget(self._gain_range, self.set_gain, "Gain", "counter_slider", float, QtCore.Qt.Horizontal)
         self.top_grid_layout.addWidget(self._gain_win, 0, 1, 1, 1)
         for r in range(0, 1):
             self.top_grid_layout.setRowStretch(r, 1)
         for c in range(1, 2):
             self.top_grid_layout.setColumnStretch(c, 1)
-        self._frequency_range = Range(100e6, 6000e6, 1e6, 900e6, 200)
+        self._frequency_range = Range(100e6, 6000e6, 1e6, 100e6, 200)
         self._frequency_win = RangeWidget(self._frequency_range, self.set_frequency, "Frequency", "counter_slider", float, QtCore.Qt.Horizontal)
         self.top_grid_layout.addWidget(self._frequency_win, 0, 0, 1, 1)
         for r in range(0, 1):
