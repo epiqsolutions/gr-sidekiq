@@ -44,8 +44,8 @@ parameters:
 - id: port_id
   label: Port Id
   dtype: enum
-  options: ['0', '1']
-  option_labels: ['RxA1', 'RxA2']
+  options: ['0', '1', '2', '3', '4', '5']
+  option_labels: ['RxA1', 'RxA2', 'RxB1', 'RxB2', 'RxC1', 'RxD1']
   default: 0
 - id: sync_type
   label: Sync Type

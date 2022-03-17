@@ -23,7 +23,6 @@ options:
     sizing_mode: fixed
     thread_safe_setters: ''
     title: ''
-    window_size: (1000,1000)
   states:
     bus_sink: false
     bus_source: false
@@ -488,7 +487,7 @@ blocks:
     gain_mode: '0'
     maxoutbuf: '0'
     minoutbuf: '0'
-    port_id: '0'
+    port_id: '2'
     sample_rate: samp_rate
     sync_type: '1'
   states:

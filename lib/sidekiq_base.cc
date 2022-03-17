@@ -53,6 +53,7 @@ sidekiq_base<HdlType>::sidekiq_base(
 		sidekiq_functions(sidekiq_functions) {
 	card = 0;
 	hdl = handle_type;
+
 	int32_t status{skiq_init(skiq_xport_type_pcie, skiq_xport_init_level_full, &card, NUM_CARDS)};
 	if (status != 0) {
 		printf("Error: unable to initialize libsidekiq with status %d\n", status);
@@ -312,12 +313,15 @@ double sidekiq_base<HdlType>::get_sample_rate() {
 template<typename HdlType>
 bool sidekiq_base<HdlType>::set_samplerate_bandwidth(double sample_rate, double bandwidth) {
 	bool result{true};
+    int status;
 	auto rate = static_cast<uint32_t>(sample_rate);
 	auto bw = static_cast<uint32_t>(bandwidth);
 
-	if (sidekiq_functions.set_sample_rate_func(card, hdl, rate, bw) != 0) {
+	status = sidekiq_functions.set_sample_rate_func(card, hdl, rate, bw);
+ 
+	if (status != 0) {
 		printf("Error: could not set sample_rate %f and bandwidth %f\n", sample_rate, bandwidth);
-		result = false;
+        exit(status);
 	} else {
 		this->sample_rate = rate;
 		this->bandwidth = bw;
@@ -344,6 +348,7 @@ bool sidekiq_base<HdlType>::set_frequency(double value) {
 	if (sidekiq_functions.set_frequency_func(card, hdl, static_cast<uint64_t>(value)) != 0) {
 		printf("Error: could not set frequency to %f\n", value);
 		result = false;
+        exit(-1);
 	}
 	return result;
 }

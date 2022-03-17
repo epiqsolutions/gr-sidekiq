@@ -234,13 +234,42 @@ void sidekiq_rx_impl::set_rx_gain(double value) {
 }
 
 void sidekiq_rx_impl::set_rx_sample_rate(double value) {
-	set_samplerate_bandwidth(static_cast<uint32_t>(value), bandwidth);
+    int status;
+
+    skiq_chan_mode_t chan_mode = skiq_chan_mode_single;
+
+    if (hdl == skiq_rx_hdl_A2 || hdl == skiq_rx_hdl_B2)
+    {
+        chan_mode = skiq_chan_mode_dual;
+    }
+
+    status = skiq_write_chan_mode(card, chan_mode);
+    if ( status != 0 )
+    {
+        printf("Error: failed to set Rx channel mode to %u with status %d (%s)\n", chan_mode, status, strerror(abs(status)));
+        exit(status);
+    }
+
+	status = set_samplerate_bandwidth(static_cast<uint32_t>(value), bandwidth);
+    if ( status != 0 )
+    {
+        printf("Error: failed to set sample rate to %u with status %d (%s)\n", static_cast<uint32_t>(value), status, strerror(abs(status)));
+        exit(status);
+    }
+
 	status_update_rate_in_samples = static_cast<size_t >(sample_rate * STATUS_UPDATE_RATE_SECONDS);
 
 }
 
 void sidekiq_rx_impl::set_rx_bandwidth(double value) {
-	set_samplerate_bandwidth(sample_rate, static_cast<uint32_t>(value));
+    int status;
+
+	status = set_samplerate_bandwidth(sample_rate, static_cast<uint32_t>(value));
+    if ( status != 0 )
+    {
+        printf("Error: failed to set bandwidth to %u with status %d (%s)\n", static_cast<uint32_t>(value), status, strerror(abs(status)));
+        exit(status);
+    }
 //	get_filter_parameters();
 }
 
@@ -259,7 +288,14 @@ void sidekiq_rx_impl::set_rx_filter_override_taps(const std::vector<float> &taps
 }
 
 void sidekiq_rx_impl::set_rx_frequency(double value) {
-	if (set_frequency(value)) {
+    int status;
+
+    status = set_frequency(value);
+    if ( status != 0 ) {
+        printf("Error: failed to set frequency to %u with status %d (%s)\n", static_cast<uint32_t>(value), status, strerror(abs(status)));
+        exit(status);
+    }
+    else {
 		tag_now = true;
 	}
 }
@@ -310,6 +346,8 @@ void sidekiq_rx_impl::apply_all_tags(size_t sample_index, size_t timestamp) {
 	tag_now = false;
 }
 
+#define MAX_CTR 5
+
 int sidekiq_rx_impl::work(
 		int noutput_items,
 		gr_vector_const_void_star &,
@@ -322,7 +360,7 @@ int sidekiq_rx_impl::work(
         static size_t last_timestamp_gap_update = 0;
 	int samples_to_rx = noutput_items*vector_length;
 	int num_vectors=0;
-	
+
 	if (nitems_written(output_port) - last_status_update_sample > status_update_rate_in_samples) {
             if( timestamp_gap_count != last_timestamp_gap_update ) {
 		printf("Timestamp gap count: %ld\n", timestamp_gap_count);
@@ -335,6 +373,7 @@ int sidekiq_rx_impl::work(
 	}
 
 	while ((unsigned int)(samples_to_rx - samples_receive_count) >= (DATA_MAX_BUFFER_SIZE)) {
+
 		if (skiq_receive(card, &hdl, &p_rx_block, &data_length_bytes) == skiq_rx_status_success) {
 			unsigned int buffer_sample_count{
                             static_cast<unsigned int>((data_length_bytes) / (sizeof(short) * IQ_SHORT_COUNT)) -
