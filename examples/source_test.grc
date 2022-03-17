@@ -23,6 +23,7 @@ options:
     sizing_mode: fixed
     thread_safe_setters: ''
     title: ''
+    window_size: (1000,1000)
   states:
     bus_sink: false
     bus_source: false
@@ -480,6 +481,7 @@ blocks:
     affinity: ''
     alias: ''
     bandwidth: bandwidth
+    card: '0'
     comment: ''
     filter_override_taps: ''
     frequency: frequency
@@ -487,7 +489,7 @@ blocks:
     gain_mode: '0'
     maxoutbuf: '0'
     minoutbuf: '0'
-    port_id: '2'
+    port_id: '1'
     sample_rate: samp_rate
     sync_type: '1'
   states:

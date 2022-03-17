@@ -66,7 +66,7 @@ namespace gr {
 		template<typename HdlType>
 		class SIDEKIQ_API sidekiq_base {
 		public:
-			sidekiq_base(int sync_type, HdlType handle_type, gr::sidekiq::sidekiq_functions<HdlType> sidekiq_functions);
+			sidekiq_base(int _card, int sync_type, HdlType handle_type, gr::sidekiq::sidekiq_functions<HdlType> sidekiq_functions);
 
 		protected:
 			uint8_t card;
@@ -97,11 +97,11 @@ namespace gr {
 			void write_rfic_register(uint16_t address, uint8_t data);
 			float read_temperature();
 
-			bool start_streaming();
-			bool stop_streaming();
-			bool set_frequency(double value);
+			int start_streaming();
+			int stop_streaming();
+			int set_frequency(double value);
 			double get_frequency();
-			bool set_samplerate_bandwidth(double sample_rate, double bandwidth);
+			int set_samplerate_bandwidth(double sample_rate, double bandwidth);
 			double get_sample_rate();
 			uint64_t get_timestamp();
 			int64_t get_set_frequency_call_latency();

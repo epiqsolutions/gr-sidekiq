@@ -37,6 +37,8 @@ namespace gr {
 					double attenuation,
 					double frequency,
 					double bandwitdh,
+                    int _card,
+                    int port_id,
 					int sync_type,
 					bool suppress_tune_transients,
 					uint8_t dataflow_mode,

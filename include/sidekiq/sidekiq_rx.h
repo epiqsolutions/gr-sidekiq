@@ -43,6 +43,7 @@ namespace gr {
 					uint8_t gain_mode,
 					double frequency,
 					double bandwidth,
+                    int _card,
                     int port_id,
 					int sync_type );
 

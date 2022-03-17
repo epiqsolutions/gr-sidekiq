@@ -1,5 +1,5 @@
 /*
- * Copyright 2021 Free Software Foundation, Inc.
+ * Copyright 2022 Free Software Foundation, Inc.
  *
  * This file is part of GNU Radio
  *
@@ -14,7 +14,7 @@
 /* BINDTOOL_GEN_AUTOMATIC(0)                                                       */
 /* BINDTOOL_USE_PYGCCXML(0)                                                        */
 /* BINDTOOL_HEADER_FILE(sidekiq_tx.h)                                        */
-/* BINDTOOL_HEADER_FILE_HASH(d92c6e9380e083b638d1a5abcaceabf1)                     */
+/* BINDTOOL_HEADER_FILE_HASH(699e0af7a00a9505b9c7ed2e7c7e4ca9)                     */
 /***********************************************************************************/
 
 #include <pybind11/complex.h>
@@ -41,6 +41,8 @@ void bind_sidekiq_tx(py::module& m)
            py::arg("attenuation"),
            py::arg("frequency"),
            py::arg("bandwidth"),
+           py::arg("_card"),
+           py::arg("port_id"),
            py::arg("sync_type"),
            py::arg("suppress_tune_transients"),
            py::arg("dataflow_mode"),

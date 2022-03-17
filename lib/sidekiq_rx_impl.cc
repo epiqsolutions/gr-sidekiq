@@ -58,6 +58,7 @@ sidekiq_rx::sptr sidekiq_rx::make(
 		uint8_t gain_mode,
 		double frequency,
 		double bandwidth,
+        int _card,
         int port_id,
 		int sync_type) {
 	return std::make_shared<sidekiq_rx_impl>(
@@ -66,6 +67,7 @@ sidekiq_rx::sptr sidekiq_rx::make(
 			gain_mode,
 			frequency,
 			bandwidth,
+            _card,
             port_id,
 			sync_type
 	);
@@ -77,6 +79,7 @@ sidekiq_rx_impl::sidekiq_rx_impl(
 		uint8_t gain_mode,
 		double frequency,
 		double bandwidth,
+        int _card,
         int port_id,
 		int sync_type) :
 		gr::sync_block{
@@ -85,6 +88,7 @@ sidekiq_rx_impl::sidekiq_rx_impl(
 				gr::io_signature::make(1, 1, sizeof(gr_complex) * DATA_MAX_BUFFER_SIZE)
 		},
 		sidekiq_rx_base{
+                _card,
 				sync_type,
 				(skiq_rx_hdl_t)port_id,
 				gr::sidekiq::sidekiq_functions<skiq_rx_hdl_t>(
@@ -250,26 +254,15 @@ void sidekiq_rx_impl::set_rx_sample_rate(double value) {
         exit(status);
     }
 
-	status = set_samplerate_bandwidth(static_cast<uint32_t>(value), bandwidth);
-    if ( status != 0 )
-    {
-        printf("Error: failed to set sample rate to %u with status %d (%s)\n", static_cast<uint32_t>(value), status, strerror(abs(status)));
-        exit(status);
-    }
+	set_samplerate_bandwidth(static_cast<uint32_t>(value), bandwidth);
 
 	status_update_rate_in_samples = static_cast<size_t >(sample_rate * STATUS_UPDATE_RATE_SECONDS);
 
 }
 
 void sidekiq_rx_impl::set_rx_bandwidth(double value) {
-    int status;
 
-	status = set_samplerate_bandwidth(sample_rate, static_cast<uint32_t>(value));
-    if ( status != 0 )
-    {
-        printf("Error: failed to set bandwidth to %u with status %d (%s)\n", static_cast<uint32_t>(value), status, strerror(abs(status)));
-        exit(status);
-    }
+	set_samplerate_bandwidth(sample_rate, static_cast<uint32_t>(value));
 //	get_filter_parameters();
 }
 
@@ -288,16 +281,9 @@ void sidekiq_rx_impl::set_rx_filter_override_taps(const std::vector<float> &taps
 }
 
 void sidekiq_rx_impl::set_rx_frequency(double value) {
-    int status;
 
-    status = set_frequency(value);
-    if ( status != 0 ) {
-        printf("Error: failed to set frequency to %u with status %d (%s)\n", static_cast<uint32_t>(value), status, strerror(abs(status)));
-        exit(status);
-    }
-    else {
-		tag_now = true;
-	}
+    set_frequency(value);
+    tag_now = true;
 }
 
 void sidekiq_rx_impl::output_telemetry_message() {

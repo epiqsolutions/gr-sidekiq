@@ -4,7 +4,7 @@ category: '[sidekiq]'
 
 templates:
   imports: import sidekiq
-  make: sidekiq.sidekiq_rx(${sample_rate}, ${gain}, ${gain_mode}, ${frequency}, ${bandwidth}, ${port_id}, ${sync_type} )
+  make: sidekiq.sidekiq_rx(${sample_rate}, ${gain}, ${gain_mode}, ${frequency}, ${bandwidth}, ${card}, ${port_id}, ${sync_type} )
   callbacks: 
   - set_rx_sample_rate(${sample_rate})
   - set_rx_gain(${gain})
@@ -19,6 +19,16 @@ templates:
 #     * dtype (e.g. int, float, complex, byte, short, xxx_vector, ...)
 
 parameters:
+- id: card
+  label: Card
+  dtype: int
+  default: 0
+- id: port_id
+  label: Port Id
+  dtype: enum
+  options: ['0', '1', '2', '3', '4', '5']
+  option_labels: ['RxA1', 'RxA2', 'RxB1', 'RxB2', 'RxC1', 'RxD1']
+  default: 0
 - id: sample_rate
   label: Sample Rate
   dtype: real
@@ -41,12 +51,6 @@ parameters:
   label: Bandwidth
   default: 1e6
   dtype: real
-- id: port_id
-  label: Port Id
-  dtype: enum
-  options: ['0', '1', '2', '3', '4', '5']
-  option_labels: ['RxA1', 'RxA2', 'RxB1', 'RxB2', 'RxC1', 'RxD1']
-  default: 0
 - id: sync_type
   label: Sync Type
   dtype: enum

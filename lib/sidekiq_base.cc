@@ -47,11 +47,12 @@ static const size_t NANOSECONDS_IN_SECOND{1000000000L};
 
 template<typename HdlType>
 sidekiq_base<HdlType>::sidekiq_base(
+        int _card,
 		int sync_type,
 		HdlType handle_type,
 		gr::sidekiq::sidekiq_functions<HdlType> sidekiq_functions) :
 		sidekiq_functions(sidekiq_functions) {
-	card = 0;
+	card = _card;
 	hdl = handle_type;
 
 	int32_t status{skiq_init(skiq_xport_type_pcie, skiq_xport_init_level_full, &card, NUM_CARDS)};
@@ -275,90 +276,96 @@ float sidekiq_base<HdlType>::read_temperature() {
 
 
 template<typename HdlType>
-bool sidekiq_base<HdlType>::start_streaming() {
-	bool result{true};
+int sidekiq_base<HdlType>::start_streaming() {
+    int status;
 
-	if (sidekiq_functions.start_streaming_func(card, hdl) != 0) {
-		printf("Error: could not start streaming\n");
-		result = false;
+	status = sidekiq_functions.start_streaming_func(card, hdl);
+	if (status != 0) {
+		printf("Error: could not start streaming, status %d, %s\n", status, strerror(abs(status)) );
+        exit(status);
 	}
-	return result;
+	return status;
 }
 
 template<typename HdlType>
-bool sidekiq_base<HdlType>::stop_streaming() {
-	bool result{true};
-
-	if (sidekiq_functions.stop_streaming_func(card, hdl) != 0) {
-		printf("Error: could not stop streaming\n");
-		result = false;
+int sidekiq_base<HdlType>::stop_streaming() {
+    int status;
+	status = sidekiq_functions.stop_streaming_func(card, hdl);
+	if (status != 0) {
+		printf("Error: could not stop streaming, status %d, %s\n", status, strerror(abs(status)) );
 	}
-	return result;
+	return status;
 }
 
 template<typename HdlType>
 double sidekiq_base<HdlType>::get_sample_rate() {
+    int status;
 	uint32_t p_rate;
 	double p_actual_rate;
 	uint32_t p_bandwidth;
 	uint32_t p_actual_bandwidth;
 
-	if (sidekiq_functions.get_sample_rate_func(card, hdl, &p_rate, &p_actual_rate, &p_bandwidth, &p_actual_bandwidth) !=
-		0) {
-		printf("Error: failed to set sample rate or bandwidth\n");
+	status = sidekiq_functions.get_sample_rate_func(card, hdl, &p_rate, &p_actual_rate, &p_bandwidth, &p_actual_bandwidth);
+	if (status != 0) {
+		printf("Error: failed to get sample rate, status %d, %s\n", status, strerror(abs(status)) );
+        exit(status);
 	}
 	return p_actual_rate;
 }
 
 template<typename HdlType>
-bool sidekiq_base<HdlType>::set_samplerate_bandwidth(double sample_rate, double bandwidth) {
-	bool result{true};
+int sidekiq_base<HdlType>::set_samplerate_bandwidth(double sample_rate, double bandwidth) {
     int status;
 	auto rate = static_cast<uint32_t>(sample_rate);
 	auto bw = static_cast<uint32_t>(bandwidth);
 
 	status = sidekiq_functions.set_sample_rate_func(card, hdl, rate, bw);
- 
 	if (status != 0) {
-		printf("Error: could not set sample_rate %f and bandwidth %f\n", sample_rate, bandwidth);
+		printf("Error: could not set sample_rate, status %d, %s\n", status, strerror(abs(status)) );
         exit(status);
 	} else {
 		this->sample_rate = rate;
 		this->bandwidth = bw;
 	}
-	return result;
+	return status;
 }
 
 template<typename HdlType>
 double sidekiq_base<HdlType>::get_frequency() {
+    int status;
 	uint64_t p_freq;
 	double p_actual_freq;
 
-	if (sidekiq_functions.get_frequency_func(card, hdl, &p_freq, &p_actual_freq) != 0) {
-		printf("Error: could not get frequency\n");
+	status = sidekiq_functions.get_frequency_func(card, hdl, &p_freq, &p_actual_freq);
+	if (status != 0){
+		printf("Error: failed to get frequency, status %d, %s\n", status, strerror(abs(status)) );
+        exit(status);
 	}
 	return p_actual_freq;
 }
 
 
 template<typename HdlType>
-bool sidekiq_base<HdlType>::set_frequency(double value) {
-	bool result{true};
+int sidekiq_base<HdlType>::set_frequency(double value) {
+    int status;
 
-	if (sidekiq_functions.set_frequency_func(card, hdl, static_cast<uint64_t>(value)) != 0) {
-		printf("Error: could not set frequency to %f\n", value);
-		result = false;
-        exit(-1);
+	status = sidekiq_functions.set_frequency_func(card, hdl, static_cast<uint64_t>(value));
+	if (status != 0){
+		printf("Error: failed to set frequency, status %d, %s\n", status, strerror(abs(status)) );
+        exit(status);
 	}
-	return result;
+	return status;
 }
 
 template<typename HdlType>
 uint64_t sidekiq_base<HdlType>::get_timestamp() {
 	uint64_t timestamp;
+    int status;
 
-	if (sidekiq_functions.get_timestamp_func(card, hdl, &timestamp) != 0) {
-		printf("Error: failed to get sidekiq system timestamp\n");
+	status = sidekiq_functions.get_timestamp_func(card, hdl, &timestamp);
+	if (status != 0) {
+		printf("Error: failed to get sidekiq system timestamp, status %d, %s\n", status, strerror(abs(status)) );
+        exit(status);
 	}
 	return timestamp;
 }
@@ -377,25 +384,34 @@ int64_t sidekiq_base<HdlType>::get_set_frequency_call_latency() {
 
 template<typename HdlType>
 void sidekiq_base<HdlType>::set_filter_parameters(int16_t *coeffs) {
+    int status;
+
 //	EPIQ_API int32_t skiq_write_rfic_rx_fir_coeffs(uint8_t card, int16_t *p_coeffs);
 //	EPIQ_API int32_t skiq_write_rx_fir_gain(uint8_t card, skiq_rx_hdl_t hdl, skiq_rx_fir_gain_t gain);
-	if (sidekiq_functions.set_rfic_fir_coeffs_func(card, coeffs) != 0) {
-		printf("Error: unable to set fir coeffs\n");
+	status = sidekiq_functions.set_rfic_fir_coeffs_func(card, coeffs);
+	if (status != 0) {
+		printf("Error: failed to set fir coeffs, status %d, %s\n", status, strerror(abs(status)) );
+        exit(status);
 	}
 }
 
 template<typename HdlType>
 void sidekiq_base<HdlType>::get_filter_parameters() {
+    int status;
 	uint8_t num_taps;
 	uint8_t decimation;
 	int16_t coeffs[128];
 
-	if (sidekiq_functions.get_rfic_fir_config_func(card, &num_taps, &decimation) != 0) {
-		printf("Error: unable to get fir config\n");
+	status = sidekiq_functions.get_rfic_fir_config_func(card, &num_taps, &decimation);
+	if (status != 0) {
+		printf("Error: failed to get fir coeffs, status %d, %s\n", status, strerror(abs(status)) );
+        exit(status);
 	}
 
-	if (sidekiq_functions.get_rfic_fir_coeffs_func(card, reinterpret_cast<int16_t *>(&coeffs)) != 0) {
-		printf("Error: unable to get fir coeffs\n");
+	status = sidekiq_functions.get_rfic_fir_coeffs_func(card, reinterpret_cast<int16_t *>(&coeffs));
+	if (status != 0) {
+		printf("Error: failed to get fir coeffs, status %d, %s\n", status, strerror(abs(status)) );
+        exit(status);
 	}
 
 	printf("FIR decimation: %d\n", decimation);

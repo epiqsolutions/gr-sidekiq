@@ -37,6 +37,7 @@ namespace gr {
 					double frequency,
 					double bandwitdh,
                     int port_id,
+                    int _card,
 					int sync_type);
 
 			int work(

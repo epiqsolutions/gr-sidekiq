@@ -23,6 +23,7 @@ options:
     sizing_mode: fixed
     thread_safe_setters: ''
     title: ''
+    window_size: (1000,1000)
   states:
     bus_sink: false
     bus_source: false
@@ -195,7 +196,7 @@ blocks:
     offset: '0'
     phase: '0'
     samp_rate: sample_rate
-    type: float
+    type: complex
     waveform: analog.GR_COS_WAVE
   states:
     bus_sink: false
@@ -228,7 +229,7 @@ blocks:
     maxoutbuf: '0'
     minoutbuf: '0'
     samples_per_second: sample_rate
-    type: float
+    type: complex
     vlen: '1'
   states:
     bus_sink: false
@@ -245,12 +246,14 @@ blocks:
     attenuation: atten_quart_db
     bandwidth: bandwidth
     buffer_size: '1020'
+    card: '0'
     comment: ''
     dataflow_mode: '0'
     filter_override_taps: ''
     frequency: center_freq
     maxoutbuf: '0'
     minoutbuf: '0'
+    port_id: '0'
     sample_rate: sample_rate
     suppress_tune_transients: '0'
     sync: '1'
@@ -258,7 +261,7 @@ blocks:
     bus_sink: false
     bus_source: false
     bus_structure: null
-    coordinate: [640, 316.0]
+    coordinate: [640, 324.0]
     rotation: 0
     state: true
 - name: virtual_sink_0

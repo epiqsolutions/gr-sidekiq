@@ -42,10 +42,13 @@ static const int16_t TX_FILTER_CONFIGURATION_REGISTER{0x0065};
 
 
 sidekiq_tx::sptr sidekiq_tx::make(
+
 		double sample_rate,
 		double attenuation,
 		double frequency,
 		double bandwidth,
+        int _card,
+        int port_id,
 		int sync_type,
 		bool suppress_tune_transients,
 		uint8_t dataflow_mode,
@@ -56,6 +59,8 @@ sidekiq_tx::sptr sidekiq_tx::make(
 					attenuation,
 					frequency,
 					bandwidth,
+                    _card,
+                    port_id,
 					sync_type,
 					suppress_tune_transients,
 					dataflow_mode,
@@ -68,17 +73,20 @@ sidekiq_tx_impl::sidekiq_tx_impl(
 		double attenuation,
 		double frequency,
 		double bandwidth,
+        int _card,
+        int port_id,
 		int sync_type,
 		bool suppress_tune_transients,
 		uint8_t dataflow_mode,
 		int buffer_size) 
 		: gr::sync_block(
 		"sidekiq_tx",
-		gr::io_signature::make(1, 1, sizeof(float)),
+		gr::io_signature::make(1, 1, sizeof(gr_complex)),
 		gr::io_signature::make(0, 0, 0)),
 		  sidekiq_tx_base{
+                  _card,
 				  sync_type,
-				  skiq_tx_hdl_A1,
+				  (skiq_tx_hdl_t)port_id,
 				  gr::sidekiq::sidekiq_functions<skiq_tx_hdl_t>(
 						  skiq_start_tx_streaming,
 						  skiq_stop_tx_streaming,
@@ -301,7 +309,7 @@ int sidekiq_tx_impl::work(
 		gr_vector_const_void_star &input_items,
 		gr_vector_void_star &output_items) {
 	unsigned int input_port{};
-	auto in = static_cast<const float *>(input_items[input_port]);
+	auto in = static_cast<const gr_complex *>(input_items[input_port]);
 	int samples_written{};
 	int32_t result;
 	std::vector<tag_t> tags;
