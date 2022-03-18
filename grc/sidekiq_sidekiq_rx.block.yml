@@ -32,7 +32,7 @@ parameters:
 - id: port_id2
   label: Port Id2
   dtype: enum
-  options: ['-1', '0', '1', '2', '3', '4', '5']
+  options: ['100', '0', '1', '2', '3', '4', '5']
   option_labels: ['None', 'RxA1', 'RxA2', 'RxB1', 'RxB2', 'RxC1', 'RxD1']
   default: -1
 - id: sample_rate
@@ -84,7 +84,7 @@ outputs:
 - label: Samples
   domain: stream
   dtype: complex
-  multiplicity: ${ (2 if (port_id2 != '-1') else 1) }
+  multiplicity: ${ (2 if (port_id2 != '100') else 1) }
   #  multiplicity: 2
   vlen: 1018
   optional: false

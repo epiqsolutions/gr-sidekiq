@@ -302,7 +302,7 @@ template<typename HdlType>
 int sidekiq_base<HdlType>::stop_streaming() {
     int status;
     if (dual_channel) {
-        status = sidekiq_functions.stop_streaming_func(card, hdl);
+        status = sidekiq_functions.stop_streaming_func(card, hdl2);
         if (status != 0) {
             printf("Error: could not stop streaming, status %d, %s\n", status, strerror(abs(status)) );
         }
@@ -337,13 +337,6 @@ int sidekiq_base<HdlType>::set_samplerate_bandwidth(double sample_rate, double b
 	auto rate = static_cast<uint32_t>(sample_rate);
 	auto bw = static_cast<uint32_t>(bandwidth);
 
-    if (dual_channel) {
-        status = sidekiq_functions.set_sample_rate_func(card, hdl2, rate, bw);
-        if (status != 0) {
-            printf("Error: could not set sample_rate, status %d, %s\n", status, strerror(abs(status)) );
-        exit(status);
-        }
-    }
 
 	status = sidekiq_functions.set_sample_rate_func(card, hdl, rate, bw);
 	if (status != 0) {
@@ -353,6 +346,14 @@ int sidekiq_base<HdlType>::set_samplerate_bandwidth(double sample_rate, double b
 		this->sample_rate = rate;
 		this->bandwidth = bw;
 	}
+    
+    if (dual_channel) {
+        status = sidekiq_functions.set_sample_rate_func(card, hdl2, rate, bw);
+        if (status != 0) {
+            printf("Error1: could not set sample_rate, status %d, %s\n", status, strerror(abs(status)) );
+        exit(status);
+        }
+    }
 	return status;
 }
 
@@ -376,7 +377,7 @@ int sidekiq_base<HdlType>::set_frequency(double value) {
     int status;
 
     if (dual_channel) {
-        status = sidekiq_functions.set_frequency_func(card, hdl, static_cast<uint64_t>(value));
+        status = sidekiq_functions.set_frequency_func(card, hdl2, static_cast<uint64_t>(value));
         if (status != 0){
             printf("Error: failed to set frequency, status %d, %s\n", status, strerror(abs(status)) );
             exit(status);

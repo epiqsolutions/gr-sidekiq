@@ -23,7 +23,6 @@ options:
     sizing_mode: fixed
     thread_safe_setters: ''
     title: ''
-    window_size: (1000,1000)
   states:
     bus_sink: false
     bus_source: false
@@ -194,7 +193,7 @@ blocks:
     bus_structure: null
     coordinate: [168, 600.0]
     rotation: 0
-    state: true
+    state: enabled
 - name: qtgui_freq_sink_x_0
   id: qtgui_freq_sink_x
   parameters:
@@ -245,7 +244,7 @@ blocks:
     legend: 'True'
     maxoutbuf: '0'
     minoutbuf: '0'
-    name: '""'
+    name: stream 0
     nconnections: '1'
     norm_window: 'False'
     showports: 'True'
@@ -326,7 +325,7 @@ blocks:
     legend: 'True'
     maxoutbuf: '0'
     minoutbuf: '0'
-    name: '""'
+    name: stream 1
     nconnections: '1'
     norm_window: 'False'
     showports: 'True'
@@ -354,7 +353,7 @@ blocks:
     bus_sink: false
     bus_source: false
     bus_structure: null
-    coordinate: [808, 544.0]
+    coordinate: [808, 560.0]
     rotation: 0
     state: enabled
 - name: qtgui_time_sink_x_0
