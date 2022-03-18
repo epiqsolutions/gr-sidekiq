@@ -134,11 +134,14 @@ bool sidekiq_rx_impl::start() {
 		this->stop();
 	}
 	output_telemetry_message();
+
+    //this will start both ports if in dual mode
 	start_streaming();
 	return block::start();
 }
 
 bool sidekiq_rx_impl::stop() {
+    //this will stop both ports if in dual mode
 	stop_streaming();
 	skiq_exit();
 	return block::stop();
@@ -147,6 +150,7 @@ bool sidekiq_rx_impl::stop() {
 uint8_t sidekiq_rx_impl::get_rx_gain_mode() {
 	skiq_rx_gain_t result;
 
+    /* gain mode is same for both channels */
 	if (skiq_read_rx_gain_mode(card, hdl, &result) != 0) {
 		printf("Error: could not get gain mode\n");
 	}
@@ -154,6 +158,12 @@ uint8_t sidekiq_rx_impl::get_rx_gain_mode() {
 }
 
 void sidekiq_rx_impl::set_rx_gain_mode(uint8_t value) {
+    if(dual_channel) {
+
+        if (skiq_write_rx_gain_mode(card, hdl2, static_cast<skiq_rx_gain_t>(value)) != 0) {
+            printf("Error: could not set gain mode to %d\n", value);
+        }
+    }
 	if (skiq_write_rx_gain_mode(card, hdl, static_cast<skiq_rx_gain_t>(value)) != 0) {
 		printf("Error: could not set gain mode to %d\n", value);
 	}
@@ -171,7 +181,8 @@ double sidekiq_rx_impl::get_rx_gain(int handle) {
 
 void sidekiq_rx_impl::get_rx_gain_range( double *p_min_gain, double *p_max_gain )
 {
-       // determine the minimum and maximum gain we can achieve
+    // determine the minimum and maximum gain we can achieve
+    // same for all ports
     skiq_read_rx_cal_offset_by_gain_index( card,
                                            hdl,
                                            sidekiq_params.rx_param[hdl].gain_index_min,
@@ -234,6 +245,12 @@ void sidekiq_rx_impl::set_rx_gain(double value) {
     printf("Updated gain is %f for gain index %u\n",
            updated_cal_offset, updated_gain_index);
 
+    if (dual_channel) {
+        if (skiq_write_rx_gain(card, hdl2, updated_gain_index) != 0) {
+            printf("Error: could not set gain to %f\n", value);
+        }
+    }
+
     if (skiq_write_rx_gain(card, hdl, updated_gain_index) != 0) {
         printf("Error: could not set gain to %f\n", value);
     } else {
@@ -246,9 +263,12 @@ void sidekiq_rx_impl::set_rx_sample_rate(double value) {
     skiq_chan_mode_t chan_mode = skiq_chan_mode_single;
 
     // see if we are doing dual channel
+    // single channel is indicated by hdl2 being larger than rx_hdl_end
     if (hdl2 < skiq_rx_hdl_end) {
         dual_channel = true;
 
+        // if either port is A2 or B2 we need to configure in dual channel mode
+        // even if we are only streaming one port.
         if (hdl2 == skiq_rx_hdl_A2 || hdl2 == skiq_rx_hdl_B2 )
         {
             chan_mode = skiq_chan_mode_dual;
@@ -276,6 +296,7 @@ void sidekiq_rx_impl::set_rx_sample_rate(double value) {
 
 void sidekiq_rx_impl::set_rx_bandwidth(double value) {
 
+    // This handles both ports if in dual channel mode
 	set_samplerate_bandwidth(sample_rate, static_cast<uint32_t>(value));
 //	get_filter_parameters();
 }
@@ -296,6 +317,7 @@ void sidekiq_rx_impl::set_rx_filter_override_taps(const std::vector<float> &taps
 
 void sidekiq_rx_impl::set_rx_frequency(double value) {
 
+    // this will work for both ports if in dual mode
     set_frequency(value);
     tag_now = true;
 }
