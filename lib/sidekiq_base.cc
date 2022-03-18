@@ -49,11 +49,15 @@ template<typename HdlType>
 sidekiq_base<HdlType>::sidekiq_base(
         int _card,
 		int sync_type,
-		HdlType handle_type,
+		HdlType handle_one,
+		HdlType handle_two,
 		gr::sidekiq::sidekiq_functions<HdlType> sidekiq_functions) :
 		sidekiq_functions(sidekiq_functions) {
 	card = _card;
-	hdl = handle_type;
+	hdl = handle_one;
+	hdl2 = handle_two;
+    dual_channel = false;
+    debug_ctr = 0;
 
 	int32_t status{skiq_init(skiq_xport_type_pcie, skiq_xport_init_level_full, &card, NUM_CARDS)};
 	if (status != 0) {
@@ -65,8 +69,8 @@ sidekiq_base<HdlType>::sidekiq_base(
         // determine radio capabilities
         skiq_read_parameters( card, &sidekiq_params );
         // update scaling parameters based on radio capabilities
-        adc_scaling = (pow(2.0f, sidekiq_params.rx_param[handle_type].iq_resolution) / 2.0)-1;
-        dac_scaling = (pow(2.0f, sidekiq_params.tx_param[handle_type].iq_resolution) / 2.0)-1;
+        adc_scaling = (pow(2.0f, sidekiq_params.rx_param[handle_one].iq_resolution) / 2.0)-1;
+        dac_scaling = (pow(2.0f, sidekiq_params.tx_param[handle_one].iq_resolution) / 2.0)-1;
         
 	set_sync_type(sync_type);
 }
@@ -125,16 +129,16 @@ void sidekiq_base<HdlType>::get_configuration_limits() {
     for( int i=0; i<sidekiq_params.rf_param.num_rx_channels; i++ )
     {
         printf("        RX Channel %u\n", i);
-	printf(
+	    printf(
 			"\tRX LO Range Min/Max: %1.1fMHz,%1.1fMHz\n",
 			static_cast<double >(sidekiq_params.rx_param[i].lo_freq_min) / 1e6,
 			static_cast<double >(sidekiq_params.rx_param[i].lo_freq_max) / 1e6
-	);
-	printf(
+	    );
+	    printf(
 			"\tRX Sample Rate Min/Max: %1.3fMsps,%1.3fMsps\n",
 			static_cast<double >(sidekiq_params.rx_param[i].sample_rate_min) / 1e6,
 			static_cast<double >(sidekiq_params.rx_param[i].sample_rate_max) / 1e6
-	);
+	    );
         printf("\tResolution %u\n", sidekiq_params.rx_param[i].iq_resolution);
     }
 
@@ -146,17 +150,17 @@ void sidekiq_base<HdlType>::get_configuration_limits() {
 			"TX LO Range Min/Max: %1.1fMHz,%1.1fMHz\n",
 			static_cast<double >(sidekiq_params.tx_param[i].lo_freq_min) / 1e6,
 			static_cast<double >(sidekiq_params.tx_param[i].lo_freq_max) / 1e6
-	);
-	printf(
+	    );
+	    printf(
 			"TX Sample Rate Min/Max: %1.3fMsps,%1.3fMsps\n",
 			static_cast<double >(sidekiq_params.tx_param[i].sample_rate_min) / 1e6,
 			static_cast<double >(sidekiq_params.tx_param[i].sample_rate_max) / 1e6
-	);
+	    );
         printf(
                         "TX Attenuation Min/Max (in quarter dB): %u,%u\n",
                         sidekiq_params.tx_param[i].atten_quarter_db_min,
 			sidekiq_params.tx_param[i].atten_quarter_db_max
-	);
+	    );
         printf("\tResolution %u\n", sidekiq_params.rx_param[i].iq_resolution);
     }
 }
@@ -278,6 +282,13 @@ float sidekiq_base<HdlType>::read_temperature() {
 template<typename HdlType>
 int sidekiq_base<HdlType>::start_streaming() {
     int status;
+    if (dual_channel) {
+        status = sidekiq_functions.start_streaming_func(card, hdl2);
+        if (status != 0) {
+            printf("Error: could not start streaming, status %d, %s\n", status, strerror(abs(status)) );
+            exit(status);
+        }
+    }
 
 	status = sidekiq_functions.start_streaming_func(card, hdl);
 	if (status != 0) {
@@ -290,6 +301,13 @@ int sidekiq_base<HdlType>::start_streaming() {
 template<typename HdlType>
 int sidekiq_base<HdlType>::stop_streaming() {
     int status;
+    if (dual_channel) {
+        status = sidekiq_functions.stop_streaming_func(card, hdl);
+        if (status != 0) {
+            printf("Error: could not stop streaming, status %d, %s\n", status, strerror(abs(status)) );
+        }
+    }
+
 	status = sidekiq_functions.stop_streaming_func(card, hdl);
 	if (status != 0) {
 		printf("Error: could not stop streaming, status %d, %s\n", status, strerror(abs(status)) );
@@ -298,14 +316,14 @@ int sidekiq_base<HdlType>::stop_streaming() {
 }
 
 template<typename HdlType>
-double sidekiq_base<HdlType>::get_sample_rate() {
+double sidekiq_base<HdlType>::get_sample_rate(HdlType handle) {
     int status;
 	uint32_t p_rate;
 	double p_actual_rate;
 	uint32_t p_bandwidth;
 	uint32_t p_actual_bandwidth;
 
-	status = sidekiq_functions.get_sample_rate_func(card, hdl, &p_rate, &p_actual_rate, &p_bandwidth, &p_actual_bandwidth);
+	status = sidekiq_functions.get_sample_rate_func(card, handle, &p_rate, &p_actual_rate, &p_bandwidth, &p_actual_bandwidth);
 	if (status != 0) {
 		printf("Error: failed to get sample rate, status %d, %s\n", status, strerror(abs(status)) );
         exit(status);
@@ -319,6 +337,14 @@ int sidekiq_base<HdlType>::set_samplerate_bandwidth(double sample_rate, double b
 	auto rate = static_cast<uint32_t>(sample_rate);
 	auto bw = static_cast<uint32_t>(bandwidth);
 
+    if (dual_channel) {
+        status = sidekiq_functions.set_sample_rate_func(card, hdl2, rate, bw);
+        if (status != 0) {
+            printf("Error: could not set sample_rate, status %d, %s\n", status, strerror(abs(status)) );
+        exit(status);
+        }
+    }
+
 	status = sidekiq_functions.set_sample_rate_func(card, hdl, rate, bw);
 	if (status != 0) {
 		printf("Error: could not set sample_rate, status %d, %s\n", status, strerror(abs(status)) );
@@ -331,12 +357,12 @@ int sidekiq_base<HdlType>::set_samplerate_bandwidth(double sample_rate, double b
 }
 
 template<typename HdlType>
-double sidekiq_base<HdlType>::get_frequency() {
+double sidekiq_base<HdlType>::get_frequency( HdlType handle) {
     int status;
 	uint64_t p_freq;
 	double p_actual_freq;
 
-	status = sidekiq_functions.get_frequency_func(card, hdl, &p_freq, &p_actual_freq);
+	status = sidekiq_functions.get_frequency_func(card, handle, &p_freq, &p_actual_freq);
 	if (status != 0){
 		printf("Error: failed to get frequency, status %d, %s\n", status, strerror(abs(status)) );
         exit(status);
@@ -349,6 +375,14 @@ template<typename HdlType>
 int sidekiq_base<HdlType>::set_frequency(double value) {
     int status;
 
+    if (dual_channel) {
+        status = sidekiq_functions.set_frequency_func(card, hdl, static_cast<uint64_t>(value));
+        if (status != 0){
+            printf("Error: failed to set frequency, status %d, %s\n", status, strerror(abs(status)) );
+            exit(status);
+        }
+    }
+
 	status = sidekiq_functions.set_frequency_func(card, hdl, static_cast<uint64_t>(value));
 	if (status != 0){
 		printf("Error: failed to set frequency, status %d, %s\n", status, strerror(abs(status)) );
@@ -358,11 +392,11 @@ int sidekiq_base<HdlType>::set_frequency(double value) {
 }
 
 template<typename HdlType>
-uint64_t sidekiq_base<HdlType>::get_timestamp() {
+uint64_t sidekiq_base<HdlType>::get_timestamp(HdlType handle) {
 	uint64_t timestamp;
     int status;
 
-	status = sidekiq_functions.get_timestamp_func(card, hdl, &timestamp);
+	status = sidekiq_functions.get_timestamp_func(card, handle, &timestamp);
 	if (status != 0) {
 		printf("Error: failed to get sidekiq system timestamp, status %d, %s\n", status, strerror(abs(status)) );
         exit(status);
@@ -374,11 +408,11 @@ uint64_t sidekiq_base<HdlType>::get_timestamp() {
     @return int32_t  number of nanoseconds elapsed between start and end of set_rx_frequency() call
 */
 template<typename HdlType>
-int64_t sidekiq_base<HdlType>::get_set_frequency_call_latency() {
+int64_t sidekiq_base<HdlType>::get_set_frequency_call_latency(HdlType handle) {
 	auto start = std::chrono::system_clock::now();
 	uint64_t frequency{static_cast<uint64_t>(2400e6)};
 
-	sidekiq_functions.set_frequency_func(card, hdl, frequency);
+	sidekiq_functions.set_frequency_func(card, handle, frequency);
 	return duration_cast<nanoseconds>(system_clock::now() - start).count();
 }
 

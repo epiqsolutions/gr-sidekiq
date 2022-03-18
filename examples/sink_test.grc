@@ -87,7 +87,7 @@ blocks:
     start: 100e6
     step: 1e6
     stop: 6000e6
-    value: 915e6
+    value: 100e6
     widget: counter_slider
   states:
     bus_sink: false
@@ -190,7 +190,7 @@ blocks:
     alias: ''
     amp: '0.75'
     comment: ''
-    freq: '16000'
+    freq: '2000000'
     maxoutbuf: '0'
     minoutbuf: source_min_output_buffer
     offset: '0'
@@ -281,6 +281,7 @@ blocks:
 connections:
 - [analog_sig_source_x_0, '0', blocks_throttle_0, '0']
 - [blocks_throttle_0, '0', sidekiq_tx_0, '0']
+- [sidekiq_tx_0, telemetry, blocks_message_debug_0, print]
 - [sidekiq_tx_0, telemetry, virtual_sink_0, '0']
 
 metadata:

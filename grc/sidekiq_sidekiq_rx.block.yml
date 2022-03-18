@@ -4,7 +4,7 @@ category: '[sidekiq]'
 
 templates:
   imports: import sidekiq
-  make: sidekiq.sidekiq_rx(${sample_rate}, ${gain}, ${gain_mode}, ${frequency}, ${bandwidth}, ${card}, ${port_id}, ${sync_type} )
+  make: sidekiq.sidekiq_rx(${card}, ${port_id}, ${port_id2}, ${sample_rate}, ${gain}, ${gain_mode}, ${frequency}, ${bandwidth}, ${sync_type} )
   callbacks: 
   - set_rx_sample_rate(${sample_rate})
   - set_rx_gain(${gain})
@@ -24,11 +24,17 @@ parameters:
   dtype: int
   default: 0
 - id: port_id
-  label: Port Id
+  label: Port Id1
   dtype: enum
   options: ['0', '1', '2', '3', '4', '5']
   option_labels: ['RxA1', 'RxA2', 'RxB1', 'RxB2', 'RxC1', 'RxD1']
   default: 0
+- id: port_id2
+  label: Port Id2
+  dtype: enum
+  options: ['-1', '0', '1', '2', '3', '4', '5']
+  option_labels: ['None', 'RxA1', 'RxA2', 'RxB1', 'RxB2', 'RxC1', 'RxD1']
+  default: -1
 - id: sample_rate
   label: Sample Rate
   dtype: real
@@ -78,6 +84,8 @@ outputs:
 - label: Samples
   domain: stream
   dtype: complex
+  multiplicity: ${ (2 if (port_id2 != '-1') else 1) }
+  #  multiplicity: 2
   vlen: 1018
   optional: false
 - label: telemetry

@@ -53,44 +53,48 @@ static const double STATUS_UPDATE_RATE_SECONDS{1.0};
 //#define DEBUG_1PPS_TIMESTAMP (1)
 
 sidekiq_rx::sptr sidekiq_rx::make(
+        int _card,
+        int port_id,
+        int port_id2,
 		double sample_rate,
 		double gain,
 		uint8_t gain_mode,
 		double frequency,
 		double bandwidth,
-        int _card,
-        int port_id,
 		int sync_type) {
 	return std::make_shared<sidekiq_rx_impl>(
+            _card,
+            port_id,
+            port_id2,
 			sample_rate,
 			gain,
 			gain_mode,
 			frequency,
 			bandwidth,
-            _card,
-            port_id,
 			sync_type
 	);
 }
 
 sidekiq_rx_impl::sidekiq_rx_impl(
+        int _card,
+        int port_id,
+        int port_id2,
 		double sample_rate,
 		double gain,
 		uint8_t gain_mode,
 		double frequency,
 		double bandwidth,
-        int _card,
-        int port_id,
 		int sync_type) :
 		gr::sync_block{
 				"sidekiq_rx",
 				gr::io_signature::make(0, 0, 0),
-				gr::io_signature::make(1, 1, sizeof(gr_complex) * DATA_MAX_BUFFER_SIZE)
+				gr::io_signature::make(1, 2, sizeof(gr_complex) * DATA_MAX_BUFFER_SIZE)
 		},
 		sidekiq_rx_base{
                 _card,
 				sync_type,
 				(skiq_rx_hdl_t)port_id,
+				(skiq_rx_hdl_t)port_id2,
 				gr::sidekiq::sidekiq_functions<skiq_rx_hdl_t>(
 						skiq_start_rx_streaming,
 						skiq_stop_rx_streaming,
@@ -155,10 +159,10 @@ void sidekiq_rx_impl::set_rx_gain_mode(uint8_t value) {
 	}
 }
 
-double sidekiq_rx_impl::get_rx_gain() {
+double sidekiq_rx_impl::get_rx_gain(int handle) {
         double cal_offset;
 
-	if (skiq_read_rx_cal_offset(card, hdl, &cal_offset) != 0) {
+	if (skiq_read_rx_cal_offset(card, (skiq_rx_hdl_t)handle, &cal_offset) != 0) {
 		printf("Error: could not get calibration offset\n");
 	}
 
@@ -239,14 +243,24 @@ void sidekiq_rx_impl::set_rx_gain(double value) {
 
 void sidekiq_rx_impl::set_rx_sample_rate(double value) {
     int status;
-
     skiq_chan_mode_t chan_mode = skiq_chan_mode_single;
 
-    if (hdl == skiq_rx_hdl_A2 || hdl == skiq_rx_hdl_B2)
+    // see if we are doing dual channel
+    if (hdl2 < skiq_rx_hdl_end) {
+        dual_channel = true;
+
+        if (hdl2 == skiq_rx_hdl_A2 || hdl2 == skiq_rx_hdl_B2 )
+        {
+            chan_mode = skiq_chan_mode_dual;
+        }
+    }
+
+    if (hdl == skiq_rx_hdl_A2 || hdl == skiq_rx_hdl_B2 )
     {
         chan_mode = skiq_chan_mode_dual;
     }
 
+    /* this is legacy and must be called if hdl is either A2 or B2 */
     status = skiq_write_chan_mode(card, chan_mode);
     if ( status != 0 )
     {
@@ -321,9 +335,9 @@ void sidekiq_rx_impl::handle_control_message(pmt_t message) {
 void sidekiq_rx_impl::apply_all_tags(size_t sample_index, size_t timestamp) {
 	unsigned int output{};
 	const pmt::pmt_t sample_time_pmt = get_pmt_tuple_from_timestamp(timestamp);
-	const pmt::pmt_t rate_pmt = pmt::from_double(get_sample_rate());
-	const pmt::pmt_t freq_pmt = pmt::from_double(get_frequency());
-	const pmt::pmt_t gain_pmt = pmt::from_double(get_rx_gain());
+	const pmt::pmt_t rate_pmt = pmt::from_double(get_sample_rate(hdl));
+	const pmt::pmt_t freq_pmt = pmt::from_double(get_frequency(hdl));
+	const pmt::pmt_t gain_pmt = pmt::from_double(get_rx_gain(hdl));
 
 	this->add_item_tag(output, sample_index, RX_TIME_KEY, sample_time_pmt, block_id);
 	this->add_item_tag(output, sample_index, RX_RATE_KEY, rate_pmt, block_id);
@@ -337,56 +351,110 @@ void sidekiq_rx_impl::apply_all_tags(size_t sample_index, size_t timestamp) {
 int sidekiq_rx_impl::work(
 		int noutput_items,
 		gr_vector_const_void_star &,
-		gr_vector_void_star &output_items) {
-	unsigned int output_port{};
-	int samples_receive_count{};
+		gr_vector_void_star &output_items) 
+{
+	int samples_receive_count[MAX_PORT]{};
+	gr_complex *out[MAX_PORT];
+    static size_t last_timestamp_gap_update[MAX_PORT]{0,0} ;
 	unsigned int data_length_bytes{};
-	skiq_rx_block_t *p_rx_block{};
-	auto out = static_cast<gr_complex *>(output_items[output_port]);
-        static size_t last_timestamp_gap_update = 0;
 	int samples_to_rx = noutput_items*vector_length;
 	int num_vectors=0;
+	skiq_rx_block_t *p_rx_block{};
+    int port = 0;
+    int num_ports;
+    bool looping = false;
+    skiq_rx_hdl_t tmp_hdl;
+    int status = 0;
+   
+	out[0] = static_cast<gr_complex *>(output_items[0]);
+	out[1] = static_cast<gr_complex *>(output_items[1]);
 
-	if (nitems_written(output_port) - last_status_update_sample > status_update_rate_in_samples) {
-            if( timestamp_gap_count != last_timestamp_gap_update ) {
-		printf("Timestamp gap count: %ld\n", timestamp_gap_count);
-                last_timestamp_gap_update = timestamp_gap_count;
-            }
-		last_status_update_sample = nitems_written(output_port);
+    if (debug_ctr < MAX_CTR){
+        printf("dual %d, ptr 0 %p, ptr 1 %p\n", dual_channel, output_items[0], output_items[1]);
+        debug_ctr++;
+    }
+
+    if (dual_channel) {
+        num_ports = 2;
+    }else { 
+        num_ports = 1;
+    }
+
+    for (port = 0; port < num_ports; port++) {
+
+        if (nitems_written(port) - last_status_update_sample[port] > status_update_rate_in_samples) {
+                if( timestamp_gap_count[port] != last_timestamp_gap_update[port] ) {
+            printf("Port %d, Timestamp gap count: %ld\n", port, timestamp_gap_count[port]);
+                    last_timestamp_gap_update[port] = timestamp_gap_count[port];
+                }
+            last_status_update_sample[port] = nitems_written(port);
 #ifdef DEBUG_1PPS_TIMESTAMP                
-		printf("Last System Timestamp: %ld\n", get_last_pps_timestamp());
+            printf("Last System Timestamp: %ld\n", get_last_pps_timestamp(hdl));
 #endif                
-	}
+        }
+    }
 
-	while ((unsigned int)(samples_to_rx - samples_receive_count) >= (DATA_MAX_BUFFER_SIZE)) {
+    if (dual_channel) {
+        looping = 
+            ((unsigned int)(samples_to_rx - samples_receive_count[0]) >= (DATA_MAX_BUFFER_SIZE) &&
+	        (unsigned int)(samples_to_rx - samples_receive_count[1]) >= (DATA_MAX_BUFFER_SIZE));
+    }else { 
+        looping = 
+            ((unsigned int)(samples_to_rx - samples_receive_count[0]) >= (DATA_MAX_BUFFER_SIZE)); 
+    }
 
-		if (skiq_receive(card, &hdl, &p_rx_block, &data_length_bytes) == skiq_rx_status_success) {
+	while ( looping ) {
+
+		status = skiq_receive(card, &tmp_hdl, &p_rx_block, &data_length_bytes);
+		if (status  == skiq_rx_status_success) {
+            if (tmp_hdl == hdl) {
+                port = 0;
+            } else if (tmp_hdl == hdl2) {
+                port = 1;
+            } else {
+                printf("Error : Received a block from an unknown handle %d\n", tmp_hdl);
+                exit (-1);
+            }
+
 			unsigned int buffer_sample_count{
-                            static_cast<unsigned int>((data_length_bytes) / (sizeof(short) * IQ_SHORT_COUNT)) -
+                     static_cast<unsigned int>((data_length_bytes) / (sizeof(short) * IQ_SHORT_COUNT)) -
                                 SKIQ_RX_HEADER_SIZE_IN_WORDS
 			};
 
 			volk_16i_s32f_convert_32f_u(
-					(float *) out,
+					(float *) out[port],
 					(const int16_t *) p_rx_block->data,
 					adc_scaling,
 					(buffer_sample_count * IQ_SHORT_COUNT));
 
-			if (p_rx_block->rf_timestamp != next_timestamp && next_timestamp != 0) {
-				printf("Dropped %ld samples\n", p_rx_block->rf_timestamp - next_timestamp);
-				timestamp_gap_count++;
+			if (p_rx_block->rf_timestamp != next_timestamp[port] && next_timestamp[port] != 0) {
+				printf("Dropped %ld samples\n", p_rx_block->rf_timestamp - next_timestamp[port]);
+				timestamp_gap_count[port]++;
 				tag_now = true;
 			}
 
-			next_timestamp = p_rx_block->rf_timestamp + buffer_sample_count;
+			next_timestamp[port] = p_rx_block->rf_timestamp + buffer_sample_count;
 			if (tag_now) {
 				auto ts = p_rx_block->sys_timestamp * sidekiq_system_time_interval_nanos;
-				apply_all_tags(nitems_written(output_port) + samples_receive_count, ts);
+				apply_all_tags(nitems_written(port) + samples_receive_count[port], ts);
 			}
 			num_vectors++;
-			samples_receive_count += buffer_sample_count;
-			out += buffer_sample_count;
-		}
+			samples_receive_count[port] += buffer_sample_count;
+			out[port] += buffer_sample_count;
+		} else {
+            printf("Error : skiq_rcv failure, status %d\n", status);
+            exit (status);
+        }
+        if (dual_channel) {
+            looping = 
+                ((unsigned int)(samples_to_rx - samples_receive_count[0]) >= (DATA_MAX_BUFFER_SIZE) &&
+                (unsigned int)(samples_to_rx - samples_receive_count[1]) >= (DATA_MAX_BUFFER_SIZE));
+        }else { 
+            looping = 
+                ((unsigned int)(samples_to_rx - samples_receive_count[0]) >= (DATA_MAX_BUFFER_SIZE)); 
+        }
+
 	}
+
 	return num_vectors;
 }

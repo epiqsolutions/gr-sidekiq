@@ -14,7 +14,7 @@
 /* BINDTOOL_GEN_AUTOMATIC(0)                                                       */
 /* BINDTOOL_USE_PYGCCXML(0)                                                        */
 /* BINDTOOL_HEADER_FILE(sidekiq_tx.h)                                        */
-/* BINDTOOL_HEADER_FILE_HASH(699e0af7a00a9505b9c7ed2e7c7e4ca9)                     */
+/* BINDTOOL_HEADER_FILE_HASH(4bfc11da5ce62e5a7055856546d242fa)                     */
 /***********************************************************************************/
 
 #include <pybind11/complex.h>
@@ -37,12 +37,13 @@ void bind_sidekiq_tx(py::module& m)
         std::shared_ptr<sidekiq_tx>>(m, "sidekiq_tx", D(sidekiq_tx))
 
         .def(py::init(&sidekiq_tx::make),
+           py::arg("_card"),
+           py::arg("port_id"),
+           py::arg("port_id2"),
            py::arg("sample_rate"),
            py::arg("attenuation"),
            py::arg("frequency"),
            py::arg("bandwidth"),
-           py::arg("_card"),
-           py::arg("port_id"),
            py::arg("sync_type"),
            py::arg("suppress_tune_transients"),
            py::arg("dataflow_mode"),

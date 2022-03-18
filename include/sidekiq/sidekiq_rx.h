@@ -38,13 +38,14 @@ namespace gr {
 			typedef std::shared_ptr<sidekiq_rx> sptr;
 
 			static sptr make(
+                    int _card,
+                    int port_id,
+                    int port_id2,
 					double sample_rate,
 					double gain,
 					uint8_t gain_mode,
 					double frequency,
 					double bandwidth,
-                    int _card,
-                    int port_id,
 					int sync_type );
 
 			virtual void set_rx_sample_rate(double value) = 0;

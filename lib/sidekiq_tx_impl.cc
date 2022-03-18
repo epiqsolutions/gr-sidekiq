@@ -42,25 +42,26 @@ static const int16_t TX_FILTER_CONFIGURATION_REGISTER{0x0065};
 
 
 sidekiq_tx::sptr sidekiq_tx::make(
-
+        int _card,
+        int port_id,
+        int port_id2,
 		double sample_rate,
 		double attenuation,
 		double frequency,
 		double bandwidth,
-        int _card,
-        int port_id,
 		int sync_type,
 		bool suppress_tune_transients,
 		uint8_t dataflow_mode,
 		int buffer_size) {  
 	return gnuradio::get_initial_sptr(
 			new sidekiq_tx_impl(
+                    _card,
+                    port_id,
+                    port_id2,
 					sample_rate,
 					attenuation,
 					frequency,
 					bandwidth,
-                    _card,
-                    port_id,
 					sync_type,
 					suppress_tune_transients,
 					dataflow_mode,
@@ -69,24 +70,26 @@ sidekiq_tx::sptr sidekiq_tx::make(
 }
 
 sidekiq_tx_impl::sidekiq_tx_impl(
+        int _card,
+        int port_id,
+        int port_id2,
 		double sample_rate,
 		double attenuation,
 		double frequency,
 		double bandwidth,
-        int _card,
-        int port_id,
 		int sync_type,
 		bool suppress_tune_transients,
 		uint8_t dataflow_mode,
 		int buffer_size) 
 		: gr::sync_block(
 		"sidekiq_tx",
-		gr::io_signature::make(1, 1, sizeof(gr_complex)),
+		gr::io_signature::make(1, 2, sizeof(gr_complex)),
 		gr::io_signature::make(0, 0, 0)),
 		  sidekiq_tx_base{
                   _card,
 				  sync_type,
 				  (skiq_tx_hdl_t)port_id,
+				  (skiq_tx_hdl_t)port_id2,
 				  gr::sidekiq::sidekiq_functions<skiq_tx_hdl_t>(
 						  skiq_start_tx_streaming,
 						  skiq_stop_tx_streaming,

@@ -25,19 +25,23 @@
 #include <sidekiq/sidekiq_rx.h>
 #include <sidekiq/sidekiq_base.h>
 
+#define MAX_PORT 2 
+
+
 namespace gr {
 	namespace sidekiq {
 
 		class sidekiq_rx_impl : public sidekiq_rx, sidekiq_rx_base {
 		public:
 			sidekiq_rx_impl(
+                    int _card,
+                    int port_id,
+                    int port_id2,
 					double sample_rate,
 					double gain,
 					uint8_t gain_mode,
 					double frequency,
 					double bandwitdh,
-                    int port_id,
-                    int _card,
 					int sync_type);
 
 			int work(
@@ -63,17 +67,17 @@ namespace gr {
 		private:
 			size_t vector_length;
 			bool tag_now;
-			size_t timestamp_gap_count{};
-			uint64_t next_timestamp{};
+			size_t timestamp_gap_count[MAX_PORT]{0,0};
+			uint64_t next_timestamp[MAX_PORT]{0,0};
 			pmt::pmt_t block_id;
-			size_t last_status_update_sample{};
+			size_t last_status_update_sample[MAX_PORT]{0,0};
 			size_t status_update_rate_in_samples{};
 			std::vector<int16_t> filter_override_taps;
 
 			uint8_t get_rx_gain_mode();
 			void set_rx_gain_mode(uint8_t value);
-			double get_rx_gain();
-                        void get_rx_gain_range( double *p_min_gain, double *p_max_gain );
+			double get_rx_gain(int handle);
+            void get_rx_gain_range( double *p_min_gain, double *p_max_gain );
 			void output_telemetry_message();
 			void handle_control_message(pmt::pmt_t message);
 			void apply_all_tags(size_t sample_index, size_t timestamp);
