@@ -34,7 +34,7 @@ parameters:
   dtype: enum
   options: ['100', '0', '1', '2', '3', '4', '5']
   option_labels: ['None', 'RxA1', 'RxA2', 'RxB1', 'RxB2', 'RxC1', 'RxD1']
-  default: -1
+  default: 100
 - id: sample_rate
   label: Sample Rate
   dtype: real
