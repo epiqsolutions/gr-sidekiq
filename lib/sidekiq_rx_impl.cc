@@ -153,6 +153,7 @@ uint8_t sidekiq_rx_impl::get_rx_gain_mode() {
     /* gain mode is same for both channels */
 	if (skiq_read_rx_gain_mode(card, hdl, &result) != 0) {
 		printf("Error: could not get gain mode\n");
+		this->stop();
 	}
 	return static_cast<uint8_t >(result);
 }
@@ -174,6 +175,7 @@ double sidekiq_rx_impl::get_rx_gain(int handle) {
 
 	if (skiq_read_rx_cal_offset(card, (skiq_rx_hdl_t)handle, &cal_offset) != 0) {
 		printf("Error: could not get calibration offset\n");
+		this->stop();
 	}
 
 	return cal_offset;
@@ -280,12 +282,12 @@ void sidekiq_rx_impl::set_rx_sample_rate(double value) {
         chan_mode = skiq_chan_mode_dual;
     }
 
-    /* this is legacy and must be called if hdl is either A2 or B2 */
+    /* this is legacy and must be called wth dual mode if hdl is either A2 or B2 is used */
     status = skiq_write_chan_mode(card, chan_mode);
     if ( status != 0 )
     {
         printf("Error: failed to set Rx channel mode to %u with status %d (%s)\n", chan_mode, status, strerror(abs(status)));
-        exit(status);
+		this->stop();
     }
 
 	set_samplerate_bandwidth(static_cast<uint32_t>(value), bandwidth);
@@ -429,7 +431,7 @@ int sidekiq_rx_impl::work(
                 port = 1;
             } else {
                 printf("Error : Received a block from an unknown handle %d\n", tmp_hdl);
-                exit (-1);
+                this->stop();
             }
 
 			unsigned int buffer_sample_count{
@@ -459,7 +461,7 @@ int sidekiq_rx_impl::work(
 			out[port] += buffer_sample_count;
 		} else {
             printf("Error : skiq_rcv failure, status %d\n", status);
-            exit (status);
+            this->stop();
         }
         if (dual_channel) {
             looping = 

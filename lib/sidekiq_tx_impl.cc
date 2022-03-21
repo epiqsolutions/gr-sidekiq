@@ -115,10 +115,18 @@ sidekiq_tx_impl::sidekiq_tx_impl(
 	if (skiq_write_tx_data_flow_mode(card, hdl, this->dataflow_mode) != 0) {
 		printf("Error: could not set TX dataflow mode\n");
 	}
-	if (skiq_write_chan_mode(card, skiq_chan_mode_single) != 0) {
-		printf("Error: unable to configure TX channel mode\n");
-		stop();
-	}
+
+    if (hdl == skiq_tx_hdl_A2 || hdl == skiq_tx_hdl_B2) {
+        if (skiq_write_chan_mode(card, skiq_chan_mode_single) != 0) {
+            printf("Error: unable to configure TX channel mode\n");
+            stop();
+        }
+    } else {
+        if (skiq_write_chan_mode(card, skiq_chan_mode_single) != 0) {
+            printf("Error: unable to configure TX channel mode\n");
+            stop();
+        }
+    }
 	if (skiq_write_tx_block_size(card, hdl, tx_buffer_size) != 0) {
 		printf("Error: unable to configure TX block size: %d\n", tx_buffer_size);
 		stop();
@@ -167,6 +175,7 @@ uint16_t sidekiq_tx_impl::get_tx_attenuation() {
 	uint16_t result;
 	if (skiq_read_tx_attenuation(card, hdl, &result) != 0) {
 		printf("Error: could not get TX attenuation\n");
+        this->stop();
 	}
 	return result;
 }
