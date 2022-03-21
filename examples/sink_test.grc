@@ -197,26 +197,12 @@ blocks:
     phase: '0'
     samp_rate: sample_rate
     type: complex
-    waveform: analog.GR_COS_WAVE
+    waveform: analog.GR_SIN_WAVE
   states:
     bus_sink: false
     bus_source: false
     bus_structure: null
     coordinate: [88, 356.0]
-    rotation: 0
-    state: enabled
-- name: blocks_message_debug_0
-  id: blocks_message_debug
-  parameters:
-    affinity: ''
-    alias: ''
-    comment: ''
-    en_uvec: 'True'
-  states:
-    bus_sink: false
-    bus_source: false
-    bus_structure: null
-    coordinate: [976, 440.0]
     rotation: 0
     state: enabled
 - name: blocks_throttle_0
@@ -264,25 +250,10 @@ blocks:
     coordinate: [640, 324.0]
     rotation: 0
     state: true
-- name: virtual_sink_0
-  id: virtual_sink
-  parameters:
-    alias: ''
-    comment: ''
-    stream_id: telemetry_message
-  states:
-    bus_sink: false
-    bus_source: false
-    bus_structure: null
-    coordinate: [944, 380.0]
-    rotation: 0
-    state: enabled
 
 connections:
 - [analog_sig_source_x_0, '0', blocks_throttle_0, '0']
 - [blocks_throttle_0, '0', sidekiq_tx_0, '0']
-- [sidekiq_tx_0, telemetry, blocks_message_debug_0, print]
-- [sidekiq_tx_0, telemetry, virtual_sink_0, '0']
 
 metadata:
   file_format: 1

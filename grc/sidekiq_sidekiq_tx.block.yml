@@ -4,7 +4,7 @@ category: '[sidekiq]'
 
 templates:
   imports: import sidekiq
-  make: sidekiq.sidekiq_tx(${sample_rate}, ${attenuation}, ${frequency}, ${bandwidth}, ${card}, ${port_id}, ${sync}, ${suppress_tune_transients}, ${dataflow_mode}, ${buffer_size} )
+  make: sidekiq.sidekiq_tx(${card}, ${port_id}, -100, ${sample_rate}, ${attenuation}, ${frequency}, ${bandwidth}, ${sync}, ${suppress_tune_transients}, ${dataflow_mode}, ${buffer_size} )
   callbacks: 
   - set_tx_sample_rate(${sample_rate})
   - set_tx_attenuation(${attenuation})

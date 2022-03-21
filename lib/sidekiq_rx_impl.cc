@@ -368,7 +368,6 @@ void sidekiq_rx_impl::apply_all_tags(size_t sample_index, size_t timestamp) {
 	tag_now = false;
 }
 
-#define MAX_CTR 5
 
 int sidekiq_rx_impl::work(
 		int noutput_items,
@@ -390,11 +389,6 @@ int sidekiq_rx_impl::work(
    
 	out[0] = static_cast<gr_complex *>(output_items[0]);
 	out[1] = static_cast<gr_complex *>(output_items[1]);
-
-    if (debug_ctr < MAX_CTR){
-        printf("dual %d, ptr 0 %p, ptr 1 %p\n", dual_channel, output_items[0], output_items[1]);
-        debug_ctr++;
-    }
 
     if (dual_channel) {
         num_ports = 2;
