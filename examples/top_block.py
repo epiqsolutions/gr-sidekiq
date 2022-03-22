@@ -81,7 +81,7 @@ class top_block(gr.top_block, Qt.QWidget):
         self.source_min_output_buffer = source_min_output_buffer = 2**14*4
         self.max_sample_rate = max_sample_rate = 122.88e6
         self.max_attenuation = max_attenuation = 5000
-        self.center_freq = center_freq = 100e6
+        self.center_freq = center_freq = 1200e6
         self.bandwidth = bandwidth = sample_rate
         self.atten_quart_db = atten_quart_db = 50
 
@@ -95,7 +95,7 @@ class top_block(gr.top_block, Qt.QWidget):
             self.top_grid_layout.setRowStretch(r, 1)
         for c in range(0, 1):
             self.top_grid_layout.setColumnStretch(c, 1)
-        self._center_freq_range = Range(100e6, 6000e6, 1e6, 100e6, 200)
+        self._center_freq_range = Range(100e6, 6000e6, 1e6, 1200e6, 200)
         self._center_freq_win = RangeWidget(self._center_freq_range, self.set_center_freq, "Frequency", "counter_slider", float, QtCore.Qt.Horizontal)
         self.top_grid_layout.addWidget(self._center_freq_win, 0, 0, 1, 1)
         for r in range(0, 1):
@@ -132,17 +132,15 @@ class top_block(gr.top_block, Qt.QWidget):
             lambda i: self.set_suppress_tune_transients_chooser(self._suppress_tune_transients_chooser_options[i]))
         # Create the radio buttons
         self.top_layout.addWidget(self._suppress_tune_transients_chooser_tool_bar)
-        self.sidekiq_tx_0 = sidekiq.sidekiq_tx(0, 0, -100, sample_rate, atten_quart_db, center_freq, bandwidth, 1, 0, 0, 1020 )
+        self.sidekiq_tx_0 = sidekiq.sidekiq_tx(0, 0, 100, sample_rate, atten_quart_db, center_freq, bandwidth, 1, 0, 0, 1020 )
         self.blocks_throttle_0 = blocks.throttle(gr.sizeof_gr_complex*1, sample_rate,True)
-        self.blocks_message_debug_0 = blocks.message_debug(True)
-        self.analog_sig_source_x_0 = analog.sig_source_c(sample_rate, analog.GR_SIN_WAVE, 2000000, 0.75, 0, 0)
+        self.analog_sig_source_x_0 = analog.sig_source_c(sample_rate, analog.GR_SIN_WAVE, 2000000, 1, 0, 0)
         self.analog_sig_source_x_0.set_min_output_buffer(65536)
 
 
         ##################################################
         # Connections
         ##################################################
-        self.msg_connect((self.sidekiq_tx_0, 'telemetry'), (self.blocks_message_debug_0, 'print'))
         self.connect((self.analog_sig_source_x_0, 0), (self.blocks_throttle_0, 0))
         self.connect((self.blocks_throttle_0, 0), (self.sidekiq_tx_0, 0))
 

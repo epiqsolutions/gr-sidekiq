@@ -27,8 +27,8 @@ parameters:
 - id: port_id
   label: Port Id
   dtype: enum
-  options: ['0','1', '2', '3']
-  option_labels: ['TxA1', 'TxA2', 'TxB1', 'TxB2']
+  options: ['0', '2',]
+  option_labels: ['TxA1', 'TxB1']
   default: 0
 - id: sample_rate
   label: Sample Rate

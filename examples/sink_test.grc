@@ -87,7 +87,7 @@ blocks:
     start: 100e6
     step: 1e6
     stop: 6000e6
-    value: 100e6
+    value: 1200e6
     widget: counter_slider
   states:
     bus_sink: false
@@ -188,7 +188,7 @@ blocks:
   parameters:
     affinity: ''
     alias: ''
-    amp: '0.75'
+    amp: '1'
     comment: ''
     freq: '2000000'
     maxoutbuf: '0'
