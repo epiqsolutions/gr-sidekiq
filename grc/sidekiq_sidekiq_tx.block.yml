@@ -1,5 +1,5 @@
 id: sidekiq_tx
-label: Sidekiq TX Source
+label: Sidekiq TX Sink
 category: '[sidekiq]'
 
 templates:
