@@ -56,7 +56,9 @@ sidekiq_base<HdlType>::sidekiq_base(
 	int32_t status{skiq_init(skiq_xport_type_pcie, skiq_xport_init_level_full, &card, NUM_CARDS)};
 	if (status != 0) {
 		printf("Error: unable to initialize libsidekiq with status %d\n", status);
+        exit(1);
 	}
+    skiq_write_iq_order_mode(card, skiq_iq_order_iq);
 	timestamp_frequency = get_sys_timestamp_frequency();
 	sidekiq_system_time_interval_nanos = NANOSECONDS_IN_SECOND / timestamp_frequency;
 
