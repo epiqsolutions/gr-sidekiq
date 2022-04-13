@@ -4,7 +4,7 @@ category: '[sidekiq]'
 
 templates:
   imports: import sidekiq
-  make: sidekiq.sidekiq_rx(${card}, ${port_id}, ${port_id2}, ${sample_rate}, ${gain}, ${gain_mode}, ${frequency}, ${bandwidth}, ${sync_type} )
+  make: sidekiq.sidekiq_rx(${card}, ${handle1}, ${handle2}, ${sample_rate}, ${gain}, ${gain_mode}, ${frequency}, ${bandwidth}, ${sync_type} )
   callbacks: 
   - set_rx_sample_rate(${sample_rate})
   - set_rx_gain(${gain})
@@ -23,14 +23,14 @@ parameters:
   label: Card
   dtype: int
   default: 0
-- id: port_id
-  label: Port Id1
+- id: handle1
+  label: Handle Id1
   dtype: enum
   options: ['0', '1', '2', '3', '4', '5']
   option_labels: ['RxA1', 'RxA2', 'RxB1', 'RxB2', 'RxC1', 'RxD1']
   default: 0
-- id: port_id2
-  label: Port Id2
+- id: handle2
+  label: Handle Id2
   dtype: enum
   options: ['100', '0', '1', '2', '3', '4', '5']
   option_labels: ['None', 'RxA1', 'RxA2', 'RxB1', 'RxB2', 'RxC1', 'RxD1']

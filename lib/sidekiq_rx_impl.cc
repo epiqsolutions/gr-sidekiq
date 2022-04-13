@@ -48,14 +48,14 @@ const pmt_t TELEMETRY_MESSAGE_PORT{pmt::string_to_symbol("telemetry")};
 
 const size_t DATA_MAX_BUFFER_SIZE{SKIQ_MAX_RX_BLOCK_SIZE_IN_WORDS - SKIQ_RX_HEADER_SIZE_IN_WORDS};
 
-static const double STATUS_UPDATE_RATE_SECONDS{1.0};
+static const double STATUS_UPDATE_RATE_SECONDS{2.0};
 
 //#define DEBUG_1PPS_TIMESTAMP (1)
 
 sidekiq_rx::sptr sidekiq_rx::make(
-        int _card,
-        int port_id,
-        int port_id2,
+        int input_card_number,
+        int port1_handle,
+        int port2_handle,
 		double sample_rate,
 		double gain,
 		uint8_t gain_mode,
@@ -63,9 +63,9 @@ sidekiq_rx::sptr sidekiq_rx::make(
 		double bandwidth,
 		int sync_type) {
 	return std::make_shared<sidekiq_rx_impl>(
-            _card,
-            port_id,
-            port_id2,
+            input_card_number,
+            port1_handle,
+            port2_handle,
 			sample_rate,
 			gain,
 			gain_mode,
@@ -76,9 +76,9 @@ sidekiq_rx::sptr sidekiq_rx::make(
 }
 
 sidekiq_rx_impl::sidekiq_rx_impl(
-        int _card,
-        int port_id,
-        int port_id2,
+        int input_card_number,
+        int port1_handle,
+        int port2_handle,
 		double sample_rate,
 		double gain,
 		uint8_t gain_mode,
@@ -91,10 +91,10 @@ sidekiq_rx_impl::sidekiq_rx_impl(
 				gr::io_signature::make(1, 2, sizeof(gr_complex) * DATA_MAX_BUFFER_SIZE)
 		},
 		sidekiq_rx_base{
-                _card,
+                input_card_number,
 				sync_type,
-				(skiq_rx_hdl_t)port_id,
-				(skiq_rx_hdl_t)port_id2,
+				(skiq_rx_hdl_t)port1_handle,
+				(skiq_rx_hdl_t)port2_handle,
 				gr::sidekiq::sidekiq_functions<skiq_rx_hdl_t>(
 						skiq_start_rx_streaming,
 						skiq_stop_rx_streaming,
@@ -123,6 +123,7 @@ sidekiq_rx_impl::sidekiq_rx_impl(
 
 	message_port_register_in(CONTROL_MESSAGE_PORT);
 	set_msg_handler( CONTROL_MESSAGE_PORT, [this](pmt::pmt_t msg) { this->handle_control_message(msg); });
+    ctr = 0;
 
 
 	message_port_register_out(TELEMETRY_MESSAGE_PORT);
@@ -282,7 +283,7 @@ void sidekiq_rx_impl::set_rx_sample_rate(double value) {
         chan_mode = skiq_chan_mode_dual;
     }
 
-    /* this is legacy and must be called wth dual mode if hdl is either A2 or B2 is used */
+    /* set the channel mode */
     status = skiq_write_chan_mode(card, chan_mode);
     if ( status != 0 )
     {
@@ -370,7 +371,28 @@ void sidekiq_rx_impl::apply_all_tags(size_t sample_index, size_t timestamp) {
 	tag_now = false;
 }
 
-
+/****************************************************************************/
+/**
+ * The work function is called by GNURadio when it wants data put into it's 
+ * buffers from the radio
+ * 
+ * Since this is a streaming service the result is expecting a "vector" back
+ * In this case the vector length is the number words stored in each "buffer"
+ * received in the output_items array.
+ *
+ * In the constructor of this object, we tell GNURadio that we can have at most
+ * 2 ports with a vector size of sizeof(gr-complex) * vector_size which is
+ * the number of words in a block.
+ *
+ * If there are two ports then work gets called for both ports at the same time.  
+ * Each port will have its own buffer in the output_items array 
+ *
+ * The noutput_items is the number of vectors to put into each buffer.  So the 
+ * actual size of each buffer is noutput_items * vector_size number of words.
+ *
+ * So if noutput_items is greater than one, this routine will need to wait for multiple 
+ * skiq_receive buffers to fill it.
+ */
 int sidekiq_rx_impl::work(
 		int noutput_items,
 		gr_vector_const_void_star &,
@@ -388,7 +410,7 @@ int sidekiq_rx_impl::work(
     bool looping = false;
     skiq_rx_hdl_t tmp_hdl;
     int status = 0;
-   
+
 	out[0] = static_cast<gr_complex *>(output_items[0]);
 	out[1] = static_cast<gr_complex *>(output_items[1]);
 
@@ -398,20 +420,22 @@ int sidekiq_rx_impl::work(
         num_ports = 1;
     }
 
+    /* This prints out the timestamp gaps and tag every STATUS_UPDATE_RATE_SECONDS */ 
     for (port = 0; port < num_ports; port++) {
-
-        if (nitems_written(port) - last_status_update_sample[port] > status_update_rate_in_samples) {
-                if( timestamp_gap_count[port] != last_timestamp_gap_update[port] ) {
-            printf("Port %d, Timestamp gap count: %ld\n", port, timestamp_gap_count[port]);
-                    last_timestamp_gap_update[port] = timestamp_gap_count[port];
-                }
-            last_status_update_sample[port] = nitems_written(port);
+        if ((nitems_written(port) * vector_length) - last_status_update_sample[port] > status_update_rate_in_samples) {
+            if( timestamp_gap_count[port] != last_timestamp_gap_update[port] ) {
+                printf("Port %d, Timestamp gap count: %ld\n", port, timestamp_gap_count[port]);
+                last_timestamp_gap_update[port] = timestamp_gap_count[port];
+            }
+            tag_now = true;
+            last_status_update_sample[port] = vector_length * nitems_written(port);
 #ifdef DEBUG_1PPS_TIMESTAMP                
-            printf("Last System Timestamp: %ld\n", get_last_pps_timestamp(hdl));
+            printf("Last System Timestamp: %ld\n", get_last_pps_timestamp());
 #endif                
         }
     }
-
+    
+    /* we need to continue looping until both channels have filled up the respective buffer */
     if (dual_channel) {
         looping = 
             ((unsigned int)(samples_to_rx - samples_receive_count[0]) >= (DATA_MAX_BUFFER_SIZE) &&
@@ -422,9 +446,10 @@ int sidekiq_rx_impl::work(
     }
 
 	while ( looping ) {
-
+        /* block until either channel gets a block */
 		status = skiq_receive(card, &tmp_hdl, &p_rx_block, &data_length_bytes);
 		if (status  == skiq_rx_status_success) {
+            /* determine which port gave us a block */
             if (tmp_hdl == hdl) {
                 port = 0;
             } else if (tmp_hdl == hdl2) {
@@ -434,35 +459,47 @@ int sidekiq_rx_impl::work(
                 this->stop();
             }
 
+            /* determine how many samples are in the received block */
 			unsigned int buffer_sample_count{
                      static_cast<unsigned int>((data_length_bytes) / (sizeof(short) * IQ_SHORT_COUNT)) -
                                 SKIQ_RX_HEADER_SIZE_IN_WORDS
 			};
-
+            
+            /* convert from a block of int16x2 samples to the output buffer of floatx2 samples */
 			volk_16i_s32f_convert_32f_u(
 					(float *) out[port],
 					(const int16_t *) p_rx_block->data,
 					adc_scaling,
 					(buffer_sample_count * IQ_SHORT_COUNT));
 
+            /* determine if we droped a block somewhere and lost samples */
 			if (p_rx_block->rf_timestamp != next_timestamp[port] && next_timestamp[port] != 0) {
 				printf("Dropped %ld samples\n", p_rx_block->rf_timestamp - next_timestamp[port]);
 				timestamp_gap_count[port]++;
 				tag_now = true;
 			}
 
+            /* calculate what the next timestamp will be */
 			next_timestamp[port] = p_rx_block->rf_timestamp + buffer_sample_count;
+
+            /* if something happened to insert a tag do it */
 			if (tag_now) {
 				auto ts = p_rx_block->sys_timestamp * sidekiq_system_time_interval_nanos;
 				apply_all_tags(nitems_written(port) + samples_receive_count[port], ts);
 			}
+
+            /* each block is one vector long */
 			num_vectors++;
+
+            /* update the counters */
 			samples_receive_count[port] += buffer_sample_count;
 			out[port] += buffer_sample_count;
 		} else {
             printf("Error : skiq_rcv failure, status %d\n", status);
             this->stop();
         }
+
+        /* determine if we should still be looping or if we are done */
         if (dual_channel) {
             looping = 
                 ((unsigned int)(samples_to_rx - samples_receive_count[0]) >= (DATA_MAX_BUFFER_SIZE) &&
@@ -473,6 +510,13 @@ int sidekiq_rx_impl::work(
         }
 
 	}
+
+    /* if we are done and the number of vectors processes is not noutput_items, then something bad happened */
+    if (num_vectors != noutput_items) {
+        printf("Error : Number of vectors processed is invalid, num_vectors %d\n", num_vectors);
+        this->stop();
+    }
+
 
 	return num_vectors;
 }

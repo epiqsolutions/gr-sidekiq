@@ -66,7 +66,7 @@ namespace gr {
 		template<typename HdlType>
 		class SIDEKIQ_API sidekiq_base {
 		public:
-			sidekiq_base(int _card, int sync_type, HdlType handle_one, HdlType handle_two, gr::sidekiq::sidekiq_functions<HdlType> sidekiq_functions);
+			sidekiq_base(int input_card_number, int port1_handle, HdlType port2_handle, HdlType handle_two, gr::sidekiq::sidekiq_functions<HdlType> sidekiq_functions);
 
 		protected:
             uint32_t debug_ctr;
@@ -79,9 +79,9 @@ namespace gr {
 			size_t sidekiq_system_time_interval_nanos;
 			size_t timestamp_frequency;
 			gr::sidekiq::sidekiq_functions<HdlType> sidekiq_functions;
-                        skiq_param_t sidekiq_params;
-                        float adc_scaling;
-                        float dac_scaling;
+                skiq_param_t sidekiq_params;
+                float adc_scaling;
+                float dac_scaling;
 
 			pmt::pmt_t get_pmt_tuple_from_timestamp(size_t timestamp);
 			pmt::pmt_t get_pmt_cons_from_timestamp(size_t timestamp);

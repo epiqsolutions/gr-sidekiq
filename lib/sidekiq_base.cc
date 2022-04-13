@@ -47,15 +47,15 @@ static const size_t NANOSECONDS_IN_SECOND{1000000000L};
 
 template<typename HdlType>
 sidekiq_base<HdlType>::sidekiq_base(
-        int _card,
+        int input_card_number,
 		int sync_type,
-		HdlType handle_one,
-		HdlType handle_two,
+		HdlType port1_handle,
+		HdlType port2_handle,
 		gr::sidekiq::sidekiq_functions<HdlType> sidekiq_functions) :
 		sidekiq_functions(sidekiq_functions) {
-	card = _card;
-	hdl = handle_one;
-	hdl2 = handle_two;
+	card = input_card_number;
+	hdl = port1_handle;
+	hdl2 = port2_handle;
     dual_channel = false;
     debug_ctr = 0;
 
@@ -66,11 +66,11 @@ sidekiq_base<HdlType>::sidekiq_base(
 	timestamp_frequency = get_sys_timestamp_frequency();
 	sidekiq_system_time_interval_nanos = NANOSECONDS_IN_SECOND / timestamp_frequency;
 
-        // determine radio capabilities
-        skiq_read_parameters( card, &sidekiq_params );
-        // update scaling parameters based on radio capabilities
-        adc_scaling = (pow(2.0f, sidekiq_params.rx_param[handle_one].iq_resolution) / 2.0)-1;
-        dac_scaling = (pow(2.0f, sidekiq_params.tx_param[handle_one].iq_resolution) / 2.0)-1;
+    // determine radio capabilities
+    skiq_read_parameters( card, &sidekiq_params );
+    // update scaling parameters based on radio capabilities
+    adc_scaling = (pow(2.0f, sidekiq_params.rx_param[hdl].iq_resolution) / 2.0)-1;
+    dac_scaling = (pow(2.0f, sidekiq_params.tx_param[hdl].iq_resolution) / 2.0)-1;
         
 	set_sync_type(sync_type);
 }
@@ -341,7 +341,7 @@ int sidekiq_base<HdlType>::set_samplerate_bandwidth(double sample_rate, double b
 	status = sidekiq_functions.set_sample_rate_func(card, hdl, rate, bw);
 	if (status != 0) {
 		printf("Error: could not set sample_rate, status %d, %s\n", status, strerror(abs(status)) );
-        exit(status);
+        return(status);
 	} else {
 		this->sample_rate = rate;
 		this->bandwidth = bw;
@@ -351,7 +351,6 @@ int sidekiq_base<HdlType>::set_samplerate_bandwidth(double sample_rate, double b
         status = sidekiq_functions.set_sample_rate_func(card, hdl2, rate, bw);
         if (status != 0) {
             printf("Error1: could not set sample_rate, status %d, %s\n", status, strerror(abs(status)) );
-        exit(status);
         }
     }
 	return status;
@@ -426,7 +425,6 @@ void sidekiq_base<HdlType>::set_filter_parameters(int16_t *coeffs) {
 	status = sidekiq_functions.set_rfic_fir_coeffs_func(card, coeffs);
 	if (status != 0) {
 		printf("Error: failed to set fir coeffs, status %d, %s\n", status, strerror(abs(status)) );
-        exit(status);
 	}
 }
 

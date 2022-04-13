@@ -4,7 +4,7 @@ category: '[sidekiq]'
 
 templates:
   imports: import sidekiq
-  make: sidekiq.sidekiq_tx(${card}, ${port_id}, 100, ${sample_rate}, ${attenuation}, ${frequency}, ${bandwidth}, ${sync}, ${suppress_tune_transients}, ${dataflow_mode}, ${buffer_size} )
+  make: sidekiq.sidekiq_tx(${card}, ${handle}, 100, ${sample_rate}, ${attenuation}, ${frequency}, ${bandwidth}, ${sync}, ${suppress_tune_transients}, ${dataflow_mode}, ${buffer_size} )
   callbacks: 
   - set_tx_sample_rate(${sample_rate})
   - set_tx_attenuation(${attenuation})
@@ -24,8 +24,8 @@ parameters:
   label: Card
   dtype: int
   default: 0
-- id: port_id
-  label: Port Id
+- id: handle
+  label: Handle Id
   dtype: enum
   options: ['0', '2',]
   option_labels: ['TxA1', 'TxB1']

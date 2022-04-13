@@ -37,17 +37,17 @@ namespace gr {
 		public:
 			typedef std::shared_ptr<sidekiq_tx> sptr;
 			static sptr make(
-                    int _card,
-                    int port_id,
-                    int port_id2,
-					double sample_rate,
-					double attenuation,
-					double frequency,
-					double bandwidth,
-					int sync_type,
-					bool suppress_tune_transients,
-					uint8_t dataflow_mode,
-					int buffer_size);
+                int input_card_number,
+                int port1_handle,
+                int port2_handle,
+                double sample_rate,
+                double attenuation,
+                double frequency,
+                double bandwidth,
+                int sync_type,
+                bool suppress_tune_transients,
+                uint8_t dataflow_mode,
+                int buffer_size);
 
 			virtual void set_tx_sample_rate(double value) = 0;
 
