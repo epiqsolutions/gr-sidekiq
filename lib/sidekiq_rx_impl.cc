@@ -420,14 +420,13 @@ int sidekiq_rx_impl::work(
         num_ports = 1;
     }
 
-    /* This prints out the timestamp gaps and tag every STATUS_UPDATE_RATE_SECONDS */ 
+    /* This prints out the timestamp gaps every STATUS_UPDATE_RATE_SECONDS */ 
     for (port = 0; port < num_ports; port++) {
         if ((nitems_written(port) * vector_length) - last_status_update_sample[port] > status_update_rate_in_samples) {
             if( timestamp_gap_count[port] != last_timestamp_gap_update[port] ) {
                 printf("Port %d, Timestamp gap count: %ld\n", port, timestamp_gap_count[port]);
                 last_timestamp_gap_update[port] = timestamp_gap_count[port];
             }
-            tag_now = true;
             last_status_update_sample[port] = vector_length * nitems_written(port);
 #ifdef DEBUG_1PPS_TIMESTAMP                
             printf("Last System Timestamp: %ld\n", get_last_pps_timestamp());
