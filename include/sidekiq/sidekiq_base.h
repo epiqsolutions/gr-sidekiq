@@ -66,7 +66,7 @@ namespace gr {
 		template<typename HdlType>
 		class SIDEKIQ_API sidekiq_base {
 		public:
-			sidekiq_base(int input_card_number, int port1_handle, HdlType port2_handle, HdlType handle_two, gr::sidekiq::sidekiq_functions<HdlType> sidekiq_functions);
+			sidekiq_base(int input_card_number, int sync_type, HdlType port1_handle, HdlType port2_handle, gr::sidekiq::sidekiq_functions<HdlType> sidekiq_functions);
 
 		protected:
             uint32_t debug_ctr;

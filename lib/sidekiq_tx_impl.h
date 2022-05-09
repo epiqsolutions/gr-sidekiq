@@ -33,9 +33,8 @@ namespace gr {
 		class sidekiq_tx_impl : public sidekiq_tx, sidekiq_tx_base {
 		public:
 			sidekiq_tx_impl(
-                    int _card,
-                    int port_id,
-                    int port_id2,
+                    int input_card_number,
+                    int handle,
 					double sample_rate,
 					double attenuation,
 					double frequency,

@@ -416,7 +416,7 @@ int sidekiq_rx_impl::work(
 
     if (dual_channel) {
         num_ports = 2;
-    }else { 
+    } else { 
         num_ports = 1;
     }
 
@@ -439,7 +439,7 @@ int sidekiq_rx_impl::work(
         looping = 
             ((unsigned int)(samples_to_rx - samples_receive_count[0]) >= (DATA_MAX_BUFFER_SIZE) &&
 	        (unsigned int)(samples_to_rx - samples_receive_count[1]) >= (DATA_MAX_BUFFER_SIZE));
-    }else { 
+    } else { 
         looping = 
             ((unsigned int)(samples_to_rx - samples_receive_count[0]) >= (DATA_MAX_BUFFER_SIZE)); 
     }

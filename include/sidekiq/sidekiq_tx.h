@@ -38,8 +38,7 @@ namespace gr {
 			typedef std::shared_ptr<sidekiq_tx> sptr;
 			static sptr make(
                 int input_card_number,
-                int port1_handle,
-                int port2_handle,
+                int handle,
                 double sample_rate,
                 double attenuation,
                 double frequency,

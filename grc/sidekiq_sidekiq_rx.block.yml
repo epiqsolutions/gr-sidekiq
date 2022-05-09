@@ -84,7 +84,7 @@ outputs:
 - label: Samples
   domain: stream
   dtype: complex
-  multiplicity: ${ (2 if (port_id2 != '100') else 1) }
+  multiplicity: ${ (2 if (handle2 != '100') else 1) }
   #  multiplicity: 2
   vlen: 1018
   optional: false
