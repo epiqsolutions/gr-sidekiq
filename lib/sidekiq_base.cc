@@ -19,6 +19,7 @@
 * Boston, MA 02110-1301, USA.
 */
 
+#include <stdexcept>
 #ifdef HAVE_CONFIG_H
 #include "config.h"
 #endif
@@ -62,6 +63,7 @@ sidekiq_base<HdlType>::sidekiq_base(
 	int32_t status{skiq_init(skiq_xport_type_pcie, skiq_xport_init_level_full, &card, NUM_CARDS)};
 	if (status != 0) {
 		printf("Error: unable to initialize libsidekiq with status %d\n", status);
+        throw std::runtime_error("Failure: skiq_init");
 	}
 	timestamp_frequency = get_sys_timestamp_frequency();
 	sidekiq_system_time_interval_nanos = NANOSECONDS_IN_SECOND / timestamp_frequency;
@@ -171,6 +173,7 @@ int32_t sidekiq_base<HdlType>::get_ref_clock_configuration() {
 
 	if (skiq_read_ref_clock_select(card, &p_ref_clk) != 0) {
 		printf("Error: failed to get reference clock configuration\n");
+        throw std::runtime_error("Failure: skiq_read_ref_clock_select");
 	}
 	return p_ref_clk;
 }
@@ -179,6 +182,7 @@ template<typename HdlType>
 void sidekiq_base<HdlType>::set_zero_timestamp() {
 	if (skiq_reset_timestamps(card) != 0) {
 		printf("Error: failed to set timestamp to zero\n");
+        throw std::runtime_error("Failure: skiq_reset_timestamps");
 	}
 }
 
@@ -189,6 +193,7 @@ void sidekiq_base<HdlType>::set_next_pps_timestamp() {
 
 	if (skiq_write_timestamp_update_on_1pps(card, future_sys_timestamp, new_timestamp) != 0) {
 		printf("Error: failed to set next PPS timestamp\n");
+        throw std::runtime_error("Failure: skiq_write_timestamp_update_on_1pps");
 	}
 }
 
@@ -199,6 +204,7 @@ uint64_t sidekiq_base<HdlType>::get_last_pps_timestamp() {
 
 	if (skiq_read_last_1pps_timestamp(card, &rf_timestamp, &system_timestamp) != 0) {
 		printf("Error: failed to get last PPS timestamp\n");
+        throw std::runtime_error("Failure: skiq_read_last_1pps_timestamp");
 	}
 	printf("%ld %ld\n", rf_timestamp, system_timestamp);
 	return system_timestamp;
@@ -208,6 +214,7 @@ template<typename HdlType>
 void sidekiq_base<HdlType>::set_sidekiq_system_timestamp(uint64_t timestamp) {
 	if (skiq_update_timestamps(card, timestamp) != 0) {
 		printf("Error: failed to set system timestamp\n");
+        throw std::runtime_error("Failure: skiq_update_timestamps");
 	}
 }
 
@@ -217,6 +224,7 @@ uint64_t sidekiq_base<HdlType>::get_sidekiq_system_timestamp() {
 
 	if (skiq_read_curr_sys_timestamp(card, &timestamp) != 0) {
 		printf("Error: failed to get system timestamp\n");
+        throw std::runtime_error("Failure: skiq_read_curr_sys_timestamp");
 	}
 	return timestamp;
 }
@@ -227,6 +235,7 @@ uint64_t sidekiq_base<HdlType>::get_sys_timestamp_frequency() {
 
 	if (skiq_read_sys_timestamp_freq(card, &timestamp_frequency) != 0) {
 		printf("Error: failed to get system timestamp frequency\n");
+        throw std::runtime_error("Failure: skiq_read_sys_timestamp_freq");
 	}
 	return timestamp_frequency;
 }
@@ -241,13 +250,14 @@ void sidekiq_base<HdlType>::read_accelerometer() {
 
 	skiq_is_accel_supported(card, &supported);
 	if (!supported) {
-		printf("Error: accelerometer not supported with product\r\n");
+		printf("Info: accelerometer not supported with product\r\n");
 	} else {
 		skiq_write_accel_state(card, static_cast<uint8_t>(true));
 		status = skiq_read_accel(card, &x_data, &y_data, &z_data);
 		skiq_write_accel_state(card, static_cast<uint8_t>(false));
 		if (status != 0) {
 			printf("Error: Unable to read the accelerometer\r\n");
+            throw std::runtime_error("Failure: skiq_write_accel_state");
 		}
 	}
 }
@@ -258,6 +268,7 @@ uint8_t sidekiq_base<HdlType>::read_rfic_register(uint16_t address) {
 
 	if (skiq_read_rfic_reg(card, address, &result) != 0) {
 		printf("Error: failed to read RFIC address 0x%04X\n", address);
+        throw std::runtime_error("Failure: skiq_read_rfic_reg");
 	}
 	return result;
 }
@@ -266,6 +277,7 @@ template<typename HdlType>
 void sidekiq_base<HdlType>::write_rfic_register(uint16_t address, uint8_t data) {
 	if (skiq_write_rfic_reg(card, address, data) != 0) {
             printf("Error: failed to write RFIC address 0x%08x\n", address);
+            throw std::runtime_error("Failure: skiq_write_rfic_reg");
 	}
 }
 
@@ -274,6 +286,7 @@ float sidekiq_base<HdlType>::read_temperature() {
 	int8_t temp{-1};
 	if (skiq_read_temp(card, &temp) != 0) {
 		printf("Error: failed to read sidekiq on-board temperature\r\n");
+        throw std::runtime_error("Failure: skiq_read_temp");
 	}
 	return static_cast<float>(temp);    //TODO: there is probably some converation that needs to happen here, check the docs
 }
@@ -286,14 +299,14 @@ int sidekiq_base<HdlType>::start_streaming() {
         status = sidekiq_functions.start_streaming_func(card, hdl2);
         if (status != 0) {
             printf("Error: could not start streaming, status %d, %s\n", status, strerror(abs(status)) );
-            exit(status);
+            throw std::runtime_error("Failure: start streaming");
         }
     }
 
 	status = sidekiq_functions.start_streaming_func(card, hdl);
 	if (status != 0) {
 		printf("Error: could not start streaming, status %d, %s\n", status, strerror(abs(status)) );
-        exit(status);
+        throw std::runtime_error("Failure: start streaming");
 	}
 	return status;
 }
@@ -305,12 +318,14 @@ int sidekiq_base<HdlType>::stop_streaming() {
         status = sidekiq_functions.stop_streaming_func(card, hdl2);
         if (status != 0) {
             printf("Error: could not stop streaming, status %d, %s\n", status, strerror(abs(status)) );
+            throw std::runtime_error("Failure: stop streaming");
         }
     }
 
 	status = sidekiq_functions.stop_streaming_func(card, hdl);
 	if (status != 0) {
 		printf("Error: could not stop streaming, status %d, %s\n", status, strerror(abs(status)) );
+        throw std::runtime_error("Failure: stop streaming");
 	}
 	return status;
 }
@@ -326,7 +341,7 @@ double sidekiq_base<HdlType>::get_sample_rate(HdlType handle) {
 	status = sidekiq_functions.get_sample_rate_func(card, handle, &p_rate, &p_actual_rate, &p_bandwidth, &p_actual_bandwidth);
 	if (status != 0) {
 		printf("Error: failed to get sample rate, status %d, %s\n", status, strerror(abs(status)) );
-        exit(status);
+        throw std::runtime_error("Failure: get_samplerate");
 	}
 	return p_actual_rate;
 }
@@ -341,6 +356,7 @@ int sidekiq_base<HdlType>::set_samplerate_bandwidth(double sample_rate, double b
 	status = sidekiq_functions.set_sample_rate_func(card, hdl, rate, bw);
 	if (status != 0) {
 		printf("Error: could not set sample_rate, status %d, %s\n", status, strerror(abs(status)) );
+        throw std::runtime_error("Failure: set samplerate");
         return(status);
 	} else {
 		this->sample_rate = rate;
@@ -350,7 +366,8 @@ int sidekiq_base<HdlType>::set_samplerate_bandwidth(double sample_rate, double b
     if (dual_channel) {
         status = sidekiq_functions.set_sample_rate_func(card, hdl2, rate, bw);
         if (status != 0) {
-            printf("Error1: could not set sample_rate, status %d, %s\n", status, strerror(abs(status)) );
+            printf("Error: could not set sample_rate, status %d, %s\n", status, strerror(abs(status)) );
+            throw std::runtime_error("Failure: set samplerate");
         }
     }
 	return status;
@@ -365,7 +382,7 @@ double sidekiq_base<HdlType>::get_frequency( HdlType handle) {
 	status = sidekiq_functions.get_frequency_func(card, handle, &p_freq, &p_actual_freq);
 	if (status != 0){
 		printf("Error: failed to get frequency, status %d, %s\n", status, strerror(abs(status)) );
-        exit(status);
+        throw std::runtime_error("Failure: get frequency");
 	}
 	return p_actual_freq;
 }
@@ -379,14 +396,14 @@ int sidekiq_base<HdlType>::set_frequency(double value) {
         status = sidekiq_functions.set_frequency_func(card, hdl2, static_cast<uint64_t>(value));
         if (status != 0){
             printf("Error: failed to set frequency, status %d, %s\n", status, strerror(abs(status)) );
-            exit(status);
+            throw std::runtime_error("Failure: set frequency");
         }
     }
 
 	status = sidekiq_functions.set_frequency_func(card, hdl, static_cast<uint64_t>(value));
 	if (status != 0){
 		printf("Error: failed to set frequency, status %d, %s\n", status, strerror(abs(status)) );
-        exit(status);
+        throw std::runtime_error("Failure: set frequency");
 	}
 	return status;
 }
@@ -399,7 +416,7 @@ uint64_t sidekiq_base<HdlType>::get_timestamp(HdlType handle) {
 	status = sidekiq_functions.get_timestamp_func(card, handle, &timestamp);
 	if (status != 0) {
 		printf("Error: failed to get sidekiq system timestamp, status %d, %s\n", status, strerror(abs(status)) );
-        exit(status);
+        throw std::runtime_error("Failure: get timestamp");
 	}
 	return timestamp;
 }
@@ -425,6 +442,7 @@ void sidekiq_base<HdlType>::set_filter_parameters(int16_t *coeffs) {
 	status = sidekiq_functions.set_rfic_fir_coeffs_func(card, coeffs);
 	if (status != 0) {
 		printf("Error: failed to set fir coeffs, status %d, %s\n", status, strerror(abs(status)) );
+        throw std::runtime_error("Failure:  set fir coeffs");
 	}
 }
 
@@ -437,13 +455,14 @@ void sidekiq_base<HdlType>::get_filter_parameters() {
 
 	status = sidekiq_functions.get_rfic_fir_config_func(card, &num_taps, &decimation);
 	if (status != 0) {
-		printf("Error: failed to get fir coeffs, status %d, %s\n", status, strerror(abs(status)) );
-        exit(status);
+		printf("Error: failed to get fir config, status %d, %s\n", status, strerror(abs(status)) );
+        throw std::runtime_error("Failure:  get fir config");
 	}
 
 	status = sidekiq_functions.get_rfic_fir_coeffs_func(card, reinterpret_cast<int16_t *>(&coeffs));
 	if (status != 0) {
 		printf("Error: failed to get fir coeffs, status %d, %s\n", status, strerror(abs(status)) );
+        throw std::runtime_error("Failure:  get fir coeffs");
         exit(status);
 	}
 

@@ -45,7 +45,7 @@ blocks:
     start: .1e6
     step: 0.1e6
     stop: max_sample_rate
-    value: 10e6
+    value: 20e6
     widget: counter_slider
   states:
     bus_sink: false
@@ -66,7 +66,7 @@ blocks:
     start: 100e6
     step: 1e6
     stop: 6000e6
-    value: 100e6
+    value: 1000e6
     widget: counter_slider
   states:
     bus_sink: false
@@ -120,7 +120,7 @@ blocks:
     start: 1e6
     step: 1e6
     stop: max_sample_rate
-    value: 10e6
+    value: 20e6
     widget: counter_slider
   states:
     bus_sink: false
@@ -481,16 +481,16 @@ blocks:
     affinity: ''
     alias: ''
     bandwidth: bandwidth
-    card: '0'
+    card: '1'
     comment: ''
     filter_override_taps: ''
     frequency: frequency
     gain: gain
     gain_mode: '0'
+    handle1: '0'
+    handle2: '100'
     maxoutbuf: '0'
     minoutbuf: '0'
-    num_streams: '0'
-    port_id: '0'
     sample_rate: samp_rate
     sync_type: '1'
   states:

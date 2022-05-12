@@ -65,9 +65,9 @@ namespace gr {
 
 
 		private:
+            uint32_t debug_ctr;
 			size_t vector_length;
 			bool tag_now;
-            uint32_t ctr;
 			size_t timestamp_gap_count[MAX_PORT]{0,0};
 			uint64_t next_timestamp[MAX_PORT]{0,0};
 			pmt::pmt_t block_id;

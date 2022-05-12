@@ -111,30 +111,31 @@ sidekiq_tx_impl::sidekiq_tx_impl(
 //	get_filter_parameters();
 	if (skiq_write_tx_data_flow_mode(card, hdl, this->dataflow_mode) != 0) {
 		printf("Error: could not set TX dataflow mode\n");
+        throw std::runtime_error("Failure: skiq_write_tx_flow_mode");
 	}
 
     if (hdl == skiq_tx_hdl_A2 || hdl == skiq_tx_hdl_B2) {
-        if (skiq_write_chan_mode(card, skiq_chan_mode_single) != 0) {
+        if (skiq_write_chan_mode(card, skiq_chan_mode_dual) != 0) {
             printf("Error: unable to configure TX channel mode\n");
-            stop();
+            throw std::runtime_error("Failure: skiq_write_chan_mode");
         }
     } else {
         if (skiq_write_chan_mode(card, skiq_chan_mode_single) != 0) {
             printf("Error: unable to configure TX channel mode\n");
-            stop();
+            throw std::runtime_error("Failure: skiq_write_chan_mode");
         }
     }
 	if (skiq_write_tx_block_size(card, hdl, tx_buffer_size) != 0) {
 		printf("Error: unable to configure TX block size: %d\n", tx_buffer_size);
-		stop();
+        throw std::runtime_error("Failure: skiq_write_tx_block_size");
 	}
 	if (skiq_write_tx_transfer_mode(card, skiq_tx_hdl_A1, skiq_tx_transfer_mode_sync) != 0) {
 		printf("Error: unable to configure TX channel mode\n");
-		stop();
+        throw std::runtime_error("Failure: skiq_write_tx_transfer_mode");
 	}
 	if (skiq_write_iq_pack_mode(card, SIDEKIQ_IQ_PACK_MODE_UNPACKED) != 0) {
 		printf("Error: unable to set iq pack mode to unpacked%d\n", SIDEKIQ_IQ_PACK_MODE_UNPACKED);
-		stop();
+        throw std::runtime_error("Failure: skiq_write_iq_pack_mode");
 	}
 	tx_data_block = skiq_tx_block_allocate(tx_buffer_size);
 	temp_buffer.resize(tx_buffer_size);
@@ -152,6 +153,7 @@ bool sidekiq_tx_impl::start() {
 	output_telemetry_message();
 	if (skiq_start_tx_streaming(card, hdl) != 0) {
 		printf("Error: could not start TX streaming\n");
+        throw std::runtime_error("Failure: skiq_start_tx_streaming");
 	}
 	return block::start();
 }
@@ -165,6 +167,7 @@ bool sidekiq_tx_impl::stop() {
 void sidekiq_tx_impl::set_tx_attenuation(double value) {
 	if (skiq_write_tx_attenuation(card, hdl, static_cast<uint16_t>(value)) != 0) {
 		printf("Error: could not set TX attenuation to %f\n", value);
+        throw std::runtime_error("Failure: skiq_write_tx_attenuation");
 	}
 }
 
@@ -172,7 +175,7 @@ uint16_t sidekiq_tx_impl::get_tx_attenuation() {
 	uint16_t result;
 	if (skiq_read_tx_attenuation(card, hdl, &result) != 0) {
 		printf("Error: could not get TX attenuation\n");
-        this->stop();
+        throw std::runtime_error("Failure: skiq_read_tx_attenuation");
 	}
 	return result;
 }

@@ -51,6 +51,7 @@ const size_t DATA_MAX_BUFFER_SIZE{SKIQ_MAX_RX_BLOCK_SIZE_IN_WORDS - SKIQ_RX_HEAD
 static const double STATUS_UPDATE_RATE_SECONDS{2.0};
 
 //#define DEBUG_1PPS_TIMESTAMP (1)
+//#define DEBUG 1
 
 sidekiq_rx::sptr sidekiq_rx::make(
         int input_card_number,
@@ -123,7 +124,7 @@ sidekiq_rx_impl::sidekiq_rx_impl(
 
 	message_port_register_in(CONTROL_MESSAGE_PORT);
 	set_msg_handler( CONTROL_MESSAGE_PORT, [this](pmt::pmt_t msg) { this->handle_control_message(msg); });
-    ctr = 0;
+    debug_ctr = 0;
 
 
 	message_port_register_out(TELEMETRY_MESSAGE_PORT);
@@ -131,8 +132,8 @@ sidekiq_rx_impl::sidekiq_rx_impl(
 
 bool sidekiq_rx_impl::start() {
 	if (skiq_set_rx_transfer_timeout(card, RX_TRANSFER_WAIT_FOREVER) != 0) {
-		printf("Error: unable to set RX transfer timeout\n");
-		this->stop();
+        throw std::runtime_error("Failure: skiq_set_rx_transfer_timeout");
+		
 	}
 	output_telemetry_message();
 
@@ -153,8 +154,7 @@ uint8_t sidekiq_rx_impl::get_rx_gain_mode() {
 
     /* gain mode is same for both channels */
 	if (skiq_read_rx_gain_mode(card, hdl, &result) != 0) {
-		printf("Error: could not get gain mode\n");
-		this->stop();
+        throw std::runtime_error("Failure: skiq_read_rx_gain_mode");
 	}
 	return static_cast<uint8_t >(result);
 }
@@ -164,10 +164,12 @@ void sidekiq_rx_impl::set_rx_gain_mode(uint8_t value) {
 
         if (skiq_write_rx_gain_mode(card, hdl2, static_cast<skiq_rx_gain_t>(value)) != 0) {
             printf("Error: could not set gain mode to %d\n", value);
+            throw std::runtime_error("Failure: skiq_write_rx_gain_mode");
         }
     }
 	if (skiq_write_rx_gain_mode(card, hdl, static_cast<skiq_rx_gain_t>(value)) != 0) {
 		printf("Error: could not set gain mode to %d\n", value);
+        throw std::runtime_error("Failure: skiq_write_rx_gain_mode");
 	}
 }
 
@@ -176,7 +178,7 @@ double sidekiq_rx_impl::get_rx_gain(int handle) {
 
 	if (skiq_read_rx_cal_offset(card, (skiq_rx_hdl_t)handle, &cal_offset) != 0) {
 		printf("Error: could not get calibration offset\n");
-		this->stop();
+        throw std::runtime_error("Failure: skiq_read_rx_cal_offset");
 	}
 
 	return cal_offset;
@@ -251,11 +253,13 @@ void sidekiq_rx_impl::set_rx_gain(double value) {
     if (dual_channel) {
         if (skiq_write_rx_gain(card, hdl2, updated_gain_index) != 0) {
             printf("Error: could not set gain to %f\n", value);
+            throw std::runtime_error("Failure: skiq_write_rx_gain");
         }
     }
 
     if (skiq_write_rx_gain(card, hdl, updated_gain_index) != 0) {
         printf("Error: could not set gain to %f\n", value);
+        throw std::runtime_error("Failure: skiq_write_rx_gain");
     } else {
         tag_now = true;
     }
@@ -276,6 +280,15 @@ void sidekiq_rx_impl::set_rx_sample_rate(double value) {
         {
             chan_mode = skiq_chan_mode_dual;
         }
+
+#ifdef DEBUG        
+        status = skiq_write_rx_data_src(card, hdl2, skiq_data_src_counter);
+        if ( status != 0 ) {
+            printf("Error: failed to set Rx data_src to counter status %d (%s)\n", status, strerror(abs(status)));
+            throw std::runtime_error("Failure: skiq_write_rx_data_src");
+        }
+#endif 
+
     }
 
     if (hdl == skiq_rx_hdl_A2 || hdl == skiq_rx_hdl_B2 )
@@ -288,8 +301,16 @@ void sidekiq_rx_impl::set_rx_sample_rate(double value) {
     if ( status != 0 )
     {
         printf("Error: failed to set Rx channel mode to %u with status %d (%s)\n", chan_mode, status, strerror(abs(status)));
-		this->stop();
+        throw std::runtime_error("Failure: skiq_write_chan_mode");
     }
+
+#ifdef DEBUG    
+    status = skiq_write_rx_data_src(card, hdl, skiq_data_src_counter);
+    if ( status != 0 ) {
+        printf("Error: failed to set Rx data_src to counter status %d (%s)\n", status, strerror(abs(status)));
+        throw std::runtime_error("Failure: skiq_write_rx_data_src");
+    }
+#endif
 
 	set_samplerate_bandwidth(static_cast<uint32_t>(value), bandwidth);
 
@@ -371,6 +392,47 @@ void sidekiq_rx_impl::apply_all_tags(size_t sample_index, size_t timestamp) {
 	tag_now = false;
 }
 
+bool check_rx_status(bool dual_channel, int samples_to_rx, int samples_receive_count[], int *port_done)
+{
+    bool looping;
+
+    uint32_t p1_samples_left = (unsigned int)(samples_to_rx - samples_receive_count[0]);
+    uint32_t p2_samples_left = (unsigned int)(samples_to_rx - samples_receive_count[1]);
+
+    if (dual_channel) {
+        if (p1_samples_left >= DATA_MAX_BUFFER_SIZE && p2_samples_left >= DATA_MAX_BUFFER_SIZE )
+        {
+            /* neither port is done */
+            *port_done = 0xFF;
+            looping = true;
+        }
+        else if (p1_samples_left < DATA_MAX_BUFFER_SIZE && p2_samples_left >= DATA_MAX_BUFFER_SIZE )
+        {
+            /* p1 is done, p2 is not */
+            *port_done = 0;
+            looping = true;
+        }
+        else if (p2_samples_left < DATA_MAX_BUFFER_SIZE && p1_samples_left >= DATA_MAX_BUFFER_SIZE )
+        {
+            /* p2 is done, p1 is not */
+            *port_done = 1;
+            looping = true;
+        } else 
+        {
+            /* both are done */
+            *port_done = 3;
+            looping = false;
+        }
+    } else 
+    { 
+        looping = 
+            ((unsigned int)(samples_to_rx - samples_receive_count[0]) >= (DATA_MAX_BUFFER_SIZE)); 
+        *port_done = 0xFF;
+    }
+
+    return looping;
+}
+
 /****************************************************************************/
 /**
  * The work function is called by GNURadio when it wants data put into it's 
@@ -410,13 +472,22 @@ int sidekiq_rx_impl::work(
     bool looping = false;
     skiq_rx_hdl_t tmp_hdl;
     int status = 0;
+    int port_done = 0xFF;
 
-	out[0] = static_cast<gr_complex *>(output_items[0]);
-	out[1] = static_cast<gr_complex *>(output_items[1]);
+#ifdef DEBUG
+    if (debug_ctr < 10) {
+       printf("\nnoutput_items %d, samples_to_rx %d\n", noutput_items, samples_to_rx); 
+       debug_ctr++;
+    }
+#endif
 
     if (dual_channel) {
         num_ports = 2;
+        out[0] = static_cast<gr_complex *>(output_items[0]);
+        out[1] = static_cast<gr_complex *>(output_items[1]);
+
     } else { 
+        out[0] = static_cast<gr_complex *>(output_items[0]);
         num_ports = 1;
     }
 
@@ -435,14 +506,7 @@ int sidekiq_rx_impl::work(
     }
     
     /* we need to continue looping until both channels have filled up the respective buffer */
-    if (dual_channel) {
-        looping = 
-            ((unsigned int)(samples_to_rx - samples_receive_count[0]) >= (DATA_MAX_BUFFER_SIZE) &&
-	        (unsigned int)(samples_to_rx - samples_receive_count[1]) >= (DATA_MAX_BUFFER_SIZE));
-    } else { 
-        looping = 
-            ((unsigned int)(samples_to_rx - samples_receive_count[0]) >= (DATA_MAX_BUFFER_SIZE)); 
-    }
+    looping = check_rx_status(dual_channel, samples_to_rx, samples_receive_count, &port_done);
 
 	while ( looping ) {
         /* block until either channel gets a block */
@@ -455,66 +519,87 @@ int sidekiq_rx_impl::work(
                 port = 1;
             } else {
                 printf("Error : Received a block from an unknown handle %d\n", tmp_hdl);
-                this->stop();
+                throw std::runtime_error("Failure: Received a block from an unknown handle ");
             }
-
-            /* determine how many samples are in the received block */
-			unsigned int buffer_sample_count{
-                     static_cast<unsigned int>((data_length_bytes) / (sizeof(short) * IQ_SHORT_COUNT)) -
-                                SKIQ_RX_HEADER_SIZE_IN_WORDS
-			};
             
-            /* convert from a block of int16x2 samples to the output buffer of floatx2 samples */
-			volk_16i_s32f_convert_32f_u(
-					(float *) out[port],
-					(const int16_t *) p_rx_block->data,
-					adc_scaling,
-					(buffer_sample_count * IQ_SHORT_COUNT));
+            /* Sometimes the two ports do not receive samples at the same rate
+             * for now just report error and dump samples 
+             * TODO Fix this to handle this case gracefully in the future
+             */
+            if (port_done == port)
+            {
+                /* This port is done, throw away samples, report error, continue */
+                printf("Error : Port %d is complete but received an extra block\n", port+1);
+                printf("samples_to_rx %d, samples rcvd p1 %d, p2 %d\n", samples_to_rx, samples_receive_count[0], samples_receive_count[1]); 
+                printf(" looping %d, MAX %d\n", (int)looping, (int)DATA_MAX_BUFFER_SIZE);
 
-            /* determine if we droped a block somewhere and lost samples */
-			if (p_rx_block->rf_timestamp != next_timestamp[port] && next_timestamp[port] != 0) {
-				printf("Dropped %ld samples\n", p_rx_block->rf_timestamp - next_timestamp[port]);
-				timestamp_gap_count[port]++;
-				tag_now = true;
-			}
+                exit(1);
+            } else
+            {
+                /* determine how many samples are in the received block */
+                unsigned int buffer_sample_count{
+                         static_cast<unsigned int>((data_length_bytes) / (sizeof(short) * IQ_SHORT_COUNT)) -
+                                    SKIQ_RX_HEADER_SIZE_IN_WORDS
+                };
+                
+                /* convert from a block of int16x2 samples to the output buffer of floatx2 samples */
+                volk_16i_s32f_convert_32f_u(
+                        (float *) out[port],
+                        (const int16_t *) p_rx_block->data,
+                        adc_scaling,
+                        (buffer_sample_count * IQ_SHORT_COUNT));
+#ifdef DEBUG                
+                    uint16_t half_sample = (uint16_t )p_rx_block->data[0];
+                    for (unsigned int i=1; i < buffer_sample_count * 2; i++) {
+                        uint16_t next_sample = (uint16_t )p_rx_block->data[i];
+                        if (half_sample == 0x07FF) {
+                            half_sample = (uint16_t)0xF800 - 1;
+                        }
+                        if (next_sample != (uint16_t)(half_sample + 1) ) {
+                            printf("\ncounter check failed i %u, half_sample 0x%04X, next_sample 0x%04X\n", i, half_sample, next_sample);
+                            for (unsigned int j=(i - 5); j < i+10 ; j++) {
+                                printf(" %d, 0x%04X\n", j , (uint16_t) p_rx_block->data[j]); 
+                            }
+                            exit(1);
+                        }
+                        half_sample = next_sample;
+                    }
+                    if (debug_ctr < 10) {
+                        printf(". ");
+                    }
+#endif
+                /* determine if we dropped a block somewhere and lost samples */
+                if (p_rx_block->rf_timestamp != next_timestamp[port] && next_timestamp[port] != 0) {
+                    printf("Dropped %ld samples\n", p_rx_block->rf_timestamp - next_timestamp[port]);
+                    timestamp_gap_count[port]++;
+                    tag_now = true;
+                }
 
-            /* calculate what the next timestamp will be */
-			next_timestamp[port] = p_rx_block->rf_timestamp + buffer_sample_count;
+                /* calculate what the next timestamp will be */
+                next_timestamp[port] = p_rx_block->rf_timestamp + buffer_sample_count;
 
-            /* if something happened to insert a tag do it */
-			if (tag_now) {
-				auto ts = p_rx_block->sys_timestamp * sidekiq_system_time_interval_nanos;
-				apply_all_tags(nitems_written(port) + samples_receive_count[port], ts);
-			}
+                /* if something happened to insert a tag apply the tag */
+                if (tag_now) {
+                    auto ts = p_rx_block->sys_timestamp * sidekiq_system_time_interval_nanos;
+                    apply_all_tags(nitems_written(port) + samples_receive_count[port], ts);
+                }
 
-            /* each block is one vector long */
-			num_vectors++;
+                /* each block is one vector long */
+                num_vectors++;
 
-            /* update the counters */
-			samples_receive_count[port] += buffer_sample_count;
-			out[port] += buffer_sample_count;
+                /* update the counters */
+                samples_receive_count[port] += buffer_sample_count;
+                out[port] += buffer_sample_count;
+            }
 		} else {
             printf("Error : skiq_rcv failure, status %d\n", status);
-            this->stop();
+            throw std::runtime_error("Failure: skiq_receive failure");
         }
 
         /* determine if we should still be looping or if we are done */
-        if (dual_channel) {
-            looping = 
-                ((unsigned int)(samples_to_rx - samples_receive_count[0]) >= (DATA_MAX_BUFFER_SIZE) &&
-                (unsigned int)(samples_to_rx - samples_receive_count[1]) >= (DATA_MAX_BUFFER_SIZE));
-        }else { 
-            looping = 
-                ((unsigned int)(samples_to_rx - samples_receive_count[0]) >= (DATA_MAX_BUFFER_SIZE)); 
-        }
-
+        looping = check_rx_status(dual_channel, samples_to_rx, samples_receive_count, &port_done);
 	}
 
-    /* if we are done and the number of vectors processes is not noutput_items, then something bad happened */
-    if (num_vectors != noutput_items) {
-        printf("Error : Number of vectors processed is invalid, num_vectors %d\n", num_vectors);
-        this->stop();
-    }
 
 
 	return num_vectors;
