@@ -50,8 +50,9 @@ const size_t DATA_MAX_BUFFER_SIZE{SKIQ_MAX_RX_BLOCK_SIZE_IN_WORDS - SKIQ_RX_HEAD
 
 static const double STATUS_UPDATE_RATE_SECONDS{2.0};
 
+#define DEBUG 1
+//#define DEBUG_COUNTER 1
 //#define DEBUG_1PPS_TIMESTAMP (1)
-//#define DEBUG 1
 
 sidekiq_rx::sptr sidekiq_rx::make(
         int input_card_number,
@@ -281,7 +282,7 @@ void sidekiq_rx_impl::set_rx_sample_rate(double value) {
             chan_mode = skiq_chan_mode_dual;
         }
 
-#ifdef DEBUG        
+#ifdef DEBUG_COUNTER        
         status = skiq_write_rx_data_src(card, hdl2, skiq_data_src_counter);
         if ( status != 0 ) {
             printf("Error: failed to set Rx data_src to counter status %d (%s)\n", status, strerror(abs(status)));
@@ -304,7 +305,7 @@ void sidekiq_rx_impl::set_rx_sample_rate(double value) {
         throw std::runtime_error("Failure: skiq_write_chan_mode");
     }
 
-#ifdef DEBUG    
+#ifdef DEBUG_COUNTER    
     status = skiq_write_rx_data_src(card, hdl, skiq_data_src_counter);
     if ( status != 0 ) {
         printf("Error: failed to set Rx data_src to counter status %d (%s)\n", status, strerror(abs(status)));
@@ -507,7 +508,7 @@ int sidekiq_rx_impl::work(
     
     /* we need to continue looping until both channels have filled up the respective buffer */
     looping = check_rx_status(dual_channel, samples_to_rx, samples_receive_count, &port_done);
-
+   
 	while ( looping ) {
         /* block until either channel gets a block */
 		status = skiq_receive(card, &tmp_hdl, &p_rx_block, &data_length_bytes);
@@ -548,7 +549,8 @@ int sidekiq_rx_impl::work(
                         (const int16_t *) p_rx_block->data,
                         adc_scaling,
                         (buffer_sample_count * IQ_SHORT_COUNT));
-#ifdef DEBUG                
+
+#ifdef DEBUG_COUNTER                
                     uint16_t half_sample = (uint16_t )p_rx_block->data[0];
                     for (unsigned int i=1; i < buffer_sample_count * 2; i++) {
                         uint16_t next_sample = (uint16_t )p_rx_block->data[i];
@@ -598,9 +600,16 @@ int sidekiq_rx_impl::work(
 
         /* determine if we should still be looping or if we are done */
         looping = check_rx_status(dual_channel, samples_to_rx, samples_receive_count, &port_done);
-	}
+
+#ifdef DEBUG 
+        if (debug_ctr < 10)
+        {
+            printf("ctr %d, port_done = %d\n", debug_ctr, port_done);
+        }
+#endif
 
 
+    }
 
 	return num_vectors;
 }
