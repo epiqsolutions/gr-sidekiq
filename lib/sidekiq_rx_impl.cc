@@ -50,7 +50,8 @@ const size_t DATA_MAX_BUFFER_SIZE{SKIQ_MAX_RX_BLOCK_SIZE_IN_WORDS - SKIQ_RX_HEAD
 
 static const double STATUS_UPDATE_RATE_SECONDS{2.0};
 
-#define DEBUG 1
+#define DEBUG_COUNT 2
+//#define DEBUG 1
 //#define DEBUG_COUNTER 1
 //#define DEBUG_1PPS_TIMESTAMP (1)
 
@@ -395,7 +396,7 @@ void sidekiq_rx_impl::apply_all_tags(size_t sample_index, size_t timestamp) {
 
 bool check_rx_status(bool dual_channel, int samples_to_rx, int samples_receive_count[], int *port_done)
 {
-    bool looping;
+    bool looping = true;
 
     uint32_t p1_samples_left = (unsigned int)(samples_to_rx - samples_receive_count[0]);
     uint32_t p2_samples_left = (unsigned int)(samples_to_rx - samples_receive_count[1]);
@@ -418,7 +419,8 @@ bool check_rx_status(bool dual_channel, int samples_to_rx, int samples_receive_c
             /* p2 is done, p1 is not */
             *port_done = 1;
             looping = true;
-        } else 
+        } 
+        else
         {
             /* both are done */
             *port_done = 3;
@@ -470,13 +472,14 @@ int sidekiq_rx_impl::work(
 	skiq_rx_block_t *p_rx_block{};
     int port = 0;
     int num_ports;
-    bool looping = false;
+    bool looping = true;
     skiq_rx_hdl_t tmp_hdl;
     int status = 0;
     int port_done = 0xFF;
+    int loop_ctr = 0;
 
 #ifdef DEBUG
-    if (debug_ctr < 10) {
+    if (debug_ctr < DEBUG_COUNT) {
        printf("\nnoutput_items %d, samples_to_rx %d\n", noutput_items, samples_to_rx); 
        debug_ctr++;
     }
@@ -508,6 +511,11 @@ int sidekiq_rx_impl::work(
     
     /* we need to continue looping until both channels have filled up the respective buffer */
     looping = check_rx_status(dual_channel, samples_to_rx, samples_receive_count, &port_done);
+#ifdef DEBUG
+    if (debug_ctr < DEBUG_COUNT) {
+        printf("port done %d\n", port_done);
+    }
+#endif
    
 	while ( looping ) {
         /* block until either channel gets a block */
@@ -566,7 +574,7 @@ int sidekiq_rx_impl::work(
                         }
                         half_sample = next_sample;
                     }
-                    if (debug_ctr < 10) {
+                    if (debug_ctr < DEBUG_COUNT) {
                         printf(". ");
                     }
 #endif
@@ -602,13 +610,27 @@ int sidekiq_rx_impl::work(
         looping = check_rx_status(dual_channel, samples_to_rx, samples_receive_count, &port_done);
 
 #ifdef DEBUG 
-        if (debug_ctr < 10)
+        if (debug_ctr < DEBUG_COUNT)
         {
-            printf("ctr %d, port_done = %d\n", debug_ctr, port_done);
+            printf("ctr %d, loop_ctr %d, port_done = %d\n", debug_ctr, loop_ctr, port_done);
         }
 #endif
 
 
+        loop_ctr++;
+    }
+
+#ifdef DEBUG 
+        if (debug_ctr < DEBUG_COUNT)
+        {
+            printf("ctr %d, port_done = %d, num_vectors %d\n", debug_ctr, port_done, num_vectors);
+        }
+#endif
+
+    /* The number of items per channel needs to be returned.  Must be noutput_items or less */
+    if (dual_channel)
+    {
+        num_vectors = num_vectors / 2;
     }
 
 	return num_vectors;

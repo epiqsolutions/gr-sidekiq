@@ -481,7 +481,7 @@ blocks:
     affinity: ''
     alias: ''
     bandwidth: bandwidth
-    card: '1'
+    card: '2'
     comment: ''
     filter_override_taps: ''
     frequency: frequency
