@@ -538,11 +538,8 @@ int sidekiq_rx_impl::work(
             if (port_done == port)
             {
                 /* This port is done, throw away samples, report error, continue */
-                printf("Error : Port %d is complete but received an extra block\n", port+1);
-                printf("samples_to_rx %d, samples rcvd p1 %d, p2 %d\n", samples_to_rx, samples_receive_count[0], samples_receive_count[1]); 
-                printf(" looping %d, MAX %d\n", (int)looping, (int)DATA_MAX_BUFFER_SIZE);
+                printf("Error : Port %d is complete but received an extra block, dropping samples\n", port+1);
 
-                exit(1);
             } else
             {
                 /* determine how many samples are in the received block */
