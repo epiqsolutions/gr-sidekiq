@@ -66,19 +66,22 @@ namespace gr {
 		template<typename HdlType>
 		class SIDEKIQ_API sidekiq_base {
 		public:
-			sidekiq_base(int sync_type, HdlType handle_type, gr::sidekiq::sidekiq_functions<HdlType> sidekiq_functions);
+			sidekiq_base(int input_card_number, int sync_type, HdlType port1_handle, HdlType port2_handle, gr::sidekiq::sidekiq_functions<HdlType> sidekiq_functions);
 
 		protected:
+            uint32_t debug_ctr;
 			uint8_t card;
 			HdlType hdl;
+			HdlType hdl2;
+            bool dual_channel;
 			uint32_t sample_rate;
 			uint32_t bandwidth;
 			size_t sidekiq_system_time_interval_nanos;
 			size_t timestamp_frequency;
 			gr::sidekiq::sidekiq_functions<HdlType> sidekiq_functions;
-                        skiq_param_t sidekiq_params;
-                        float adc_scaling;
-                        float dac_scaling;
+                skiq_param_t sidekiq_params;
+                float adc_scaling;
+                float dac_scaling;
 
 			pmt::pmt_t get_pmt_tuple_from_timestamp(size_t timestamp);
 			pmt::pmt_t get_pmt_cons_from_timestamp(size_t timestamp);
@@ -97,14 +100,14 @@ namespace gr {
 			void write_rfic_register(uint16_t address, uint8_t data);
 			float read_temperature();
 
-			bool start_streaming();
-			bool stop_streaming();
-			bool set_frequency(double value);
-			double get_frequency();
-			bool set_samplerate_bandwidth(double sample_rate, double bandwidth);
-			double get_sample_rate();
-			uint64_t get_timestamp();
-			int64_t get_set_frequency_call_latency();
+			int start_streaming();
+			int stop_streaming();
+			double get_sample_rate(HdlType handle);
+			int set_samplerate_bandwidth(double sample_rate, double bandwidth);
+			double get_frequency(HdlType handle);
+			int set_frequency(double value);
+			uint64_t get_timestamp(HdlType handle);
+			int64_t get_set_frequency_call_latency(HdlType handle);
 			void set_filter_parameters(int16_t *coeffs);
 			void get_filter_parameters();
 		};

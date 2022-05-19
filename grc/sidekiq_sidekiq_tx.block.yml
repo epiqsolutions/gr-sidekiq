@@ -1,10 +1,10 @@
 id: sidekiq_tx
-label: Sidekiq TX Source
+label: Sidekiq TX Sink
 category: '[sidekiq]'
 
 templates:
   imports: import sidekiq
-  make: sidekiq.sidekiq_tx(${sample_rate}, ${attenuation}, ${frequency}, ${bandwidth}, ${sync}, ${suppress_tune_transients}, ${dataflow_mode}, ${buffer_size} )
+  make: sidekiq.sidekiq_tx(${card}, ${handle}, ${sample_rate}, ${attenuation}, ${frequency}, ${bandwidth}, ${sync}, ${suppress_tune_transients}, ${dataflow_mode}, ${buffer_size} )
   callbacks: 
   - set_tx_sample_rate(${sample_rate})
   - set_tx_attenuation(${attenuation})
@@ -20,6 +20,16 @@ templates:
 #     * dtype (e.g. int, float, complex, byte, short, xxx_vector, ...)
 
 parameters:
+- id: card
+  label: Card
+  dtype: int
+  default: 0
+- id: handle
+  label: Handle Id
+  dtype: enum
+  options: ['0', '2',]
+  option_labels: ['TxA1', 'TxB1']
+  default: 0
 - id: sample_rate
   label: Sample Rate
   dtype: real
@@ -50,6 +60,7 @@ parameters:
   option_labels: [ 'False', 'True' ]
 - id: dataflow_mode
   label: Dataflow Mode
+  dtype: enum
   options: ['0', '1']
   option_labels: ['Immediate', 'Timestamp']
   default: 0

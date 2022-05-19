@@ -4,7 +4,7 @@ category: '[sidekiq]'
 
 templates:
   imports: import sidekiq
-  make: sidekiq.sidekiq_rx(${sample_rate}, ${gain}, ${gain_mode}, ${frequency}, ${bandwidth}, ${sync_type} )
+  make: sidekiq.sidekiq_rx(${card}, ${handle1}, ${handle2}, ${sample_rate}, ${gain}, ${gain_mode}, ${frequency}, ${bandwidth}, ${sync_type} )
   callbacks: 
   - set_rx_sample_rate(${sample_rate})
   - set_rx_gain(${gain})
@@ -19,6 +19,22 @@ templates:
 #     * dtype (e.g. int, float, complex, byte, short, xxx_vector, ...)
 
 parameters:
+- id: card
+  label: Card
+  dtype: int
+  default: 0
+- id: handle1
+  label: Handle Id1
+  dtype: enum
+  options: ['0', '1', '2', '3', '4', '5']
+  option_labels: ['RxA1', 'RxA2', 'RxB1', 'RxB2', 'RxC1', 'RxD1']
+  default: 0
+- id: handle2
+  label: Handle Id2
+  dtype: enum
+  options: ['100', '0', '1', '2', '3', '4', '5']
+  option_labels: ['None', 'RxA1', 'RxA2', 'RxB1', 'RxB2', 'RxC1', 'RxD1']
+  default: 100
 - id: sample_rate
   label: Sample Rate
   dtype: real
@@ -68,6 +84,8 @@ outputs:
 - label: Samples
   domain: stream
   dtype: complex
+  multiplicity: ${ (2 if (handle2 != '100') else 1) }
+  #  multiplicity: 2
   vlen: 1018
   optional: false
 - label: telemetry
