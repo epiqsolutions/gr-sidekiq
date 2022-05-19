@@ -87,7 +87,7 @@ blocks:
     start: 100e6
     step: 1e6
     stop: 6000e6
-    value: 1200e6
+    value: 100e6
     widget: counter_slider
   states:
     bus_sink: false
@@ -100,7 +100,7 @@ blocks:
   id: variable
   parameters:
     comment: ''
-    value: '5000'
+    value: '359'
   states:
     bus_sink: false
     bus_source: false
@@ -183,6 +183,27 @@ blocks:
     coordinate: [992, 4.0]
     rotation: 0
     state: enabled
+- name: tone_freq
+  id: variable_qtgui_range
+  parameters:
+    comment: ''
+    gui_hint: ''
+    label: ''
+    min_len: '200'
+    orient: QtCore.Qt.Horizontal
+    rangeType: float
+    start: '1000000'
+    step: '1000000'
+    stop: '20000000'
+    value: '2000000'
+    widget: counter_slider
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [832, 200.0]
+    rotation: 0
+    state: true
 - name: analog_sig_source_x_0
   id: analog_sig_source_x
   parameters:
@@ -190,14 +211,14 @@ blocks:
     alias: ''
     amp: '1'
     comment: ''
-    freq: '2000000'
+    freq: tone_freq
     maxoutbuf: '0'
     minoutbuf: source_min_output_buffer
     offset: '0'
     phase: '0'
     samp_rate: sample_rate
     type: complex
-    waveform: analog.GR_SIN_WAVE
+    waveform: analog.GR_COS_WAVE
   states:
     bus_sink: false
     bus_source: false

@@ -65,6 +65,7 @@ sidekiq_base<HdlType>::sidekiq_base(
 		printf("Error: unable to initialize libsidekiq with status %d\n", status);
         throw std::runtime_error("Failure: skiq_init");
 	}
+    skiq_write_iq_order_mode(card, skiq_iq_order_iq);
 	timestamp_frequency = get_sys_timestamp_frequency();
 	sidekiq_system_time_interval_nanos = NANOSECONDS_IN_SECOND / timestamp_frequency;
 
