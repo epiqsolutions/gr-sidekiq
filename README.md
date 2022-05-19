@@ -9,6 +9,8 @@ Basic implementation of source and sink blocks for Sidekiq radios
 Provides receive and transmit functionality for Epiq Solution's Sidekiq radios via
 GNU radio.  Note: availability of libsidekiq is required for use.
 
+This release requires GNURadio v3.10
+
 ---
 To Build and Install (from the gr-sidekiq directory)
   1) Configure the environment to build
