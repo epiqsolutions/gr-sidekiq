@@ -1,376 +1,483 @@
+/* -*- c++ -*- */
 /*
-* Copyright 2018    US Naval Research Lab
-* Copyright 2018    Epiq Solutions
-*
-*
-* This is free software; you can redistribute it and/or modify
-* it under the terms of the GNU General Public License as published by
-* the Free Software Foundation; either version 3, or (at your option)
-* any later version.
-*
-* This software is distributed in the hope that it will be useful,
-* but WITHOUT ANY WARRANTY; without even the implied warranty of
-* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-* GNU General Public License for more details.
-*
-* You should have received a copy of the GNU General Public License
-* along with this software; see the file COPYING. If not, write to
-* the Free Software Foundation, Inc., 51 Franklin Street,
-* Boston, MA 02110-1301, USA.
-*/
-
+ * Copyright 2022 gr-sidekiq author.
+ *
+ * SPDX-License-Identifier: GPL-3.0-or-later
+ */
 #include <gnuradio/io_signature.h>
 #include <volk/volk.h>
 #include <boost/algorithm/string.hpp>
 #include <boost/foreach.hpp>
+#include <pthread.h>
+#include <gnuradio/io_signature.h>
+
 #include "sidekiq_tx_impl.h"
 
-using namespace gr::sidekiq;
-using pmt::pmt_t;
-
-const pmt_t CONTROL_MESSAGE_PORT{pmt::string_to_symbol("command")};
-
-const pmt_t TELEMETRY_MESSAGE_PORT{pmt::string_to_symbol("telemetry")};
-
+#define NUM_BLOCKS  20
 const bool SIDEKIQ_IQ_PACK_MODE_UNPACKED{false};
 
-static const double STATUS_UPDATE_RATE_SECONDS{1.0};
+static const double STATUS_UPDATE_RATE_SECONDS{2.0};
+static uint32_t complete_count{};
 
-static const int16_t TX_ENABLE_REGISTER{0x0002};
+/* The tx_complete function needs to be outside the object so it can be registered with libsidekiq */
+// mutex to protect updates to the tx buffer
+static pthread_mutex_t tx_buf_mutex;
+  
+// mutex and condition variable to signal when the tx queue may have room available
+static pthread_mutex_t space_avail_mutex;
+static pthread_cond_t space_avail_cond;
 
-static const int16_t TX_FILTER_CONFIGURATION_REGISTER{0x0065};
+static void tx_complete( int32_t status, skiq_tx_block_t *p_data, void *p_user )
+{
+  /* -2 happens when there are outstanding buffers and we stop streaming */
+  if( status != 0 && status != -2)
+  {
+      fprintf(stderr, "Error: packet %" PRIu32 " failed with status %d\n",
+              complete_count, status);
+  }
 
+  // increment the packet completed count
+  complete_count++;
 
-sidekiq_tx::sptr sidekiq_tx::make(
-        int input_card_number,
-        int handle,
-		double sample_rate,
-		double attenuation,
-		double frequency,
-		double bandwidth,
-		int sync_type,
-		bool suppress_tune_transients,
-		uint8_t dataflow_mode,
-		int buffer_size) {  
-	return gnuradio::get_initial_sptr(
-			new sidekiq_tx_impl(
-                    input_card_number,
-                    handle,
-					sample_rate,
-					attenuation,
-					frequency,
-					bandwidth,
-					sync_type,
-					suppress_tune_transients,
-					dataflow_mode,
-					buffer_size
-			));
+  pthread_mutex_lock( &tx_buf_mutex );
+  // update the in use status of the packet just completed
+  if (p_user)
+  {
+      *(int32_t*)p_user = 0;
+  }
+   pthread_mutex_unlock( &tx_buf_mutex );
+
+  // signal to the other thread that there may be space available now that a
+  // packet send has completed
+  pthread_mutex_lock( &space_avail_mutex );
+  pthread_cond_signal(&space_avail_cond);
+  pthread_mutex_unlock( &space_avail_mutex );
+
 }
 
-sidekiq_tx_impl::sidekiq_tx_impl(
-        int input_card_number,
-        int handle,
-		double sample_rate,
-		double attenuation,
-		double frequency,
-		double bandwidth,
-		int sync_type,
-		bool suppress_tune_transients,
-		uint8_t dataflow_mode,
-		int buffer_size) 
-		: gr::sync_block(
-		"sidekiq_tx",
-		gr::io_signature::make(1, 2, sizeof(gr_complex)),
-		gr::io_signature::make(0, 0, 0)),
-		  sidekiq_tx_base{
-                  input_card_number,
-				  sync_type,
-				  (skiq_tx_hdl_t)handle,
-				  (skiq_tx_hdl_t)100,
-				  gr::sidekiq::sidekiq_functions<skiq_tx_hdl_t>(
-						  skiq_start_tx_streaming,
-						  skiq_stop_tx_streaming,
-						  skiq_write_tx_LO_freq,
-						  skiq_read_tx_LO_freq,
-						  skiq_write_tx_sample_rate_and_bandwidth,
-						  skiq_read_tx_sample_rate_and_bandwidth,
-						  skiq_read_curr_tx_timestamp,
-						  skiq_read_rfic_tx_fir_config,
-						  skiq_write_rfic_tx_fir_coeffs,
-						  skiq_read_rfic_tx_fir_coeffs
-				  )
-		  },
-		  dataflow_mode{static_cast<skiq_tx_flow_mode_t>(dataflow_mode)},
-		  tx_buffer_size{static_cast<uint16_t>(buffer_size)} {
+namespace gr {
+namespace sidekiq {
 
-	set_tx_frequency(frequency);
-	set_tx_sample_rate(sample_rate);
-	set_tx_bandwidth(bandwidth);
-	set_tx_suppress_tune_transients(suppress_tune_transients);
-	set_tx_attenuation(attenuation);
-//	get_filter_parameters();
-	if (skiq_write_tx_data_flow_mode(card, hdl, this->dataflow_mode) != 0) {
-		printf("Error: could not set TX dataflow mode\n");
+using input_type = float;
+sidekiq_tx::sptr sidekiq_tx::make(int card,
+                                  int handle,
+                                  double sample_rate,
+                                  double bandwidth,
+                                  double frequency,
+                                  double attenuation,
+                                  int threads,
+                                  int buffer_size)
+{
+    return gnuradio::make_block_sptr<sidekiq_tx_impl>(
+                                  card, 
+                                  handle,
+                                  sample_rate,
+                                  bandwidth,
+                                  frequency,
+                                  attenuation,
+                                  threads,
+                                  buffer_size);
+}
+
+
+/*
+ * The private constructor
+ */
+sidekiq_tx_impl::sidekiq_tx_impl( int input_card,
+                                  int handle,
+                                  double sample_rate,
+                                  double bandwidth,
+                                  double frequency,
+                                  double attenuation,
+                                  int threads,
+                                  int buffer_size)
+    : gr::sync_block("sidekiq_tx",
+                     gr::io_signature::make(
+                         1 /* min inputs */, 1 /* max inputs */, sizeof(gr_complex)),
+                     gr::io_signature::make(0, 0, 0))   //sync block
+{
+    printf("in constructor\n");
+    printf("card %d, handle %d rate %f, bandwidth %f, \nfrequency %f, atten %f, threads %d, buffer_size %d\n", 
+            input_card, handle, sample_rate, bandwidth, frequency, attenuation, threads, buffer_size);
+
+    int status = 0;
+    uint8_t iq_resolution = 0;
+
+    card = input_card;
+    hdl = (skiq_tx_hdl_t)handle;
+    curr_block = 0;
+    tx_buffer_size = buffer_size;
+    temp_buffer.resize(tx_buffer_size);
+
+    status = skiq_init(skiq_xport_type_pcie, skiq_xport_init_level_full, &card, 1);
+    if (status != 0) 
+    {
+        fprintf(stderr, "Error: unable to initialize libsidekiq with status %d\n", status);
+        throw std::runtime_error("Failure: skiq_init");
+    }
+    libsidekiq_init = true;
+    printf("Info: libsidkiq initialized successfully\n");
+
+    set_tx_sample_rate(sample_rate);
+    set_tx_bandwidth(bandwidth);
+
+    status = skiq_read_tx_iq_resolution(card, &iq_resolution);
+    if (status != 0) 
+    {
+        fprintf(stderr, "Error: unable to initialize libsidekiq with status %d\n", status);
+        throw std::runtime_error("Failure: skiq_init");
+    }
+    dac_scaling = (pow(2.0f, iq_resolution) / 2.0)-1;
+
+
+    printf("Info: dac scaling %f\n", dac_scaling);
+
+    status = skiq_write_tx_data_flow_mode(card, hdl, skiq_tx_immediate_data_flow_mode);
+    if (status != 0) 
+    {
+        fprintf(stderr, "Error: could not set TX dataflow mode with status %d\n", status);
         throw std::runtime_error("Failure: skiq_write_tx_flow_mode");
-	}
+    }
 
-    if (hdl == skiq_tx_hdl_A2 || hdl == skiq_tx_hdl_B2) {
-        if (skiq_write_chan_mode(card, skiq_chan_mode_dual) != 0) {
-            printf("Error: unable to configure TX channel mode\n");
+    if (hdl == skiq_tx_hdl_A2 || hdl == skiq_tx_hdl_B2) 
+    {
+        status = skiq_write_chan_mode(card, skiq_chan_mode_dual);
+        if (status != 0) 
+        {
+            fprintf(stderr, "Error: unable to configure TX channel mode with status %d\n", status);
             throw std::runtime_error("Failure: skiq_write_chan_mode");
         }
-    } else {
-        if (skiq_write_chan_mode(card, skiq_chan_mode_single) != 0) {
-            printf("Error: unable to configure TX channel mode\n");
+    } 
+    else {
+        status = skiq_write_chan_mode(card, skiq_chan_mode_single);
+        if (status != 0) 
+        {
+            fprintf(stderr, "Error: unable to configure TX channel mode with status %d\n", status);
             throw std::runtime_error("Failure: skiq_write_chan_mode");
         }
     }
-	if (skiq_write_tx_block_size(card, hdl, tx_buffer_size) != 0) {
-		printf("Error: unable to configure TX block size: %d\n", tx_buffer_size);
+
+    status = skiq_write_tx_block_size(card, hdl, tx_buffer_size);
+    if (status != 0) 
+    {
+        fprintf(stderr, "Error: unable to configure TX block size: %d with status %d\n", 
+                tx_buffer_size, status);
         throw std::runtime_error("Failure: skiq_write_tx_block_size");
-	}
-	if (skiq_write_tx_transfer_mode(card, skiq_tx_hdl_A1, skiq_tx_transfer_mode_sync) != 0) {
-		printf("Error: unable to configure TX channel mode\n");
+    }
+    printf("Info: TX block size %d\n", tx_buffer_size);
+  
+    status = skiq_write_tx_transfer_mode(card, hdl, skiq_tx_transfer_mode_async);
+    if (status != 0) 
+    {
+        fprintf(stderr, "Error: unable to configure TX channel mode with status %d\n", status);
         throw std::runtime_error("Failure: skiq_write_tx_transfer_mode");
-	}
-	if (skiq_write_iq_pack_mode(card, SIDEKIQ_IQ_PACK_MODE_UNPACKED) != 0) {
-		printf("Error: unable to set iq pack mode to unpacked%d\n", SIDEKIQ_IQ_PACK_MODE_UNPACKED);
+    }
+
+    status = skiq_write_num_tx_threads(card, threads);
+    if (status != 0) 
+    {
+        printf("Error: unable to configure TX number of threads with status %d\n", status);
+        throw std::runtime_error("Failure: skiq_write_tx_transfer_mode");
+    }
+    
+    status = skiq_register_tx_complete_callback( card, &tx_complete );
+    if (status != 0) 
+    {
+        fprintf(stderr, "Error: unable to configure TX callback with status %d\n", status);
+        throw std::runtime_error("Failure: skiq_register_tx_complete_callback");
+    }
+ 
+    status = skiq_write_iq_pack_mode(card, SIDEKIQ_IQ_PACK_MODE_UNPACKED);
+    if (status != 0) 
+    {
+        fprintf(stderr, "Error: unable to set iq pack mode to unpacked with status %d\n", status);
         throw std::runtime_error("Failure: skiq_write_iq_pack_mode");
-	}
-	tx_data_block = skiq_tx_block_allocate(tx_buffer_size);
-	temp_buffer.resize(tx_buffer_size);
+    }
+  
+    status = skiq_write_iq_order_mode(card, skiq_iq_order_iq) ;
+    if (status != 0) 
+    {
+          fprintf(stderr, "Error: unable to set iq order mode to iq with status %d \n", status);
+          throw std::runtime_error("Failure: skiq_write_iq_pack_mode");
+    }
 
+    p_tx_blocks = (skiq_tx_block_t **)calloc( NUM_BLOCKS, sizeof( skiq_tx_block_t * ));
+    if( p_tx_blocks == NULL )
+    {
+        fprintf(stderr, "Error: failed to allocate memory for TX blocks.\n");
+        throw std::runtime_error("Failure: calloc p_tx_blocks");
+    }
 
-	auto alignment_multiple = static_cast<int>(volk_get_alignment() / sizeof(short));
-	set_alignment(alignment_multiple);
+    // allocate for # blocks
+    p_tx_status = (int32_t *)calloc( NUM_BLOCKS, sizeof(*p_tx_status) );
+    if( p_tx_status == NULL )
+    {
+        fprintf(stderr, "Error: failed to allocate memory for TX status.\n");
+        throw std::runtime_error("Failure: calloc p_tx_status");
+    }
 
-	message_port_register_in(CONTROL_MESSAGE_PORT);
-	set_msg_handler(CONTROL_MESSAGE_PORT, [this](pmt::pmt_t msg) { this->handle_control_message(msg); });
-	message_port_register_out(TELEMETRY_MESSAGE_PORT);
+    for (int i = 0; i < NUM_BLOCKS; i++)
+    {
+        /* allocate a transmit block by number of words */
+        p_tx_blocks[i] = skiq_tx_block_allocate( tx_buffer_size );
+        p_tx_status[i] = 0;
+    }
+
+    set_tx_frequency(frequency);
+    set_tx_attenuation(attenuation);
 }
 
-bool sidekiq_tx_impl::start() {
-	output_telemetry_message();
-	if (skiq_start_tx_streaming(card, hdl) != 0) {
-		printf("Error: could not start TX streaming\n");
+/*
+ * Our virtual destructor.
+ */
+sidekiq_tx_impl::~sidekiq_tx_impl() 
+{
+    printf("in destructor\n");
+
+}
+
+bool sidekiq_tx_impl::start() 
+{
+    int status = 0;
+
+    printf("in start() \n");
+
+    status = skiq_start_tx_streaming(card, hdl);
+    if (status != 0)
+    {
+        fprintf(stderr, "Error: could not start TX streaming, status %d\n", status);
         throw std::runtime_error("Failure: skiq_start_tx_streaming");
-	}
-	return block::start();
+    }
+
+    tx_streaming = true;
+
+    return block::start();
 }
 
-bool sidekiq_tx_impl::stop() {
-	skiq_stop_tx_streaming(card, hdl);
-	skiq_exit();
-	return block::stop();
+bool sidekiq_tx_impl::stop() 
+{
+    int status = 0;
+    
+    printf("in stop() \n");
+
+    if (tx_streaming == true)
+    {
+        status = skiq_stop_tx_streaming(card, hdl);
+        if (status != 0)
+        {
+            fprintf(stderr, "Error: could not stop TX streaming, status %d\n", status);
+            throw std::runtime_error("Failure: skiq_start_tx_streaming");
+        }
+    }
+    
+    if (libsidekiq_init == true)
+    {
+        skiq_exit();
+    }
+
+    return block::stop();
 }
 
-void sidekiq_tx_impl::set_tx_attenuation(double value) {
-	if (skiq_write_tx_attenuation(card, hdl, static_cast<uint16_t>(value)) != 0) {
-		printf("Error: could not set TX attenuation to %f\n", value);
+void sidekiq_tx_impl::set_tx_sample_rate(double value) 
+{
+
+    int status = 0;
+    printf("in set_tx_sample_rate() \n");
+
+    auto rate = static_cast<uint32_t>(value);
+    auto bw = static_cast<uint32_t>(this->bandwidth);
+
+    status = skiq_write_tx_sample_rate_and_bandwidth(card, hdl, rate, bw); 
+    if (status != 0) 
+    {
+        fprintf(stderr, "Error: could not set sample_rate, status %d, %s\n", 
+                status, strerror(abs(status)) );
+        throw std::runtime_error("Failure: set samplerate");
+    }
+
+    this->sample_rate = rate;
+    this->bandwidth = bw;
+
+    status_update_rate_in_samples = static_cast<size_t >(sample_rate * STATUS_UPDATE_RATE_SECONDS);
+
+}
+  
+void sidekiq_tx_impl::set_tx_bandwidth(double value) 
+{
+    int status = 0;
+    printf("in set_tx_bandwidth() \n");
+
+    auto rate = static_cast<uint32_t>(this->sample_rate);
+    auto bw = static_cast<uint32_t>(value);
+
+    status = skiq_write_tx_sample_rate_and_bandwidth(card, hdl, rate, bw); 
+    if (status != 0) 
+    {
+        fprintf(stderr,"Error: could not set bandwidth %d, status %d, %s\n", 
+                bw, status, strerror(abs(status)) );
+        throw std::runtime_error("Failure: set samplerate");
+        return;
+    }
+
+    this->sample_rate = rate;
+    this->bandwidth = bw;
+
+}
+
+void sidekiq_tx_impl::set_tx_frequency(double value) 
+{
+    int status = 0;
+    printf("in set_tx_frequency() \n");
+
+    auto freq = static_cast<uint64_t>(value);
+
+    status = skiq_write_tx_LO_freq(card, hdl, freq);
+    if (status != 0) 
+    {
+        fprintf(stderr,"Error: could not set frequency %ld, status %d, %s\n", 
+                freq, status, strerror(abs(status)) );
+        throw std::runtime_error("Failure: set samplerate");
+        return;
+    }
+
+    this->frequency = freq;
+}
+
+
+void sidekiq_tx_impl::set_tx_attenuation(double value) 
+{
+    int status = 0;
+    printf("in set_tx_attenuation() \n");
+
+    auto att = static_cast<uint32_t>(value);
+
+    status = skiq_write_tx_attenuation(card, hdl, att);
+    if (status != 0)
+    {
+        fprintf(stderr, "Error: could not set TX attenuation to %d with status %d, %s\n", 
+                att, status, strerror(abs(status)) );
         throw std::runtime_error("Failure: skiq_write_tx_attenuation");
-	}
+        return;
+    }
+    this->attenuation = att;
 }
 
-uint16_t sidekiq_tx_impl::get_tx_attenuation() {
-	uint16_t result;
-	if (skiq_read_tx_attenuation(card, hdl, &result) != 0) {
-		printf("Error: could not get TX attenuation\n");
-        throw std::runtime_error("Failure: skiq_read_tx_attenuation");
-	}
-	return result;
-}
+void sidekiq_tx_impl::forecast(int noutput_items, gr_vector_int &ninput_items_required) 
+{
 
-void sidekiq_tx_impl::set_tx_sample_rate(double value) {
-	set_samplerate_bandwidth(static_cast<uint32_t>(value), bandwidth);
-	status_update_rate_in_samples = static_cast<size_t >(sample_rate * STATUS_UPDATE_RATE_SECONDS);
-}
-
-void sidekiq_tx_impl::set_tx_bandwidth(double value) {
-	set_samplerate_bandwidth(sample_rate, static_cast<uint32_t>(value));
-}
-
-void sidekiq_tx_impl::set_tx_suppress_tune_transients(bool value) {
-	suppress_tune_transients = value;
-}
-
-void sidekiq_tx_impl::set_tx_frequency(double value) {
-	if (suppress_tune_transients) {
-		auto current_attenuation = get_tx_attenuation();
-		set_tx_attenuation(SKIQ_MAX_TX_ATTENUATION);
-		set_frequency(value);
-		set_tx_attenuation(current_attenuation);
-	} else {
-		set_frequency(value);
-	}
-}
-
-void sidekiq_tx_impl::set_tx_filter_override_taps(const std::vector<float> &taps) {
-	//TODO: we need to be checking filter parameters and enforcing that current config tap length
-	// is equal to tap length of custom filter we are trying to set
-
-	float MAX_SIZE{65536.0f / 4.0f};
-
-	filter_override_taps.clear();
-	for (unsigned int count{0}; count < taps.size(); count++) {
-		filter_override_taps.push_back(static_cast<int16_t>(taps[count] * MAX_SIZE));
-		printf("%03d,%f,%05d\n", count, taps[count], filter_override_taps[count]);
-	}
-	if (!filter_override_taps.empty()) {
-		set_filter_parameters(&filter_override_taps[0]);
-	}
-//	get_filter_parameters();
-}
-
-void sidekiq_tx_impl::output_telemetry_message() {
-	message_port_pub(TELEMETRY_MESSAGE_PORT, get_telemetry_pmt());
-}
-
-//TODO: move this to pmt_helper class
-double get_double_from_pmt_dict(pmt_t dict, pmt_t key, pmt_t not_found = pmt::PMT_NIL) {
-	auto message_value = pmt::dict_ref(dict, key, not_found);
-
-	return pmt::to_double(message_value);
-}
-
-void sidekiq_tx_impl::handle_control_message(pmt_t message) {
-	if (pmt::dict_has_key(message, FREQ_KEY)) {
-		set_tx_frequency(get_double_from_pmt_dict(message, FREQ_KEY));
-	}
-	if (pmt::dict_has_key(message, GAIN_KEY)) {
-		set_tx_attenuation(get_double_from_pmt_dict(message, GAIN_KEY));
-	}
-	if (pmt::dict_has_key(message, RATE_KEY)) {
-		set_tx_sample_rate(get_double_from_pmt_dict(message, RATE_KEY));
-	}
-	//TODO: timed freq change must be implemented before this will work
-	if (pmt::dict_has_key(message, USRP_TIMED_COMMAND_KEY)) {
-//		execute_timed_freq_change_command(message, true);
-	}
-}
-
-void sidekiq_tx_impl::forecast(int noutput_items, gr_vector_int &ninput_items_required) {
-	(void)(noutput_items);
-	ninput_items_required[0] = tx_buffer_size;
+    (void)(noutput_items);
+    ninput_items_required[0] = tx_buffer_size;
 }
 
 void sidekiq_tx_impl::update_tx_error_count() {
-	uint32_t num_tx_errors;
+    int status = 0;
+    uint32_t num_tx_errors;
 
-	if (dataflow_mode == skiq_tx_immediate_data_flow_mode) {
-		skiq_read_tx_num_underruns(card, hdl, &num_tx_errors);
-		if (last_num_tx_errors != num_tx_errors) {
-			printf("TX underrun count: %u\n", num_tx_errors);
-			last_num_tx_errors = num_tx_errors;
-		}
-	} else {
-		skiq_read_tx_num_late_timestamps(card, hdl, &num_tx_errors);
-		printf("TX late burst count:  %u\n", num_tx_errors);
+
+    status =  skiq_read_tx_num_underruns(card, hdl, &num_tx_errors);
+    if (status != 0)
+    {
+        fprintf(stderr, "Error: skiq_read_tx_num_underruns failed with status %d \n", status);
+        throw std::runtime_error("Failure: skiq_write_tx_attenuation");
+        return;
+    }
+
+    if (last_num_tx_errors != num_tx_errors) {
+        printf("TX underrun count: %u\n", num_tx_errors);
+        last_num_tx_errors = num_tx_errors;
 	}
 }
 
-void sidekiq_tx_impl::handle_tx_gain_tag(tag_t tag) {
-	set_tx_attenuation(pmt::to_double(tag.value));
-}
-
-void sidekiq_tx_impl::handle_tx_freq_tag(tag_t tag) {
-	set_tx_frequency(pmt::to_double(tag.value));
-}
-
-void sidekiq_tx_impl::handle_tx_time_tag(tag_t tag) {
-	uint64_t seconds{pmt::to_uint64(pmt::tuple_ref(tag.value, 0))};
-	double fractional{pmt::to_double(pmt::tuple_ref(tag.value, 1))};
-	auto time = static_cast<double>(seconds) + fractional;
-	timestamp = static_cast<uint64_t>(time * sample_rate);
-}
-
-void sidekiq_tx_impl::handle_tx_burst_length_tag(tag_t tag) {
-	burst_length = pmt::to_uint64(tag.value);
-	check_burst_length(tag.offset, burst_length);
-	burst_samples_sent = 0;
-}
-
-void sidekiq_tx_impl::check_burst_length(size_t current_tag_offset, size_t burst_sample_length) {
-	auto burst_tag_offset_delta = current_tag_offset - previous_burst_tag_offset;
-	auto result = static_cast<int64_t>(burst_sample_length - burst_tag_offset_delta);
-
-	//TODO: This can just be burst_sample_length != burst_tag_offset_delta. TEST THIS BEFORE CHANGING!!!
-	if (result != 0 && previous_burst_tag_offset != 0) {
-		printf(
-				"Burst Tag Error - (Actual,Expected): %ld, %ld between tags  %ld:%ld\n",
-				burst_tag_offset_delta,
-				burst_sample_length,
-				previous_burst_tag_offset,
-				current_tag_offset
-		);
-	}
-	previous_burst_tag_offset = current_tag_offset;
-}
-
-//TODO:
-//1. enable gps timestamp on next pps
-//2. handle message commands (done)
-//3. implement timed freq change
-//4. implement timed bursts	(done)
-//5. test out async mode
-//6. further investiate setting custom filter taps
-//7. handle freq/gain/etc on tx tags (done)
-//8. suppress tx tune transients (done)
-//9. PID controller for txvco warp to discipline to PPS
 int sidekiq_tx_impl::work(
 		int noutput_items,
 		gr_vector_const_void_star &input_items,
-		gr_vector_void_star &output_items) {
-	unsigned int input_port{};
-	auto in = static_cast<const gr_complex *>(input_items[input_port]);
-	int samples_written{};
-	int32_t result;
-	std::vector<tag_t> tags;
-	(void)(output_items);
-	
-	//TODO: this will not work when noutput_items < tx_buffer_size, it will return 0. Fix it...
-	auto ninput_items = noutput_items - (noutput_items % tx_buffer_size);
-	
-	if (nitems_read(input_port) - last_status_update_sample > status_update_rate_in_samples) {
-		update_tx_error_count();
-		last_status_update_sample = nitems_read(input_port);
-	}
+		gr_vector_void_star &output_items) 
+{
+	int32_t status{};
+	int32_t samples_written{};
+    int32_t ninput_items{};
 
-	get_tags_in_range(tags, input_port, nitems_read(input_port), nitems_read(input_port) + ninput_items);
-	std::sort(tags.begin(), tags.end(), tag_t::offset_compare);
-	BOOST_FOREACH(
-			const tag_t &tag, tags) {
-					if (pmt::equal(tag.key, TX_TIME_KEY)) {
-						handle_tx_time_tag(tag);
-					} else if (pmt::equal(tag.key, TX_BURST_LENGTH_KEY)) {
-						handle_tx_burst_length_tag(tag);
-					} else if (pmt::equal(tag.key, TX_FREQ_KEY)) {
-						handle_tx_freq_tag(tag);
-					} else if (pmt::equal(tag.key, TX_GAIN_KEY)) {
-						handle_tx_gain_tag(tag);
-					}
-				}
+    /* get a pointer to the buffer with the samples to be transmitted */
+    auto in = static_cast<const gr_complex *>(input_items[0]);
+	
+    (void)(output_items);
 
-	while (samples_written < ninput_items) {
+    /* We should always have noutput_items larger than tx_buffer_size 
+     * because we did the "forecast" function */
+    if ( noutput_items > tx_buffer_size)
+    {
+	     ninput_items = noutput_items - (noutput_items % tx_buffer_size);
+    }
+    else {
+        fprintf(stderr, "Error: noutput_items is smaller than tx_buffer_size\n");
+        throw std::runtime_error("Failure: skiq_write_tx_attenuation");
+    }
+
+
+    /* loop until we have sent the samples we have been given */
+	while (samples_written < ninput_items) 
+    {
+        /* convert the samples we have received to be within the dac_scaling values */
 		volk_32f_s32f_multiply_32f(
 				reinterpret_cast<float *>(&temp_buffer[0]),
 				reinterpret_cast<const float *>(in),
 				dac_scaling,
 				static_cast<unsigned int>(tx_buffer_size * 2));
+
+        /* convert those samples from float complex to int16 */
 		volk_32fc_convert_16ic(
-				reinterpret_cast<lv_16sc_t *>(tx_data_block->data),
+				reinterpret_cast<lv_16sc_t *>(p_tx_blocks[curr_block]->data),
 				reinterpret_cast<const lv_32fc_t*>(&temp_buffer[0]),
 				tx_buffer_size);
 		
-		skiq_tx_set_block_timestamp(tx_data_block, timestamp);
-		result = skiq_transmit(card, hdl, tx_data_block, nullptr);
-		timestamp += tx_buffer_size;
-		if (result == 0) {
-			samples_written += tx_buffer_size;
-			in += tx_buffer_size;
-		} else {
-			printf("Info: sidekiq transmit failed with error: %d\n", result);
-		}
+
+        /* transmit the samples */
+		status = skiq_transmit(card, hdl, p_tx_blocks[curr_block], &(p_tx_status[curr_block]));
+
+        /* check to see if the TX queue is full, if so wait for a released buffer */ 
+        if( status == SKIQ_TX_ASYNC_SEND_QUEUE_FULL )
+        {
+            // update the in use status since we didn't actually send it yet
+            pthread_mutex_lock( &tx_buf_mutex );
+            p_tx_status[curr_block] = 0;
+            pthread_mutex_unlock( &tx_buf_mutex );
+
+            pthread_mutex_lock( &space_avail_mutex );
+            pthread_cond_wait( &space_avail_cond, &space_avail_mutex );
+            pthread_mutex_unlock( &space_avail_mutex );
+        }
+        else if ( status != 0 ) 
+        {
+			printf("Info: sidekiq transmit failed with error: %d\n", status);
+		} 
+        else {
+            samples_written += tx_buffer_size;
+
+            /* move the pointer */
+            in += tx_buffer_size;
+
+            /* loop the tx_block index and wrap */
+            curr_block = (curr_block + 1) % NUM_BLOCKS;
+        }
 	}
+
+    
+    /* Determine if a second has elapsed and display any underruns we have received */
+    if (nitems_read(0) - last_status_update_sample > status_update_rate_in_samples) 
+    {
+        update_tx_error_count();
+        last_status_update_sample = nitems_read(0);
+
+#define DEBUG
+#ifdef DEBUG
+        printf("noutput_items %d, tx_buffer_size %d, sample_written %d\n", 
+                noutput_items, tx_buffer_size, samples_written);
+#endif
+    }
 	
 	return samples_written;
 }
+
+
+} /* namespace sidekiq */
+} /* namespace gr */

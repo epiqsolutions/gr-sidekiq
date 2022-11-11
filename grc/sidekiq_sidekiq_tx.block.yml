@@ -1,78 +1,69 @@
-id: sidekiq_tx
-label: Sidekiq TX Sink
+id: sidekiq_sidekiq_tx
+label: new sidekiq_tx
 category: '[sidekiq]'
 
 templates:
-  imports: import sidekiq
-  make: sidekiq.sidekiq_tx(${card}, ${handle}, ${sample_rate}, ${attenuation}, ${frequency}, ${bandwidth}, ${sync}, ${suppress_tune_transients}, ${dataflow_mode}, ${buffer_size} )
-  callbacks: 
+  imports: from gnuradio import sidekiq
+  make: sidekiq.sidekiq_tx(${card}, ${handle}, ${sample_rate}, ${bandwidth}, ${frequency}, ${attenuation}, ${threads}, ${buffer_size})
+
+  callbacks:
   - set_tx_sample_rate(${sample_rate})
   - set_tx_attenuation(${attenuation})
   - set_tx_frequency(${frequency})
   - set_tx_bandwidth(${bandwidth})
-  - set_tx_suppress_tune_transients(${suppress_tune_transients})
-  - set_tx_filter_override_taps(${filter_override_taps})
-  
+
 #  Make one 'parameters' list entry for every parameter you want settable from the GUI.
 #     Keys include:
 #     * id (makes the value accessible as keyname, e.g. in the make entry)
 #     * label (label shown in the GUI)
 #     * dtype (e.g. int, float, complex, byte, short, xxx_vector, ...)
-
+#     * default
 parameters:
 - id: card
   label: Card
   dtype: int
-  default: 0
+  default: 0 
+
 - id: handle
   label: Handle Id
   dtype: enum
   options: ['0', '2',]
   option_labels: ['TxA1', 'TxB1']
   default: 0
+
 - id: sample_rate
   label: Sample Rate
   dtype: real
   default: 1e6
-- id: attenuation
-  label: Attenuation
-  dtype: real
-  default: 1
-- id: frequency
-  label: Frequency
-  dtype: real
-  default: 2400e6
+
 - id: bandwidth
   label: Bandwidth
   default: 1e6
   dtype: real
-- id: sync
-  label: Sync
-  dtype: enum
-  options: ['1','2', '3']
-  option_labels: ['Zero', 'GPS PPS', 'PC Clock']
+
+- id: frequency
+  label: Frequency
+  dtype: real
+  default: 2400e6
+
+- id: attenuation
+  label: Attenuation
+  dtype: real
   default: 1
-- id: suppress_tune_transients
-  label: Suppress Tune Transients
-  dtype: enum
-  default: 0
-  options: [ '0', '1' ]
-  option_labels: [ 'False', 'True' ]
-- id: dataflow_mode
-  label: Dataflow Mode
-  dtype: enum
-  options: ['0', '1']
-  option_labels: ['Immediate', 'Timestamp']
-  default: 0
-- id: filter_override_taps
-  label: Filter Override Taps
-  dtype: real_vector
+
+- id: threads
+  label: Threads
+  dtype: int
+  default: 4
+
 - id: buffer_size
   label: Buffer Size
   dtype: int
-  default: 1020
-  options: [1020, 4092, 16380, 32764]
-  option_labels: ['1K', '4K', '16k', '32k']
+  default: 4092
+  options: [1020, 4092, 8188, 16380, 32764]
+  option_labels: ['1K', '4K', '8K', '16k', '32k']
+
+
 
 #  Make one 'inputs' list entry per input and one 'outputs' list entry per output.
 #  Keys include:
@@ -81,21 +72,25 @@ parameters:
 #      * dtype (e.g. int, float, complex, byte, short, xxx_vector, ...)
 #      * vlen (optional - data stream vector length. Default is 1)
 #      * optional (optional - set to 1 for optional inputs. Default is 0)
-
 inputs:
-- label: command
-  domain: message
-  optional: true
 - label: Samples
   domain: stream
   optional: false
-  dtype: complex  
+  dtype: complex
+
+#- label: ...
+#  domain: ...
+#  dtype: ...
+#  vlen: ...
+#  optional: ...
+
 outputs:
-- label: telemetry
-  domain: message
-  optional: true
-  
+#- label: ...
+#  domain: ...
+#  dtype: ...
+#  vlen: ...
+#  optional: ...
+
 #  'file_format' specifies the version of the GRC yml format used in the file
 #  and should usually not be changed.
 file_format: 1
-

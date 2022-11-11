@@ -29,12 +29,17 @@ include(GrPybind)
 ########################################################################
 
 list(APPEND sidekiq_python_files
-    sidekiq_rx_python.cc
     sidekiq_tx_python.cc python_bindings.cc)
 
-GR_PYBIND_MAKE_OOT(sidekiq 
-   ../..
+GR_PYBIND_MAKE_OOT(sidekiq
+   ../../..
    gr::sidekiq
    "${sidekiq_python_files}")
 
-install(TARGETS sidekiq_python DESTINATION ${GR_PYTHON_DIR}/sidekiq COMPONENT pythonapi)
+# copy bindings extension for use in QA test module
+add_custom_command(TARGET sidekiq_python POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy $<TARGET_FILE:sidekiq_python>
+    ${CMAKE_BINARY_DIR}/test_modules/gnuradio/sidekiq/
+)
+
+install(TARGETS sidekiq_python DESTINATION ${GR_PYTHON_DIR}/gnuradio/sidekiq COMPONENT pythonapi)

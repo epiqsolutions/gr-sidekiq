@@ -11,7 +11,7 @@ options:
     gen_linking: dynamic
     generate_options: qt_gui
     hier_block_src_path: '.:'
-    id: top_block
+    id: sink_test
     max_nouts: '0'
     output_language: python
     placement: (0,0)
@@ -22,7 +22,7 @@ options:
     run_options: prompt
     sizing_mode: fixed
     thread_safe_setters: ''
-    title: ''
+    title: Sink Test
     window_size: (1000,1000)
   states:
     bus_sink: false
@@ -33,177 +33,84 @@ options:
     state: enabled
 
 blocks:
-- name: atten_quart_db
-  id: variable_qtgui_range
-  parameters:
-    comment: ''
-    gui_hint: 0,1,1,1
-    label: 'Attenuation '
-    min_len: '200'
-    orient: QtCore.Qt.Horizontal
-    rangeType: float
-    start: '0'
-    step: '1'
-    stop: max_attenuation
-    value: '50'
-    widget: counter_slider
-  states:
-    bus_sink: false
-    bus_source: false
-    bus_structure: null
-    coordinate: [544, 4]
-    rotation: 0
-    state: enabled
-- name: bandwidth
-  id: variable_qtgui_range
-  parameters:
-    comment: ''
-    gui_hint: 1,1,1,1
-    label: Bandwidth
-    min_len: '200'
-    orient: QtCore.Qt.Horizontal
-    rangeType: float
-    start: 0.1e6
-    step: 0.1e6
-    stop: max_sample_rate
-    value: sample_rate
-    widget: counter_slider
-  states:
-    bus_sink: false
-    bus_source: false
-    bus_structure: null
-    coordinate: [832, 4.0]
-    rotation: 0
-    state: enabled
-- name: center_freq
-  id: variable_qtgui_range
-  parameters:
-    comment: ''
-    gui_hint: 0,0,1,1
-    label: Frequency
-    min_len: '200'
-    orient: QtCore.Qt.Horizontal
-    rangeType: float
-    start: 100e6
-    step: 1e6
-    stop: 6000e6
-    value: 100e6
-    widget: counter_slider
-  states:
-    bus_sink: false
-    bus_source: false
-    bus_structure: null
-    coordinate: [408, 4]
-    rotation: 0
-    state: enabled
-- name: max_attenuation
-  id: variable
-  parameters:
-    comment: ''
-    value: '359'
-  states:
-    bus_sink: false
-    bus_source: false
-    bus_structure: null
-    coordinate: [200, 140]
-    rotation: 0
-    state: enabled
-- name: max_sample_rate
-  id: variable
-  parameters:
-    comment: ''
-    value: 122.88e6
-  states:
-    bus_sink: false
-    bus_source: false
-    bus_structure: null
-    coordinate: [208, 76]
-    rotation: 0
-    state: enabled
-- name: sample_rate
-  id: variable_qtgui_range
-  parameters:
-    comment: ''
-    gui_hint: 1,0,1,1
-    label: Sample Rate
-    min_len: '200'
-    orient: QtCore.Qt.Horizontal
-    rangeType: float
-    start: 0.1e6
-    step: 0.1e6
-    stop: max_sample_rate
-    value: 10e6
-    widget: counter_slider
-  states:
-    bus_sink: false
-    bus_source: false
-    bus_structure: null
-    coordinate: [688, 4.0]
-    rotation: 0
-    state: enabled
-- name: source_min_output_buffer
-  id: variable
-  parameters:
-    comment: ''
-    value: 2**14*4
-  states:
-    bus_sink: false
-    bus_source: false
-    bus_structure: null
-    coordinate: [56, 236]
-    rotation: 0
-    state: enabled
-- name: suppress_tune_transients_chooser
-  id: variable_qtgui_chooser
-  parameters:
-    comment: ''
-    gui_hint: ''
-    label: Suppress Tune Transients
-    label0: 'False'
-    label1: 'True'
-    label2: ''
-    label3: ''
-    label4: ''
-    labels: '[]'
-    num_opts: '2'
-    option0: '0'
-    option1: '1'
-    option2: '2'
-    option3: '3'
-    option4: '4'
-    options: '[0, 1, 2]'
-    orient: Qt.QVBoxLayout
-    type: int
-    value: '0'
-    widget: combo_box
-  states:
-    bus_sink: false
-    bus_source: false
-    bus_structure: null
-    coordinate: [992, 4.0]
-    rotation: 0
-    state: enabled
-- name: tone_freq
+- name: attenuation
   id: variable_qtgui_range
   parameters:
     comment: ''
     gui_hint: ''
     label: ''
-    min_len: '200'
+    min_len: '100'
     orient: QtCore.Qt.Horizontal
     rangeType: float
-    start: '1000000'
-    step: '1000000'
-    stop: '20000000'
-    value: '2000000'
+    start: '0'
+    step: '10'
+    stop: '255'
+    value: '125'
     widget: counter_slider
   states:
     bus_sink: false
     bus_source: false
     bus_structure: null
-    coordinate: [832, 200.0]
+    coordinate: [1088, 52.0]
     rotation: 0
     state: true
+- name: bandwidth
+  id: variable
+  parameters:
+    comment: ''
+    value: samp_rate *.8
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [432, 52.0]
+    rotation: 0
+    state: true
+- name: frequency
+  id: variable_qtgui_range
+  parameters:
+    comment: ''
+    gui_hint: ''
+    label: Frequency
+    min_len: '100'
+    orient: QtCore.Qt.Horizontal
+    rangeType: float
+    start: 500e6
+    step: 1e6
+    stop: 6000e6
+    value: 1002e6
+    widget: counter_slider
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [880, 52.0]
+    rotation: 0
+    state: true
+- name: min_output_buffer
+  id: variable
+  parameters:
+    comment: ''
+    value: 32764 *2*2
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [208, 208.0]
+    rotation: 0
+    state: true
+- name: samp_rate
+  id: variable
+  parameters:
+    comment: ''
+    value: 20e6
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [320, 52.0]
+    rotation: 0
+    state: enabled
 - name: analog_sig_source_x_0
   id: analog_sig_source_x
   parameters:
@@ -211,21 +118,21 @@ blocks:
     alias: ''
     amp: '1'
     comment: ''
-    freq: tone_freq
+    freq: 2e6
     maxoutbuf: '0'
-    minoutbuf: source_min_output_buffer
+    minoutbuf: min_output_buffer
     offset: '0'
     phase: '0'
-    samp_rate: sample_rate
+    samp_rate: samp_rate
     type: complex
     waveform: analog.GR_COS_WAVE
   states:
     bus_sink: false
     bus_source: false
     bus_structure: null
-    coordinate: [88, 356.0]
+    coordinate: [272, 384.0]
     rotation: 0
-    state: enabled
+    state: true
 - name: blocks_throttle_0
   id: blocks_throttle
   parameters:
@@ -234,47 +141,43 @@ blocks:
     comment: ''
     ignoretag: 'True'
     maxoutbuf: '0'
-    minoutbuf: '0'
-    samples_per_second: sample_rate
+    minoutbuf: min_output_buffer
+    samples_per_second: samp_rate
     type: complex
     vlen: '1'
   states:
     bus_sink: false
     bus_source: false
     bus_structure: null
-    coordinate: [352, 396.0]
+    coordinate: [648, 424.0]
     rotation: 0
     state: true
-- name: sidekiq_tx_0
-  id: sidekiq_tx
+- name: sidekiq_sidekiq_tx_0
+  id: sidekiq_sidekiq_tx
   parameters:
     affinity: ''
     alias: ''
-    attenuation: atten_quart_db
+    attenuation: attenuation
     bandwidth: bandwidth
-    buffer_size: '1020'
-    card: '0'
+    buffer_size: '8188'
+    card: '1'
     comment: ''
-    dataflow_mode: '0'
-    filter_override_taps: ''
-    frequency: center_freq
-    maxoutbuf: '0'
-    minoutbuf: '0'
-    port_id: '0'
-    sample_rate: sample_rate
-    suppress_tune_transients: '0'
-    sync: '1'
+    frequency: frequency
+    handle: '0'
+    sample_rate: samp_rate
+    threads: '4'
   states:
     bus_sink: false
     bus_source: false
     bus_structure: null
-    coordinate: [640, 324.0]
+    coordinate: [1008, 408.0]
     rotation: 0
     state: true
 
 connections:
 - [analog_sig_source_x_0, '0', blocks_throttle_0, '0']
-- [blocks_throttle_0, '0', sidekiq_tx_0, '0']
+- [blocks_throttle_0, '0', sidekiq_sidekiq_tx_0, '0']
 
 metadata:
   file_format: 1
+  grc_version: 3.10.3.0
