@@ -71,6 +71,7 @@ private:
     skiq_tx_block_t **p_tx_blocks;
     skiq_tx_block_t *sync_tx_block;
     int32_t *p_tx_status;
+    uint32_t num_blocks;
 
     /* work() parameters */
     double dac_scaling{};
@@ -82,7 +83,7 @@ private:
     int32_t tx_buffer_size{};
     void update_tx_error_count();
     uint64_t timestamp{};
-
+    
     uint32_t debug_ctr{};
 
 };
