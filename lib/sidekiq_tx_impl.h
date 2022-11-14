@@ -54,6 +54,7 @@ public:
     void set_tx_bandwidth(double value) override;
 
 private:
+    /* passed in parameters */
     uint8_t card{};
     skiq_tx_hdl_t hdl;
     uint32_t sample_rate{};
@@ -61,25 +62,26 @@ private:
     uint64_t frequency{};
     uint32_t attenuation{};
 
+    /* flags */
     bool libsidekiq_init;
+    bool in_async_mode;
     bool tx_streaming;
-    double dac_scaling{};
 
+    /* sync/async parameters */
     skiq_tx_block_t **p_tx_blocks;
+    skiq_tx_block_t *sync_tx_block;
     int32_t *p_tx_status;
-    uint32_t curr_block{};
 
+    /* work() parameters */
+    double dac_scaling{};
     size_t last_status_update_sample{};
     size_t status_update_rate_in_samples{};
     uint32_t last_num_tx_errors{};
-
+    uint32_t curr_block{};
     std::vector<gr_complex> temp_buffer;
-
-    
-    int debug_ctr{};
     int32_t tx_buffer_size{};
-
     void update_tx_error_count();
+    uint64_t timestamp{};
 
 };
 
