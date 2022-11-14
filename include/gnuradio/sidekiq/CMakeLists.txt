@@ -11,5 +11,6 @@
 ########################################################################
 install(FILES
     api.h
-    sidekiq_tx.h DESTINATION include/gnuradio/sidekiq
+    sidekiq_tx.h
+    sidekiq_rx.h DESTINATION include/gnuradio/sidekiq
 )
