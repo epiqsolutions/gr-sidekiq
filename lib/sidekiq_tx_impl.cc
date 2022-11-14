@@ -14,44 +14,49 @@
 #include "sidekiq_tx_impl.h"
 
 #define NUM_BLOCKS  20
+
 const bool SIDEKIQ_IQ_PACK_MODE_UNPACKED{false};
 
 static const double STATUS_UPDATE_RATE_SECONDS{2.0};
-static uint32_t complete_count{};
 
-/* The tx_complete function needs to be outside the object so it can be registered with libsidekiq */
-// mutex to protect updates to the tx buffer
+
+/* The tx_complete function needs to be outside the object so it can be registered with libsidekiq 
+ * mutex to protect updates to the tx buffer
+ * Any parameters it uses also needs to be global and accessible inside and outside the function.
+ */
 static pthread_mutex_t tx_buf_mutex;
   
+static uint32_t complete_count{};
+
 // mutex and condition variable to signal when the tx queue may have room available
 static pthread_mutex_t space_avail_mutex;
 static pthread_cond_t space_avail_cond;
 
 static void tx_complete( int32_t status, skiq_tx_block_t *p_data, void *p_user )
 {
-  /* -2 happens when there are outstanding buffers and we stop streaming */
-  if( status != 0 && status != -2)
-  {
-      fprintf(stderr, "Error: packet %" PRIu32 " failed with status %d\n",
-              complete_count, status);
-  }
+    /* -2 happens when there are outstanding buffers and we stop streaming */
+    if( status != 0 && status != -2)
+    {
+        fprintf(stderr, "Error: packet %" PRIu32 " failed with status %d\n",
+                complete_count, status);
+    }
 
-  // increment the packet completed count
-  complete_count++;
+    // increment the packet completed count
+    complete_count++;
 
-  pthread_mutex_lock( &tx_buf_mutex );
-  // update the in use status of the packet just completed
-  if (p_user)
-  {
-      *(int32_t*)p_user = 0;
-  }
-   pthread_mutex_unlock( &tx_buf_mutex );
+    pthread_mutex_lock( &tx_buf_mutex );
+    // update the in use status of the packet just completed
+    if (p_user)
+    {
+        *(int32_t*)p_user = 0;
+    }
+     pthread_mutex_unlock( &tx_buf_mutex );
 
-  // signal to the other thread that there may be space available now that a
-  // packet send has completed
-  pthread_mutex_lock( &space_avail_mutex );
-  pthread_cond_signal(&space_avail_cond);
-  pthread_mutex_unlock( &space_avail_mutex );
+    // signal to the other thread that there may be space available now that a
+    // packet send has completed
+    pthread_mutex_lock( &space_avail_mutex );
+    pthread_cond_signal(&space_avail_cond);
+    pthread_mutex_unlock( &space_avail_mutex );
 
 }
 
@@ -80,8 +85,8 @@ sidekiq_tx::sptr sidekiq_tx::make(int card,
 }
 
 
-/*
- * The private constructor
+/* constructor 
+ * Initialize the card
  */
 sidekiq_tx_impl::sidekiq_tx_impl( int input_card,
                                   int handle,
@@ -125,14 +130,13 @@ sidekiq_tx_impl::sidekiq_tx_impl( int input_card,
     status = skiq_read_tx_iq_resolution(card, &iq_resolution);
     if (status != 0) 
     {
-        fprintf(stderr, "Error: unable to initialize libsidekiq with status %d\n", status);
-        throw std::runtime_error("Failure: skiq_init");
+        fprintf(stderr, "Error: unable to get iq resolution with status %d\n", status);
+        throw std::runtime_error("Failure: skiq_read_tx_iq_resolution");
     }
     dac_scaling = (pow(2.0f, iq_resolution) / 2.0)-1;
-
-
     printf("Info: dac scaling %f\n", dac_scaling);
 
+    /* always use immediate mode */
     status = skiq_write_tx_data_flow_mode(card, hdl, skiq_tx_immediate_data_flow_mode);
     if (status != 0) 
     {
@@ -140,6 +144,7 @@ sidekiq_tx_impl::sidekiq_tx_impl( int input_card,
         throw std::runtime_error("Failure: skiq_write_tx_flow_mode");
     }
 
+    /* if A2 or B2 is used, we need to set the channel mode to dual */
     if (hdl == skiq_tx_hdl_A2 || hdl == skiq_tx_hdl_B2) 
     {
         status = skiq_write_chan_mode(card, skiq_chan_mode_dual);
@@ -158,6 +163,7 @@ sidekiq_tx_impl::sidekiq_tx_impl( int input_card,
         }
     }
 
+    /* write the block size to the passed in amount */
     status = skiq_write_tx_block_size(card, hdl, tx_buffer_size);
     if (status != 0) 
     {
@@ -167,6 +173,7 @@ sidekiq_tx_impl::sidekiq_tx_impl( int input_card,
     }
     printf("Info: TX block size %d\n", tx_buffer_size);
 
+    /* handle sync vs async mode */
     if (threads > 1)
     {  
         status = skiq_write_tx_transfer_mode(card, hdl, skiq_tx_transfer_mode_async);
@@ -189,6 +196,8 @@ sidekiq_tx_impl::sidekiq_tx_impl( int input_card,
             fprintf(stderr, "Error: unable to configure TX callback with status %d\n", status);
             throw std::runtime_error("Failure: skiq_register_tx_complete_callback");
         }
+        num_blocks = NUM_BLOCKS;
+        printf("Info: in async mode with %d threads\n", threads);
     }
     else {
         status = skiq_write_tx_transfer_mode(card, hdl, skiq_tx_transfer_mode_sync);
@@ -198,15 +207,18 @@ sidekiq_tx_impl::sidekiq_tx_impl( int input_card,
             throw std::runtime_error("Failure: skiq_write_tx_transfer_mode");
         }
         num_blocks = 1;
+        printf("Info: in sync mode \n");
     }
- 
+
+    /* always assume unpacked */ 
     status = skiq_write_iq_pack_mode(card, SIDEKIQ_IQ_PACK_MODE_UNPACKED);
     if (status != 0) 
     {
         fprintf(stderr, "Error: unable to set iq pack mode to unpacked with status %d\n", status);
         throw std::runtime_error("Failure: skiq_write_iq_pack_mode");
     }
-  
+ 
+    /* by default all cards are in q/q order we want it to be I/Q so switch it */ 
     status = skiq_write_iq_order_mode(card, skiq_iq_order_iq) ;
     if (status != 0) 
     {
@@ -214,6 +226,7 @@ sidekiq_tx_impl::sidekiq_tx_impl( int input_card,
           throw std::runtime_error("Failure: skiq_write_iq_pack_mode");
     }
 
+    /* allocate memory to hold the pointers for the tx blocks */
     p_tx_blocks = (skiq_tx_block_t **)calloc( num_blocks, sizeof( skiq_tx_block_t * ));
     if( p_tx_blocks == NULL )
     {
@@ -221,13 +234,15 @@ sidekiq_tx_impl::sidekiq_tx_impl( int input_card,
         throw std::runtime_error("Failure: calloc p_tx_blocks");
     }
 
-    // allocate for # blocks
+    /* allocate memory to hold the status for each block */
     p_tx_status = (int32_t *)calloc( num_blocks, sizeof(*p_tx_status) );
     if( p_tx_status == NULL )
     {
         fprintf(stderr, "Error: failed to allocate memory for TX status.\n");
         throw std::runtime_error("Failure: calloc p_tx_status");
-    } 
+    }
+
+    /* ask libsidekiq to allocate each block */ 
     for (uint32_t i = 0; i < num_blocks; i++)
     {
         /* allocate a transmit block by number of words */
@@ -235,10 +250,12 @@ sidekiq_tx_impl::sidekiq_tx_impl( int input_card,
         p_tx_status[i] = 0;
     }
 
+    /* set the frequency and attenuation */
     set_tx_frequency(frequency);
     set_tx_attenuation(attenuation);
 }
 
+/* Destructor, free all the memory allocated */
 sidekiq_tx_impl::~sidekiq_tx_impl() 
 {
     printf("in destructor\n");
@@ -258,8 +275,15 @@ sidekiq_tx_impl::~sidekiq_tx_impl()
     {
         free(p_tx_status);
     }
+
+    /* disable libsidekiq */
+    if (libsidekiq_init == true)
+    {
+        skiq_exit();
+    }
 }
 
+/* start streaming */
 bool sidekiq_tx_impl::start() 
 {
     int status = 0;
@@ -278,6 +302,7 @@ bool sidekiq_tx_impl::start()
     return block::start();
 }
 
+/* stop streaming */
 bool sidekiq_tx_impl::stop() 
 {
     int status = 0;
@@ -294,14 +319,13 @@ bool sidekiq_tx_impl::stop()
         }
     }
     
-    if (libsidekiq_init == true)
-    {
-        skiq_exit();
-    }
 
     return block::stop();
 }
 
+/* set the sample rate 
+ * this may be called from the flowgraph if the user changes the variable
+ */
 void sidekiq_tx_impl::set_tx_sample_rate(double value) 
 {
 
@@ -326,6 +350,9 @@ void sidekiq_tx_impl::set_tx_sample_rate(double value)
 
 }
   
+/* set the bandwidth
+ * this may be called from the flowgraph if the user changes the variable
+ */
 void sidekiq_tx_impl::set_tx_bandwidth(double value) 
 {
     int status = 0;
@@ -348,6 +375,9 @@ void sidekiq_tx_impl::set_tx_bandwidth(double value)
 
 }
 
+/* set the LO frequency
+ * this may be called from the flowgraph if the user changes the variable
+ */
 void sidekiq_tx_impl::set_tx_frequency(double value) 
 {
     int status = 0;
@@ -368,6 +398,9 @@ void sidekiq_tx_impl::set_tx_frequency(double value)
 }
 
 
+/* set the attenuation
+ * this may be called from the flowgraph if the user changes the variable
+ */
 void sidekiq_tx_impl::set_tx_attenuation(double value) 
 {
     int status = 0;
@@ -386,6 +419,9 @@ void sidekiq_tx_impl::set_tx_attenuation(double value)
     this->attenuation = att;
 }
 
+/* GNURadio will call this before each "work()" call.  It tells them the minimum size of the 
+ * buffer they can send us send with samples.
+ */
 void sidekiq_tx_impl::forecast(int noutput_items, gr_vector_int &ninput_items_required) 
 {
 
@@ -393,6 +429,10 @@ void sidekiq_tx_impl::forecast(int noutput_items, gr_vector_int &ninput_items_re
     ninput_items_required[0] = tx_buffer_size;
 }
 
+/* This will determine if we received any more underruns than already reported 
+ * This is called after a defined number of samples are handled.
+ * That way it is like a timer going off.
+ */
 void sidekiq_tx_impl::update_tx_error_count() {
     int status = 0;
     uint32_t num_tx_errors;
@@ -412,6 +452,7 @@ void sidekiq_tx_impl::update_tx_error_count() {
 	}
 }
 
+/* This is called by GNURadio when it has received a buffer of samples to be transmitted. */
 int sidekiq_tx_impl::work(
 		int noutput_items,
 		gr_vector_const_void_star &input_items,
@@ -420,13 +461,12 @@ int sidekiq_tx_impl::work(
 	int32_t status{};
 	int32_t samples_written{};
     int32_t ninput_items{};
+    (void)(output_items);
 
     /* get a pointer to the buffer with the samples to be transmitted */
     auto in = static_cast<const gr_complex *>(input_items[0]);
 	
-    (void)(output_items);
-
-    /* We should always have noutput_items larger than tx_buffer_size 
+    /* noutput_items should always be larger than tx_buffer_size 
      * because we did the "forecast" function */
     if ( noutput_items > tx_buffer_size)
     {
@@ -436,7 +476,6 @@ int sidekiq_tx_impl::work(
         fprintf(stderr, "Error: noutput_items is smaller than tx_buffer_size\n");
         throw std::runtime_error("Failure: skiq_write_tx_attenuation");
     }
-
 
     /* loop until we have sent the samples we have been given */
 	while (samples_written < ninput_items) 
@@ -480,19 +519,18 @@ int sidekiq_tx_impl::work(
             /* move the pointer */
             in += tx_buffer_size;
 
-            /* loop the tx_block index and wrap */
+            /* move to the next block if we are in async mode, otherwise this is always 1 */
             curr_block = (curr_block + 1) % num_blocks;
         }
 	}
 
     
-    /* Determine if a second has elapsed and display any underruns we have received */
+    /* Determine if the time has elapsed and display any underruns we have received */
     if (nitems_read(0) - last_status_update_sample > status_update_rate_in_samples) 
     {
         update_tx_error_count();
         last_status_update_sample = nitems_read(0);
 
-#define DEBUG
 #ifdef DEBUG
         printf("noutput_items %d, tx_buffer_size %d, sample_written %d\n", 
                 noutput_items, tx_buffer_size, samples_written);
