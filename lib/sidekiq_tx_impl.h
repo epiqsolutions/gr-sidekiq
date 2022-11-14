@@ -83,6 +83,8 @@ private:
     void update_tx_error_count();
     uint64_t timestamp{};
 
+    uint32_t debug_ctr{};
+
 };
 
 } // namespace sidekiq

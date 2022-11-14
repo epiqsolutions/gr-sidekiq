@@ -486,6 +486,7 @@ int sidekiq_tx_impl::work(
 	
     (void)(output_items);
 
+
     /* We should always have noutput_items larger than tx_buffer_size 
      * because we did the "forecast" function */
     if ( noutput_items > tx_buffer_size)
@@ -528,6 +529,28 @@ int sidekiq_tx_impl::work(
 				reinterpret_cast<const lv_32fc_t*>(&temp_buffer[0]),
 				tx_buffer_size);
 
+        if (debug_ctr < 5 )
+        {
+            int ctr = 0;
+            for (int i=0; i < 8; i+= 2)
+            {
+
+                float re = in[ctr].real();
+                printf("%f ", re);
+                re = temp_buffer[ctr].real();
+                printf("%f ", re);
+                printf("%d ", block_ptr->data[i]);
+
+                float im = in[ctr].imag();
+                printf("\t%f ", im);
+                im = temp_buffer[ctr].imag();
+                printf("%f ", im);
+                printf("%d \n", block_ptr->data[i+1]);
+                ctr++;
+            }
+            printf(" \n");
+            debug_ctr++;
+        }
         skiq_tx_set_block_timestamp(block_ptr, timestamp);
 	    status = skiq_transmit(card, hdl, block_ptr, &user_info);
 
