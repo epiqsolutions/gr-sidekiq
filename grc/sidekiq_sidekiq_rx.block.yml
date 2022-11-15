@@ -1,10 +1,17 @@
 id: sidekiq_sidekiq_rx
-label: sidekiq_rx
+label: new Sidekiq RX Source
 category: '[sidekiq]'
 
 templates:
   imports: from gnuradio import sidekiq
-  make: sidekiq.sidekiq_rx()
+  make: sidekiq.sidekiq_rx(${card}, ${handle1}, ${handle2}, ${sample_rate}, ${bandwidth}, ${frequency}, ${gain_mode}, ${gain_index})
+  callbacks:
+  - set_rx_sample_rate(${sample_rate})
+  - set_rx_bandwidth(${bandwidth})
+  - set_rx_frequency(${frequency})
+  - set_rx_gain_mode(${gain_mode})
+  - set_rx_gain(${gain_index})
+
 
 #  Make one 'parameters' list entry for every parameter you want settable from the GUI.
 #     Keys include:
@@ -13,14 +20,54 @@ templates:
 #     * dtype (e.g. int, float, complex, byte, short, xxx_vector, ...)
 #     * default
 parameters:
-- id: parametername_replace_me
-  label: FIX ME:
-  dtype: string
-  default: You need to fill in your grc/sidekiq_sidekiq_rx.block.yaml
-#- id: ...
-#  label: ...
-#  dtype: ...
+- id: card
+  label: Card
+  dtype: int
+  default: 0
 
+- id: handle1
+  label: Handle Id1
+  dtype: enum
+  options: ['0', '1', '2', '3', '4', '5']
+  option_labels: ['RxA1', 'RxA2', 'RxB1', 'RxB2', 'RxC1', 'RxD1']
+  default: 0
+
+- id: handle2
+  label: Handle Id2
+  dtype: enum
+  options: ['100', '0', '1', '2', '3', '4', '5']
+  option_labels: ['None', 'RxA1', 'RxA2', 'RxB1', 'RxB2', 'RxC1', 'RxD1']
+  default: 100
+
+- id: sample_rate
+  label: Sample Rate
+  dtype: real
+  default: 1e6
+
+- id: bandwidth
+  label: Bandwidth
+  default: 1e6
+  dtype: real
+
+- id: frequency
+  label: Frequency
+  dtype: real
+  default: 1000e6
+
+- id: gain_mode
+  label: Gain Mode
+  dtype: enum
+  options: ['0', '1']
+  option_labels: ['Manual', 'Auto']
+  default: 0
+
+- id: gain_index
+  label: Gain_index
+  dtype: int
+  default: 1
+
+
+  
 #  Make one 'inputs' list entry per input and one 'outputs' list entry per output.
 #  Keys include:
 #      * label (an identifier for the GUI)
@@ -36,6 +83,13 @@ inputs:
 #  optional: ...
 
 outputs:
+- label: Samples
+  domain: stream
+  dtype: complex
+  multiplicity: ${ (2 if (handle2 != '100') else 1) }
+  #  multiplicity: 2
+  optional: false
+
 #- label: ...
 #  domain: ...
 #  dtype: ...

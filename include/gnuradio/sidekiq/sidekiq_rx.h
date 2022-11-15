@@ -31,7 +31,26 @@ public:
    * class. sidekiq::sidekiq_rx::make is the public interface for
    * creating new instances.
    */
-  static sptr make();
+  static sptr make(
+          int input_card,
+          int port1_handle,
+          int port2_handle,
+          double sample_rate,
+          double bandwidth,
+          double frequency,
+          uint8_t gain_mode,
+          int gain_index
+          );
+
+            virtual void set_rx_sample_rate(double value) = 0;
+
+            virtual void set_rx_bandwidth(double value) = 0;
+
+            virtual void set_rx_frequency(double value) = 0;
+
+            virtual void set_rx_gain_mode(double value) = 0;
+
+            virtual void set_rx_gain_index(int value) = 0;
 };
 
 } // namespace sidekiq

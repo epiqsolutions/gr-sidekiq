@@ -218,7 +218,7 @@ sidekiq_tx_impl::sidekiq_tx_impl( int input_card,
         throw std::runtime_error("Failure: skiq_write_iq_pack_mode");
     }
  
-    /* by default all cards are in q/q order we want it to be I/Q so switch it */ 
+    /* by default all cards are in Q/I order we want it to be I/Q so switch it */ 
     status = skiq_write_iq_order_mode(card, skiq_iq_order_iq) ;
     if (status != 0) 
     {
