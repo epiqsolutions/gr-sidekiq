@@ -58,9 +58,21 @@ sidekiq_rx_impl::sidekiq_rx_impl(
     uint8_t iq_resolution = 0;
 
     card = input_card;
-    hdl = (skiq_rx_hdl_t) port1_handle;
+    hdl1 = (skiq_rx_hdl_t) port1_handle;
 
+    /* determine if we are in dual port */
+    if (port2_handle < skiq_rx_hdl_end)
+    {
+        dual_port = true;
+        hdl2 = (skiq_rx_hdl_t) port2_handle;
+    }
+    else
+    {
+        hdl2 = skiq_rx_hdl_end;
+        dual_port = false;
+    }
 
+    /* initialize libsidekiq */
     status = skiq_init(skiq_xport_type_pcie, skiq_xport_init_level_full, &card, 1);
     if (status != 0)
     {
@@ -73,6 +85,7 @@ sidekiq_rx_impl::sidekiq_rx_impl(
     set_rx_sample_rate(sample_rate);
     set_rx_bandwidth(bandwidth);
 
+    /* calculate the adc scaling */
     status = skiq_read_rx_iq_resolution(card, &iq_resolution);
     if (status != 0)
     {
@@ -82,8 +95,10 @@ sidekiq_rx_impl::sidekiq_rx_impl(
     adc_scaling = (pow(2.0f, iq_resolution) / 2.0)-1;
     printf("Info: adc scaling %f\n", adc_scaling);
 
+
     /* if A2 or B2 is used, we need to set the channel mode to dual */
-    if (hdl == skiq_rx_hdl_A2 || hdl == skiq_rx_hdl_B2)
+    if (hdl1 == skiq_rx_hdl_A2 || hdl1 == skiq_rx_hdl_B2 || 
+            hdl2 == skiq_rx_hdl_A2 || hdl2 == skiq_rx_hdl_B2)
     {
         status = skiq_write_chan_mode(card, skiq_chan_mode_dual);
         if (status != 0)
@@ -117,17 +132,16 @@ sidekiq_rx_impl::sidekiq_rx_impl(
           throw std::runtime_error("Failure: skiq_write_iq_pack_mode");
     }
 
-
     set_rx_frequency(frequency);
     set_rx_gain_mode(gain_mode);
-    set_rx_gain_index(gain_index);
 
+    if (gain_mode == 0)
+    {
+        set_rx_gain_index(gain_index);
+    }
 }
 
 
-/*
- * Our virtual destructor.
- */
 sidekiq_rx_impl::~sidekiq_rx_impl() 
 {
 }
@@ -138,18 +152,28 @@ bool sidekiq_rx_impl::start()
 
     printf("in start() \n");
 
-    status = skiq_start_rx_streaming(card, hdl);
+    status = skiq_start_rx_streaming(card, hdl1);
     if (status != 0)
     {
-        fprintf(stderr, "Error: could not start RX streaming, status %d\n", status);
+        fprintf(stderr, "Error: could not start RX streaming on hdl1, status %d\n", status);
         throw std::runtime_error("Failure: skiq_start_rx_streaming");
     }
 
+    if (dual_port)
+    {
+        status = skiq_start_rx_streaming(card, hdl2);
+        if (status != 0)
+        {
+            fprintf(stderr, "Error: could not start RX streaming on hdl2, status %d\n", status);
+            throw std::runtime_error("Failure: skiq_start_rx_streaming");
+        }
+    }
+
+
     rx_streaming = true;
+    printf("Info: RX streaming started\n");
 
     return block::start();
-
-
 }
 
 /* stop streaming */
@@ -161,14 +185,25 @@ bool sidekiq_rx_impl::stop()
 
     if (rx_streaming == true)
     {
-        status = skiq_stop_rx_streaming(card, hdl);
+        status = skiq_stop_rx_streaming(card, hdl1);
         if (status != 0)
         {
-            fprintf(stderr, "Error: could not stop TX streaming, status %d\n", status);
+            fprintf(stderr, "Error: could not stop TX streaming on hdl1, status %d\n", status);
             throw std::runtime_error("Failure: skiq_start_tx_streaming");
         }
+        if (dual_port)
+        {
+            status = skiq_stop_rx_streaming(card, hdl2);
+            if (status != 0)
+            {
+                fprintf(stderr, "Error: could not stop TX streaming on hdl2, status %d\n", status);
+                throw std::runtime_error("Failure: skiq_start_tx_streaming");
+            }
+        }
+        printf("Info: RX streaming stopped\n");
     }
-    
+   
+    rx_streaming = false; 
 
     return block::stop();
 }
@@ -185,13 +220,25 @@ void sidekiq_rx_impl::set_rx_sample_rate(double value)
     auto rate = static_cast<uint32_t>(value);
     auto bw = static_cast<uint32_t>(this->bandwidth);
 
-    status = skiq_write_rx_sample_rate_and_bandwidth(card, hdl, rate, bw); 
+    status = skiq_write_rx_sample_rate_and_bandwidth(card, hdl1, rate, bw); 
     if (status != 0) 
     {
-        fprintf(stderr, "Error: could not set sample_rate, status %d, %s\n", 
+        fprintf(stderr, "Error: could not set sample_rate on hdl1, status %d, %s\n", 
                 status, strerror(abs(status)) );
         throw std::runtime_error("Failure: set samplerate");
     }
+
+    if (dual_port)
+    {
+        status = skiq_write_rx_sample_rate_and_bandwidth(card, hdl2, rate, bw); 
+        if (status != 0) 
+        {
+            fprintf(stderr, "Error: could not set sample_rate on hdl2, status %d, %s\n", 
+                    status, strerror(abs(status)) );
+            throw std::runtime_error("Failure: set samplerate");
+        }
+    }
+    printf("Info: sample_rate set to %d\n", rate);
 
     this->sample_rate = rate;
     this->bandwidth = bw;
@@ -209,14 +256,27 @@ void sidekiq_rx_impl::set_rx_bandwidth(double value)
     auto rate = static_cast<uint32_t>(this->sample_rate);
     auto bw = static_cast<uint32_t>(value);
 
-    status = skiq_write_rx_sample_rate_and_bandwidth(card, hdl, rate, bw); 
+    status = skiq_write_rx_sample_rate_and_bandwidth(card, hdl1, rate, bw); 
     if (status != 0) 
     {
-        fprintf(stderr,"Error: could not set bandwidth %d, status %d, %s\n", 
+        fprintf(stderr,"Error: could not set bandwidth %d on hdl1, status %d, %s\n", 
                 bw, status, strerror(abs(status)) );
         throw std::runtime_error("Failure: set bandwidth");
         return;
     }
+
+    if (dual_port)
+    {
+        status = skiq_write_rx_sample_rate_and_bandwidth(card, hdl2, rate, bw); 
+        if (status != 0) 
+        {
+            fprintf(stderr,"Error: could not set bandwidth %d on hdl2, status %d, %s\n", 
+                    bw, status, strerror(abs(status)) );
+            throw std::runtime_error("Failure: set bandwidth");
+            return;
+        }
+    }
+    printf("Info: bandwidth set to %d\n", bw);
 
     this->sample_rate = rate;
     this->bandwidth = bw;
@@ -233,14 +293,28 @@ void sidekiq_rx_impl::set_rx_frequency(double value)
 
     auto freq = static_cast<uint64_t>(value);
 
-    status = skiq_write_rx_LO_freq(card, hdl, freq);
+    status = skiq_write_rx_LO_freq(card, hdl1, freq);
     if (status != 0) 
     {
-        fprintf(stderr,"Error: could not set frequency %ld, status %d, %s\n", 
+        fprintf(stderr,"Error: could not set frequency %ld on hdl1, status %d, %s\n", 
                 freq, status, strerror(abs(status)) );
         throw std::runtime_error("Failure: set frequency");
         return;
     }
+
+    if (dual_port)
+    {
+        status = skiq_write_rx_LO_freq(card, hdl2, freq);
+        if (status != 0) 
+        {
+            fprintf(stderr,"Error: could not set frequency %ld on hdl2, status %d, %s\n", 
+                    freq, status, strerror(abs(status)) );
+            throw std::runtime_error("Failure: set frequency");
+            return;
+        }
+    }
+
+    printf("Info: frequency set to %ld\n", freq);
 
     this->frequency = freq;
 }
@@ -253,15 +327,30 @@ void sidekiq_rx_impl::set_rx_gain_mode(double value)
 
     auto gain_mode = static_cast<skiq_rx_gain_t>(value);
 
-    status = skiq_write_rx_gain_mode(card, hdl, gain_mode);
+    status = skiq_write_rx_gain_mode(card, hdl1, gain_mode);
     if (status != 0) 
     {
-        fprintf(stderr,"Error: write_rx_gain_mode failed, status %d, %s\n", 
+        fprintf(stderr,"Error: write_rx_gain_mode failed on hdl1, status %d, %s\n", 
                 status, strerror(abs(status)) );
         throw std::runtime_error("Failure: set write_rx_gain_mode");
         return;
     }
+
+    if (dual_port)
+    {
+        status = skiq_write_rx_gain_mode(card, hdl2, gain_mode);
+        if (status != 0) 
+        {
+            fprintf(stderr,"Error: write_rx_gain_mode failed on hdl2, status %d, %s\n", 
+                    status, strerror(abs(status)) );
+            throw std::runtime_error("Failure: set write_rx_gain_mode");
+            return;
+        }
+    }
+
     printf("Info: gain_mode set to %d\n", gain_mode);
+
+    this->gain_mode = gain_mode;
     
 }
 
@@ -278,7 +367,7 @@ void sidekiq_rx_impl::set_rx_gain_index(int value)
 
     auto gain = static_cast<uint8_t>(value);
 
-    status = skiq_read_rx_gain_index_range(card, hdl, &min_range, &max_range);
+    status = skiq_read_rx_gain_index_range(card, hdl1, &min_range, &max_range);
     if (status != 0) 
     {
         fprintf(stderr,"Error: read_rx_gain_index failed, status %d, %s\n", 
@@ -294,104 +383,224 @@ void sidekiq_rx_impl::set_rx_gain_index(int value)
         throw std::runtime_error("Failure: gain index is out of range");
         return;
     }
+
+    status = skiq_write_rx_gain(card, hdl1, gain);
+    if (status != 0) 
+    {
+        fprintf(stderr,"Error: write_rx_gain failed on hdl1, status %d, %s\n", 
+                status, strerror(abs(status)) );
+        throw std::runtime_error("Failure: set read_rx_gain_index");
+        return;
+    }
+
+    if (dual_port)
+    {
+        status = skiq_write_rx_gain(card, hdl2, gain);
+        if (status != 0) 
+        {
+            fprintf(stderr,"Error: write_rx_gain failed on hdl2, status %d, %s\n", 
+                    status, strerror(abs(status)) );
+            throw std::runtime_error("Failure: set read_rx_gain_index");
+            return;
+        }
+    }
+
     printf("Info: gain index %d\n", gain); 
 
     this->gain_index = gain;
 }
 
+uint32_t sidekiq_rx_impl::get_new_block(uint32_t portno)
+{
+    int status = 0;
+    skiq_rx_hdl_t tmp_hdl{};
+    uint32_t data_length_bytes{};
+    skiq_rx_block_t *p_rx_block{};
+    uint32_t new_portno = portno;
 
+    /* since skiq_receive is non-blocking, we need to loop till we get a new packet */
+    while (curr_block_samples_left[new_portno] <= 0)
+    {
+        status = skiq_receive(card, &tmp_hdl, &p_rx_block, &data_length_bytes);
+        if (status  == skiq_rx_status_success) 
+        {
+            /* determine which port the received block is from */
+            if (tmp_hdl == hdl1)
+            {
+                new_portno = 0;
+            }
+            else if (tmp_hdl == hdl2)
+            {
+                new_portno = 1;
+            }
+            else
+            {
+              fprintf(stderr, "Error : invalid hdl received %d\n", tmp_hdl);
+              throw std::runtime_error("Failure:  invalid handle");
+            }
+
+            /* update the data with the new block */
+            curr_block_ptr[new_portno] = (int16_t *)p_rx_block->data;
+            curr_block_samples_left[new_portno] = DATA_MAX_BUFFER_SIZE;
+        } 
+        else if (status != skiq_rx_status_no_data)
+        {
+          fprintf(stderr, "Error : skiq_rcv failure, status %d\n", status);
+          throw std::runtime_error("Failure: skiq_receive failure");
+        }
+    }
+
+    /* we need to work on this new port so pass it back */
+    return new_portno;
+
+}
+bool sidekiq_rx_impl::determine_if_done(int32_t *samples_written, int32_t noutput_items, uint32_t *portno)
+{
+    bool looping = true;
+
+    if (dual_port)
+    {
+        /* neither port is done so just leave the port as it is */
+        if (samples_written[0] < noutput_items && samples_written[1] < noutput_items)
+        {
+            looping = true;
+        }
+        /* port 0 is done, but port 1 is not, force port to 1 */
+        else if (samples_written[1] < noutput_items && samples_written[0] == noutput_items)
+        {
+            *portno = 1;
+            looping = true;
+        }
+        /* port 1 is done, but port 0 is not, force port to 0 */
+        else if (samples_written[0] < noutput_items && samples_written[1] == noutput_items)
+        {
+            *portno = 0;
+            looping = true;
+        } 
+        /* both ports are done, reset portno to 0 and leave loop */
+        else
+        {
+            *portno = 0;
+            looping = false;
+        }
+    }
+    else
+    {
+        /* single port */
+        if (samples_written[0] < noutput_items )
+        {
+            *portno = 0;
+            looping = true;
+        }
+        else
+        {
+            *portno = 0;
+            looping = false;
+        }
+    }
+
+    return looping;
+}
+
+#define DEBUG
 int sidekiq_rx_impl::work(int noutput_items,
                           gr_vector_const_void_star &input_items,
                           gr_vector_void_star &output_items) 
 {
-    int status = 0;
-    int samples_written{};
-    int32_t delta_samples = noutput_items;
-    skiq_rx_hdl_t tmp_hdl{};
-    uint32_t samples_to_write{};
-    uint32_t data_length_bytes{};
+    int32_t samples_written[MAX_PORT]{};
+    int32_t delta_samples[MAX_PORT] = {noutput_items, noutput_items};
+    uint32_t samples_to_write[MAX_PORT]{};
+    uint32_t portno{};
+    bool looping = true; 
+    gr_complex *out[MAX_PORT] = {NULL, NULL};
+    gr_complex *curr_out_ptr[MAX_PORT] = {NULL, NULL} ;
 
-    auto out = static_cast<gr_complex *>(output_items[0]);
-    gr_complex *curr_out_ptr = out;
 
-    if (debug_ctr < 4)
-    {
-        printf("buffer_size %d, noutput_items %d, curr_block_samples_left %d  \n", 
-                DATA_MAX_BUFFER_SIZE, noutput_items, curr_block_samples_left);
-        debug_ctr++;
+    /* initialize the one-port output variables */    
+    out[0] = static_cast<gr_complex *>(output_items[0]);
+    curr_out_ptr[0] = out[0];
+
+    if (dual_port)
+    { 
+        out[1] = static_cast<gr_complex *>(output_items[1]);
+        curr_out_ptr[1] = out[1];
     }
 
 
-    /* loop until we have filled up this "out" packet */
-    while (samples_written < noutput_items)
+#ifdef DEBUG
+    if (debug_ctr < 2)
     {
-        /* if we don't have a block get one */
-        if (curr_block_samples_left <= 0)
-        {
-            status = skiq_receive(card, &tmp_hdl, &p_rx_block, &data_length_bytes);
-            if (status  == skiq_rx_status_success) 
-            {
-                if (tmp_hdl == hdl)
-                {
-                    curr_block_ptr = (int16_t *)p_rx_block->data;
-                    curr_block_samples_left = DATA_MAX_BUFFER_SIZE;
-                }
-            } 
-            else if (status != skiq_rx_status_no_data)
-            {
-              fprintf(stderr, "Error : skiq_rcv failure, status %d\n", status);
-              throw std::runtime_error("Failure: skiq_receive failure");
-            }
+        printf("noutput_items %d, dual_port %d, buffer_size %d, out0 %p, out1 %p\n", 
+                noutput_items, dual_port, DATA_MAX_BUFFER_SIZE, out[0], out[1]);
+    }
+#endif
 
-        }
+    /* loop until we have filled up these "out" packet(s) */
+    while (looping == true)
+    {
+        /* if we don't have a block get one, if the block is from another port, it will change the portno */
+        portno = get_new_block(portno);
 
-        /* fill the current packet up as much as we can */
-        if ((curr_block_ptr != NULL) && (curr_block_samples_left > 0))
+        /* fill the output packet for this portno up with the contents of the block */
+        if ((curr_block_samples_left[portno] > 0) && samples_written[portno] < noutput_items)
         {
             /* figure out how many samples we have left to write */
-            delta_samples = noutput_items - samples_written;
+            delta_samples[portno] = noutput_items - samples_written[portno];
 
             /* determine how many samples we can write */
-            if (delta_samples <= curr_block_samples_left)
+            if (delta_samples[portno] <= curr_block_samples_left[portno])
             {
-                samples_to_write = delta_samples;
+                /* the amount we have if the block is more than we need */
+                samples_to_write[portno] = delta_samples[portno];
 
             } 
             else {
-               /* we fewer items left in the block than we need to write */
-                samples_to_write = curr_block_samples_left;
-            } 
+               /* there are fewer items left in the block than we need to write */
+                samples_to_write[portno] = curr_block_samples_left[portno];
+            }
+
+            if (samples_to_write[portno] == 0)
+            {
+                printf("samples to write is 0\n");
+                exit(1);
+            }
 
             /* convert and write the samples */
             volk_16i_s32f_convert_32f_u(
-                  (float *) curr_out_ptr,
-                  (const int16_t *) curr_block_ptr,
+                  (float *) curr_out_ptr[portno],
+                  (const int16_t *) curr_block_ptr[portno],
                   adc_scaling,
-                  (samples_to_write * IQ_SHORT_COUNT ));
+                  (samples_to_write[portno] * IQ_SHORT_COUNT ));
 
             /* increment all the pointers and counters */
-            samples_written += samples_to_write;
-            curr_out_ptr += samples_to_write;
-            curr_block_ptr += (samples_to_write * IQ_SHORT_COUNT);
+            samples_written[portno] += samples_to_write[portno];
+            curr_out_ptr[portno] += samples_to_write[portno];
+            curr_block_ptr[portno] += (samples_to_write[portno] * IQ_SHORT_COUNT);
 
-            curr_block_samples_left -= samples_to_write;
-            if (curr_block_samples_left == 0)
+            curr_block_samples_left[portno] -= samples_to_write[portno];
+            if (curr_block_samples_left[portno] == 0)
             {
-                curr_block_ptr = NULL;
-                p_rx_block = NULL;
-            }
-            else if (curr_block_samples_left < 0)
-            {
-                fprintf(stderr, "Error: somehow curr_block_samples went < 0 %d\n", curr_block_samples_left);
-                throw std::runtime_error("Failure: skiq_receive failure");
+                curr_block_ptr[portno] = NULL;
             }
 
+#ifdef DEBUG
+            if (debug_ctr < 2)
+            {
+                printf("portno %d, samples_to_write %d, curr_block_samples_left %d, samples_written %d\n", 
+                        portno, samples_to_write[portno], curr_block_samples_left[portno], 
+                        samples_written[portno]);
+            }
+#endif
         }
 
+        /* determine if we are done with this work() call */
+        looping = determine_if_done(samples_written, noutput_items, &portno);
     }
 
-  // Tell runtime system how many output items we produced.
-  return noutput_items;
+    debug_ctr++;
+
+    // Tell runtime system how many output items we produced.
+    return noutput_items;
 }
 
 } /* namespace sidekiq */

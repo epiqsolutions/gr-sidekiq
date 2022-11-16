@@ -11,6 +11,8 @@
 #include <gnuradio/sidekiq/sidekiq_rx.h>
 #include <sidekiq_api.h>
 
+#define MAX_PORT 2
+
 namespace gr {
 namespace sidekiq {
 
@@ -51,20 +53,25 @@ public:
 
 
 private:
+    uint32_t get_new_block(uint32_t portno);
+    bool determine_if_done(int32_t *samples_written, int32_t noutput_items, uint32_t *portno);
+
      /* passed in parameters */
     uint8_t card{};
-    skiq_rx_hdl_t hdl;
+    skiq_rx_hdl_t hdl1;
+    skiq_rx_hdl_t hdl2;
     uint32_t sample_rate{};
     uint32_t bandwidth{};
     uint64_t frequency{};
     skiq_rx_gain_t gain_mode{};
     uint8_t gain_index{};
+    bool dual_port{};
+
 
     double adc_scaling{};
 
-    skiq_rx_block_t *p_rx_block{};
-    int16_t *curr_block_ptr{};
-    int32_t curr_block_samples_left{};
+    int16_t *curr_block_ptr[MAX_PORT]{};
+    int32_t curr_block_samples_left[MAX_PORT]{};
 
     /* flags */
     bool libsidekiq_init{};
