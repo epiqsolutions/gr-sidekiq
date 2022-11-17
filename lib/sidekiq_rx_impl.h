@@ -13,6 +13,11 @@
 
 #define MAX_PORT 2
 
+#define CAL_OFF 2
+#define CAL_TYPE_DC_OFFSET 0
+#define CAL_TYPE_QUADRATURE 1
+#define CAL_TYPE_BOTH 2
+
 namespace gr {
 namespace sidekiq {
 
@@ -29,7 +34,9 @@ public:
           double bandwidth,
           double frequency,
           uint8_t gain_mode,
-          int gain_index
+          int gain_index,
+          int cal_mode,
+          int cal_type
           );
   ~sidekiq_rx_impl();
 
@@ -43,13 +50,21 @@ public:
 
    void set_rx_sample_rate(double value) override;
 
+   void set_rx_bandwidth(double value) override;
+
+   void set_rx_frequency(double value) override;
+
    void set_rx_gain_mode(double value) override;
 
    void set_rx_gain_index(int value) override;
 
-   void set_rx_frequency(double value) override;
+   void set_rx_cal_mode(int value) override;
 
-   void set_rx_bandwidth(double value) override;
+   void set_rx_cal_type(int value) override;
+
+   void run_rx_cal(int value) override;
+
+
 
 
 private:
@@ -65,6 +80,10 @@ private:
     uint64_t frequency{};
     skiq_rx_gain_t gain_mode{};
     uint8_t gain_index{};
+    skiq_rx_cal_mode_t cal_mode{};
+    skiq_rx_cal_type_t cal_type{};
+    
+    bool cal_enabled;
     bool dual_port{};
 
 

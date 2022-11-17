@@ -20,13 +20,13 @@ if __name__ == '__main__':
         except:
             print("Warning: failed to XInitThreads()")
 
+from PyQt5 import Qt
 from gnuradio import analog
 from gnuradio import gr
 from gnuradio.filter import firdes
 from gnuradio.fft import window
 import sys
 import signal
-from PyQt5 import Qt
 from argparse import ArgumentParser
 from gnuradio.eng_arg import eng_float, intx
 from gnuradio import eng_notation
@@ -76,6 +76,7 @@ class sink_test(gr.top_block, Qt.QWidget):
         ##################################################
         self.sample_rate = sample_rate = 10e6
         self.tone_freq = tone_freq = 2e6
+        self.run_tx_calibration = run_tx_calibration = 0
         self.min_output_buffer = min_output_buffer = 32764 *2*2
         self.frequency = frequency = 1002e6
         self.bandwidth = bandwidth = sample_rate * 0.8
@@ -99,7 +100,13 @@ class sink_test(gr.top_block, Qt.QWidget):
         self._tone_freq_range = Range(1e6, 25e6, 1e6, 2e6, 200)
         self._tone_freq_win = RangeWidget(self._tone_freq_range, self.set_tone_freq, "'tone_freq'", "counter_slider", float, QtCore.Qt.Horizontal)
         self.top_layout.addWidget(self._tone_freq_win)
-        self.sidekiq_sidekiq_tx_0 = sidekiq.sidekiq_tx(1, 0, sample_rate, bandwidth, frequency, attenuation, 4, 8188)
+        self.sidekiq_sidekiq_tx_0 = sidekiq.sidekiq_tx(1, 0, sample_rate, bandwidth, frequency, attenuation, 4, 8188, 1)
+        _run_tx_calibration_push_button = Qt.QPushButton('')
+        _run_tx_calibration_push_button = Qt.QPushButton('run_tx_calibration')
+        self._run_tx_calibration_choices = {'Pressed': 1, 'Released': 0}
+        _run_tx_calibration_push_button.pressed.connect(lambda: self.set_run_tx_calibration(self._run_tx_calibration_choices['Pressed']))
+        _run_tx_calibration_push_button.released.connect(lambda: self.set_run_tx_calibration(self._run_tx_calibration_choices['Released']))
+        self.top_layout.addWidget(_run_tx_calibration_push_button)
         self.analog_sig_source_x_0 = analog.sig_source_c(sample_rate, analog.GR_COS_WAVE, 2e6, 1, 0, 0)
         self.analog_sig_source_x_0.set_min_output_buffer(min_output_buffer)
 
@@ -132,6 +139,13 @@ class sink_test(gr.top_block, Qt.QWidget):
 
     def set_tone_freq(self, tone_freq):
         self.tone_freq = tone_freq
+
+    def get_run_tx_calibration(self):
+        return self.run_tx_calibration
+
+    def set_run_tx_calibration(self, run_tx_calibration):
+        self.run_tx_calibration = run_tx_calibration
+        self.sidekiq_sidekiq_tx_0.run_tx_cal(self.run_tx_calibration)
 
     def get_min_output_buffer(self):
         return self.min_output_buffer

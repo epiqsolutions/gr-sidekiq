@@ -39,7 +39,9 @@ public:
           double bandwidth,
           double frequency,
           uint8_t gain_mode,
-          int gain_index
+          int gain_index,
+          int cal_mode,
+          int cal_type
           );
 
             virtual void set_rx_sample_rate(double value) = 0;
@@ -51,6 +53,13 @@ public:
             virtual void set_rx_gain_mode(double value) = 0;
 
             virtual void set_rx_gain_index(int value) = 0;
+
+            virtual void set_rx_cal_mode(int value) = 0;
+
+            virtual void set_rx_cal_type(int value) = 0;
+
+            virtual void run_rx_cal(int value) = 0;
+
 };
 
 } // namespace sidekiq

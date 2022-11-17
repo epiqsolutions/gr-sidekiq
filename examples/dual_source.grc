@@ -75,6 +75,23 @@ blocks:
     coordinate: [784, 36.0]
     rotation: 0
     state: true
+- name: run_rx_calibration
+  id: variable_qtgui_push_button
+  parameters:
+    comment: ''
+    gui_hint: ''
+    label: Run RX Calibration
+    pressed: '1'
+    released: '0'
+    type: int
+    value: '0'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [1008, 36.0]
+    rotation: 0
+    state: true
 - name: samp_rate
   id: variable
   parameters:
@@ -276,6 +293,8 @@ blocks:
     affinity: ''
     alias: ''
     bandwidth: bandwidth
+    cal_mode: '1'
+    cal_type: '2'
     card: '2'
     comment: ''
     frequency: frequency
@@ -285,6 +304,7 @@ blocks:
     handle2: '1'
     maxoutbuf: '0'
     minoutbuf: '0'
+    run_cal: run_rx_calibration
     sample_rate: sample_rate
   states:
     bus_sink: false

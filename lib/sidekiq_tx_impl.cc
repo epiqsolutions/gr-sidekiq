@@ -71,7 +71,8 @@ sidekiq_tx::sptr sidekiq_tx::make(int card,
                                   double frequency,
                                   double attenuation,
                                   int threads,
-                                  int buffer_size)
+                                  int buffer_size,
+                                  int cal_mode)
 {
     return gnuradio::make_block_sptr<sidekiq_tx_impl>(
                                   card, 
@@ -81,7 +82,8 @@ sidekiq_tx::sptr sidekiq_tx::make(int card,
                                   frequency,
                                   attenuation,
                                   threads,
-                                  buffer_size);
+                                  buffer_size,
+                                  cal_mode);
 }
 
 
@@ -95,7 +97,8 @@ sidekiq_tx_impl::sidekiq_tx_impl( int input_card,
                                   double frequency,
                                   double attenuation,
                                   int threads,
-                                  int buffer_size)
+                                  int buffer_size, 
+                                  int cal_mode)
     : gr::sync_block("sidekiq_tx",
                      gr::io_signature::make(
                          1 /* min inputs */, 1 /* max inputs */, sizeof(gr_complex)),
@@ -253,6 +256,8 @@ sidekiq_tx_impl::sidekiq_tx_impl( int input_card,
     /* set the frequency and attenuation */
     set_tx_frequency(frequency);
     set_tx_attenuation(attenuation);
+    set_tx_cal_mode(cal_mode);
+
 }
 
 /* Destructor, free all the memory allocated */
@@ -417,6 +422,53 @@ void sidekiq_tx_impl::set_tx_attenuation(double value)
         return;
     }
     this->attenuation = att;
+}
+
+/* set the cal_mode
+ * this may be called from the flowgraph if the user changes the variable
+ */
+void sidekiq_tx_impl::set_tx_cal_mode(int value) 
+{
+    int status = 0;
+    auto cal_mode = static_cast<skiq_tx_quadcal_mode_t>(value);
+    printf("in set_tx_cal_mode() \n");
+
+    // configure the calibration mode
+    status = skiq_write_tx_quadcal_mode( card, hdl, cal_mode );
+    if ( 0 != status )
+    {
+        fprintf(stderr, "Error: unable to configure quadcal mode with %" PRIi32 "\n", status);
+        throw std::runtime_error("Failure: skiq_write_tx_quadcal_mode");
+    }
+
+    this->calibration_mode = cal_mode;
+
+}
+
+/* run tx calibration
+ * this may be called from the flowgraph if the user changes the variable
+ */
+void sidekiq_tx_impl::run_tx_cal(int value) 
+{
+    int status = 0;
+
+    if (value == CAL_ON )
+    {
+        if (calibration_mode == skiq_tx_quadcal_mode_manual)
+        {
+            printf("Info: forcing calibration to run\n");
+            status = skiq_run_tx_quadcal( card, hdl );
+            if( status != 0 )
+            {
+                fprintf(stderr, "Error: calibration failed to run properly (%d)\n", status);
+                throw std::runtime_error("Failure: skiq_run_tx_quadcal");
+            }
+        }
+        else
+        {
+                printf("Info: calibration cannot run, check mode\n");
+        }
+    }
 }
 
 /* GNURadio will call this before each "work()" call.  It tells them the minimum size of the 

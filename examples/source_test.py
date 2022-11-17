@@ -77,6 +77,7 @@ class source_test(gr.top_block, Qt.QWidget):
         ##################################################
         self.sample_rate = sample_rate = 20e6
         self.samp_rate = samp_rate = 32000
+        self.run_rx_calibration = run_rx_calibration = 0
         self.frequency = frequency = 1000e6
         self.bandwidth = bandwidth = sample_rate * .8
 
@@ -92,7 +93,13 @@ class source_test(gr.top_block, Qt.QWidget):
         self._bandwidth_range = Range(1e6, 250e6, 1e6, sample_rate * .8, 200)
         self._bandwidth_win = RangeWidget(self._bandwidth_range, self.set_bandwidth, "'bandwidth'", "counter_slider", float, QtCore.Qt.Horizontal)
         self.top_layout.addWidget(self._bandwidth_win)
-        self.sidekiq_sidekiq_rx_0 = sidekiq.sidekiq_rx(2, 0, 1, sample_rate, bandwidth, frequency, 1, 1)
+        self.sidekiq_sidekiq_rx_0 = sidekiq.sidekiq_rx(2, 0, 1, sample_rate, bandwidth, frequency, 1, 1, 1, 2)
+        _run_rx_calibration_push_button = Qt.QPushButton('Run RX Calibration')
+        _run_rx_calibration_push_button = Qt.QPushButton('Run RX Calibration')
+        self._run_rx_calibration_choices = {'Pressed': 1, 'Released': 0}
+        _run_rx_calibration_push_button.pressed.connect(lambda: self.set_run_rx_calibration(self._run_rx_calibration_choices['Pressed']))
+        _run_rx_calibration_push_button.released.connect(lambda: self.set_run_rx_calibration(self._run_rx_calibration_choices['Released']))
+        self.top_layout.addWidget(_run_rx_calibration_push_button)
         self.qtgui_freq_sink_x_0_0 = qtgui.freq_sink_c(
             1024, #size
             window.WIN_BLACKMAN_hARRIS, #wintype
@@ -209,6 +216,13 @@ class source_test(gr.top_block, Qt.QWidget):
 
     def set_samp_rate(self, samp_rate):
         self.samp_rate = samp_rate
+
+    def get_run_rx_calibration(self):
+        return self.run_rx_calibration
+
+    def set_run_rx_calibration(self, run_rx_calibration):
+        self.run_rx_calibration = run_rx_calibration
+        self.sidekiq_sidekiq_rx_0.run_rx_cal(self.run_rx_calibration)
 
     def get_frequency(self):
         return self.frequency

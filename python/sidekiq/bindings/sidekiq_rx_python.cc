@@ -16,7 +16,7 @@
 /* BINDTOOL_GEN_AUTOMATIC(0) */
 /* BINDTOOL_USE_PYGCCXML(0) */
 /* BINDTOOL_HEADER_FILE(sidekiq_rx.h)                                        */
-/* BINDTOOL_HEADER_FILE_HASH(2f7212c6b24118c7e9dce336f6e1bd3c) */
+/* BINDTOOL_HEADER_FILE_HASH(7ec5a38138710e972af7e841721a5828) */
 /***********************************************************************************/
 
 #include <pybind11/complex.h>
@@ -39,7 +39,8 @@ void bind_sidekiq_rx(py::module &m) {
       .def(py::init(&sidekiq_rx::make), py::arg("input_card"),
            py::arg("port1_handle"), py::arg("port2_handle"),
            py::arg("sample_rate"), py::arg("bandwidth"), py::arg("frequency"),
-           py::arg("gain_mode"), py::arg("gain_index"), D(sidekiq_rx, make))
+           py::arg("gain_mode"), py::arg("gain_index"), py::arg("cal_mode"),
+           py::arg("cal_type"), D(sidekiq_rx, make))
 
       .def("set_rx_sample_rate", &sidekiq_rx::set_rx_sample_rate,
            py::arg("value"), D(sidekiq_rx, set_rx_sample_rate))
@@ -55,6 +56,15 @@ void bind_sidekiq_rx(py::module &m) {
 
       .def("set_rx_gain_index", &sidekiq_rx::set_rx_gain_index,
            py::arg("value"), D(sidekiq_rx, set_rx_gain_index))
+
+      .def("set_rx_cal_mode", &sidekiq_rx::set_rx_cal_mode, py::arg("value"),
+           D(sidekiq_rx, set_rx_cal_mode))
+
+      .def("set_rx_cal_type", &sidekiq_rx::set_rx_cal_type, py::arg("value"),
+           D(sidekiq_rx, set_rx_cal_type))
+
+      .def("run_rx_cal", &sidekiq_rx::run_rx_cal, py::arg("value"),
+           D(sidekiq_rx, run_rx_cal))
 
       ;
 }

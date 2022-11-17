@@ -28,7 +28,9 @@ sidekiq_rx::sptr sidekiq_rx::make(
         double bandwidth,
         double frequency,
         uint8_t gain_mode,
-        int gain_index) {
+        int gain_index,
+        int cal_mode,
+        int cal_type) {
   return gnuradio::make_block_sptr<sidekiq_rx_impl>(
           input_card,
           port1_handle,
@@ -37,7 +39,9 @@ sidekiq_rx::sptr sidekiq_rx::make(
           bandwidth,
           frequency,
           gain_mode,
-          gain_index);
+          gain_index,
+          cal_mode,
+          cal_type);
 }
 
 sidekiq_rx_impl::sidekiq_rx_impl(
@@ -48,7 +52,9 @@ sidekiq_rx_impl::sidekiq_rx_impl(
         double bandwidth,
         double frequency,
         uint8_t gain_mode,
-        int gain_index) 
+        int gain_index,
+        int cal_mode,
+        int cal_type) 
     : gr::sync_block("sidekiq_rx", gr::io_signature::make(0, 0, 0),
                      gr::io_signature::make(1 /* min outputs */,
                                             2 /*max outputs */,
@@ -134,6 +140,9 @@ sidekiq_rx_impl::sidekiq_rx_impl(
 
     set_rx_frequency(frequency);
     set_rx_gain_mode(gain_mode);
+    set_rx_cal_mode(cal_mode);
+    set_rx_cal_type(cal_type);
+    run_rx_cal(1);
 
     if (gain_mode == 0)
     {
@@ -410,6 +419,164 @@ void sidekiq_rx_impl::set_rx_gain_index(int value)
     this->gain_index = gain;
 }
 
+
+/* set the cal_mode
+ * this may be called from the flowgraph if the user changes the variable
+ */
+void sidekiq_rx_impl::set_rx_cal_mode(int value) 
+{
+    int status = 0;
+
+    printf("in set_cal_mode() \n");
+
+    if (value == CAL_OFF)
+    {
+        cal_enabled = false;
+        printf("Info: cal_mode set to off\n");
+    }
+    else
+    {
+        cal_enabled = true;
+        auto cmode = static_cast<skiq_rx_cal_mode_t>(value);
+
+        /* set the calibration mode */
+        status = skiq_write_rx_cal_mode( card, hdl1, cmode );
+        if( status != 0 )
+        {
+            if( status != -ENOTSUP )
+            {
+                fprintf(stderr, "Error: failed to configure RX calibration mode with %" PRIi32 "\n", status);
+                throw std::runtime_error("Failure: set rx_cal_mode");
+            }
+            else
+            {
+                printf("Warning: calibration mode %d unsupported with product\n", cmode);
+            }
+        }
+
+        if (dual_port == true)
+        {
+            status = skiq_write_rx_cal_mode( card, hdl2, cmode );
+            if( status != 0 )
+            {
+                if( status != -ENOTSUP )
+                {
+                    fprintf(stderr, "Error: failed to configure RX calibration mode with %" PRIi32 "\n", status);
+                    throw std::runtime_error("Failure: set rx_cal_mode");
+                }
+                else
+                {
+                    printf("Warning: calibration mode %d unsupported with product\n", cmode);
+                }
+            }
+        }
+
+        this->cal_mode = cmode;
+        printf("Info: cal_mode set to %d\n", cmode);
+    }
+
+}
+
+/* set the cal_type
+ * this may be called from the flowgraph if the user changes the variable
+ */
+void sidekiq_rx_impl::set_rx_cal_type(int value) 
+{
+    int status = 0;
+    uint32_t cal_mask = (uint32_t)(skiq_rx_cal_type_none);
+
+    printf("in set_cal_type() \n");
+
+
+    
+    if (cal_enabled == true)
+    {
+        if (value == CAL_TYPE_BOTH)
+        {
+            cal_mask = skiq_rx_cal_type_dc_offset | skiq_rx_cal_type_quadrature;
+        } 
+        else if (value == CAL_TYPE_DC_OFFSET)
+        {
+            cal_mask = skiq_rx_cal_type_dc_offset;
+        }
+        else if (value == CAL_TYPE_QUADRATURE)
+        {
+            cal_mask = skiq_rx_cal_type_quadrature;
+        }
+
+        uint32_t read_cal_mask=0;
+        if( (status = skiq_read_rx_cal_types_avail( card, hdl1, &read_cal_mask )) == 0 )
+        {
+            if( read_cal_mask != cal_mask )
+            {
+                printf("Warning: RX calibration mask available for card is (0x%x)" 
+                       " does not match what is desired (0x%x)\n",
+                       read_cal_mask, cal_mask);
+                printf("Info: Setting cal_mask to 0x%x\n", read_cal_mask);
+                cal_mask = read_cal_mask;
+            }
+        }
+        else
+        {
+            printf("Error: unable to read calibration mask (status=%d)\n", status);
+        }
+
+        status = skiq_write_rx_cal_type_mask( card, hdl1, cal_mask );
+        if( status != 0 )
+        {
+            fprintf(stderr, "Error: failed to configure RX calibration type with status %" PRIi32 "\n", status);
+            throw std::runtime_error("Failure: set rx_cal_type");
+        }
+
+        if (dual_port == true)
+        {
+            status = skiq_write_rx_cal_type_mask( card, hdl2, cal_mask );
+            if( status != 0 )
+            {
+                fprintf(stderr, "Error: failed to configure RX calibration type with status %" PRIi32 "\n", status);
+                throw std::runtime_error("Failure: set rx_cal_type");
+            }
+        }
+
+        printf("Info: rx cal_mask 0X%x, written successfully\n", cal_mask);
+
+    }
+
+}
+
+/* run_cal
+ * this may be called from the flowgraph if the user changes the variable
+ */
+void sidekiq_rx_impl::run_rx_cal(int value) 
+{
+    int status = 0;
+
+
+    if (value == 1 && cal_enabled == true && cal_mode == skiq_rx_cal_mode_manual )
+    {    
+        printf("in run_rx_cal() \n");
+        status = skiq_run_rx_cal( card, hdl1);
+        if( status != 0 )
+        {
+            fprintf(stderr, "Error: run_rx_cal failed with status %" PRIi32 "\n", status);
+            throw std::runtime_error("Failure: set rx_cal_type");
+        }
+
+        if (dual_port == true)
+        {
+            status = skiq_run_rx_cal( card, hdl1);
+            if( status != 0 )
+            {
+                fprintf(stderr, "Error: run_rx_cal failed with status %" PRIi32 "\n", status);
+                throw std::runtime_error("Failure: set rx_cal_type");
+            }
+        }
+
+        printf("Info: run_rx_cal executed\n");
+    }
+}
+
+
 uint32_t sidekiq_rx_impl::get_new_block(uint32_t portno)
 {
     int status = 0;
@@ -502,7 +669,6 @@ bool sidekiq_rx_impl::determine_if_done(int32_t *samples_written, int32_t noutpu
     return looping;
 }
 
-#define DEBUG
 int sidekiq_rx_impl::work(int noutput_items,
                           gr_vector_const_void_star &input_items,
                           gr_vector_void_star &output_items) 

@@ -40,7 +40,8 @@ public:
                         double frequency,
                         double attenuation,
                         int threads,
-                        int buffer_size);
+                        int buffer_size,
+                        int cal_mode);
 
             virtual void set_tx_sample_rate(double value) = 0;
 
@@ -49,6 +50,10 @@ public:
             virtual void set_tx_frequency(double value) = 0;
 
             virtual void set_tx_bandwidth(double value) = 0;
+
+            virtual void set_tx_cal_mode(int value) = 0;
+
+            virtual void run_tx_cal(int value) = 0;
 
 
 };

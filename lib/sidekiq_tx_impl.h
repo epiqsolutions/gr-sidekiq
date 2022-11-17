@@ -11,6 +11,8 @@
 #include <gnuradio/sidekiq/sidekiq_tx.h>
 #include <sidekiq_api.h>
 
+#define CAL_ON 1
+
 namespace gr {
 namespace sidekiq {
 
@@ -25,7 +27,8 @@ public:
                     double frequency,
                     double attenuation,
                     int threads,
-                    int buffer_size);
+                    int buffer_size,
+                    int cal_mode);
 
 
 
@@ -53,6 +56,12 @@ public:
 
     void set_tx_bandwidth(double value) override;
 
+    void set_tx_cal_mode(int value) override;
+
+    void run_tx_cal(int value) override;
+
+
+
 private:
     /* passed in parameters */
     uint8_t card{};
@@ -61,6 +70,7 @@ private:
     uint32_t bandwidth{};
     uint64_t frequency{};
     uint32_t attenuation{};
+    skiq_tx_quadcal_mode_t calibration_mode;
 
     /* flags */
     bool libsidekiq_init;
@@ -72,6 +82,7 @@ private:
     skiq_tx_block_t *sync_tx_block;
     int32_t *p_tx_status;
     uint32_t num_blocks;
+
 
     /* work() parameters */
     double dac_scaling{};

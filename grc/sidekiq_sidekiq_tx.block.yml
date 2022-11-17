@@ -4,13 +4,15 @@ category: '[sidekiq]'
 
 templates:
   imports: from gnuradio import sidekiq
-  make: sidekiq.sidekiq_tx(${card}, ${handle}, ${sample_rate}, ${bandwidth}, ${frequency}, ${attenuation}, ${threads}, ${buffer_size})
+  make: sidekiq.sidekiq_tx(${card}, ${handle}, ${sample_rate}, ${bandwidth}, ${frequency}, ${attenuation}, ${threads}, ${buffer_size}, ${cal_mode})
 
   callbacks:
   - set_tx_sample_rate(${sample_rate})
   - set_tx_attenuation(${attenuation})
   - set_tx_frequency(${frequency})
   - set_tx_bandwidth(${bandwidth})
+  - set_tx_cal_mode(${cal_mode})
+  - run_tx_cal(${run_cal})
 
 #  Make one 'parameters' list entry for every parameter you want settable from the GUI.
 #     Keys include:
@@ -62,6 +64,19 @@ parameters:
   default: 4092
   options: [1020, 4092, 8188, 16380, 32764]
   option_labels: ['1K', '4K', '8K', '16k', '32k']
+
+- id: cal_mode
+  label: Calibration Mode
+  dtype: enum
+  options: ['0', '1']
+  option_labels: ['Auto', 'Manual']
+  default: 0
+
+- id: run_cal
+  label: Run Cal 
+  hide: part
+  dtype: int
+  default: run_tx_calibration 
 
 
 
