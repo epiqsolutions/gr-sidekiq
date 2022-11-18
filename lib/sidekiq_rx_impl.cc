@@ -142,7 +142,6 @@ sidekiq_rx_impl::sidekiq_rx_impl(
     set_rx_gain_mode(gain_mode);
     set_rx_cal_mode(cal_mode);
     set_rx_cal_type(cal_type);
-    run_rx_cal(1);
 
     if (gain_mode == 0)
     {
