@@ -322,7 +322,9 @@ bool sidekiq_tx_impl::stop()
             fprintf(stderr, "Error: could not stop TX streaming, status %d\n", status);
             throw std::runtime_error("Failure: skiq_start_tx_streaming");
         }
+        tx_streaming = false;
     }
+
     
 
     return block::stop();
@@ -504,6 +506,24 @@ void sidekiq_tx_impl::update_tx_error_count() {
 	}
 }
 
+int sidekiq_tx_impl::handle_tx_burst_tag(tag_t tag) 
+{
+    printf("in handle_tx_burst_tag, tag offset %ld\n", tag.offset);
+
+
+    burst_length = pmt::to_uint64(tag.value);
+    burst_samples_sent = 0;
+
+    if (tx_streaming == false)
+    {
+        start();
+    }
+
+    return burst_length;
+}
+
+
+
 /* This is called by GNURadio when it has received a buffer of samples to be transmitted. */
 int sidekiq_tx_impl::work(
 		int noutput_items,
@@ -513,81 +533,169 @@ int sidekiq_tx_impl::work(
 	int32_t status{};
 	int32_t samples_written{};
     int32_t ninput_items{};
+    std::vector<tag_t> tags;
+
     (void)(output_items);
 
     /* get a pointer to the buffer with the samples to be transmitted */
     auto in = static_cast<const gr_complex *>(input_items[0]);
-	
+
     /* noutput_items should always be larger than tx_buffer_size 
      * because we did the "forecast" function */
-    if ( noutput_items > tx_buffer_size)
+    if ( noutput_items >= tx_buffer_size)
     {
+         /* get the size of the input aligned to our buffer size */
 	     ninput_items = noutput_items - (noutput_items % tx_buffer_size);
     }
-    else {
-        fprintf(stderr, "Error: noutput_items is smaller than tx_buffer_size\n");
-        throw std::runtime_error("Failure: skiq_write_tx_attenuation");
+    else
+    {
+
+        fprintf(stderr, "Error: noutput_items %d is smaller than tx_buffer_size %d\n", 
+                noutput_items, tx_buffer_size);
+        throw std::runtime_error("Failure: input items too small");
     }
 
-    /* loop until we have sent the samples we have been given */
-	while (samples_written < ninput_items) 
+    /* see if we received the TX_BURST tag, if so process it */
+    get_tags_in_range(tags, 0, nitems_read(0), nitems_read(0) + ninput_items);
+    if (not tags.empty())
     {
-        /* convert the samples we have received to be within the dac_scaling values */
-		volk_32f_s32f_multiply_32f(
-				reinterpret_cast<float *>(&temp_buffer[0]),
-				reinterpret_cast<const float *>(in),
-				dac_scaling,
-				static_cast<unsigned int>(tx_buffer_size * 2));
-
-        /* convert those samples from float complex to int16 */
-		volk_32fc_convert_16ic(
-				reinterpret_cast<lv_16sc_t *>(p_tx_blocks[curr_block]->data),
-				reinterpret_cast<const lv_32fc_t*>(&temp_buffer[0]),
-				tx_buffer_size);
-		
-
-        /* transmit the samples */
-		status = skiq_transmit(card, hdl, p_tx_blocks[curr_block], &(p_tx_status[curr_block]));
-
-        /* check to see if the TX queue is full, if so wait for a released buffer */ 
-        if( status == SKIQ_TX_ASYNC_SEND_QUEUE_FULL )
+        BOOST_FOREACH( const tag_t &tag, tags) 
         {
-            // update the in use status since we didn't actually send it yet
-            pthread_mutex_lock( &tx_buf_mutex );
-            p_tx_status[curr_block] = 0;
-            pthread_mutex_unlock( &tx_buf_mutex );
-
-            pthread_mutex_lock( &space_avail_mutex );
-            pthread_cond_wait( &space_avail_cond, &space_avail_mutex );
-            pthread_mutex_unlock( &space_avail_mutex );
+            if (pmt::equal(tag.key, TX_BURST_KEY)) 
+            {
+                handle_tx_burst_tag(tag);
+            }
         }
-        else if ( status != 0 ) 
-        {
-			printf("Info: sidekiq transmit failed with error: %d\n", status);
-		} 
-        else {
-            samples_written += tx_buffer_size;
+    }
 
-            /* move the pointer */
-            in += tx_buffer_size;
 
-            /* move to the next block if we are in async mode, otherwise this is always 1 */
-            curr_block = (curr_block + 1) % num_blocks;
-        }
-	}
 
-    
-    /* Determine if the time has elapsed and display any underruns we have received */
-    if (nitems_read(0) - last_status_update_sample > status_update_rate_in_samples) 
+    int32_t samples_to_write = tx_buffer_size;
+
+    /* if we are streaming in bursts, tx_streaming goes on and off */
+    if (tx_streaming)
     {
-        update_tx_error_count();
-        last_status_update_sample = nitems_read(0);
+#ifdef poo
+        /* if we are bursting then we need to only send the amount of samples in the burst */
+        if (burst_length != 0)
+        {
+            uint64_t delta = burst_length - burst_samples_sent;
+
+            /* if this number is smaller than our buffer size, we need to send only the delta */
+            if (delta < (uint64_t)tx_buffer_size)
+            {
+               samples_to_write = delta;
+            }
+            else 
+            {
+                samples_to_write = tx_buffer_size;
+            }
+        }
+        else
+        {
+            samples_to_write = tx_buffer_size;
+        }
+#endif
+
+        /* loop until we have sent the samples we have been given */
+//        while (samples_written < ninput_items) 
+        while (samples_written < ninput_items) 
+        {
+            /* convert the samples we have received to be within the dac_scaling values */
+            volk_32f_s32f_multiply_32f(
+                    reinterpret_cast<float *>(&temp_buffer[0]),
+                    reinterpret_cast<const float *>(in),
+                    dac_scaling,
+                    static_cast<unsigned int>(samples_to_write * 2));
+
+            /* convert those samples from float complex to int16 */
+            volk_32fc_convert_16ic(
+                    reinterpret_cast<lv_16sc_t *>(p_tx_blocks[curr_block]->data),
+                    reinterpret_cast<const lv_32fc_t*>(&temp_buffer[0]),
+                    samples_to_write);
+            
+
+            /* transmit the samples */
+            status = skiq_transmit(card, hdl, p_tx_blocks[curr_block], &(p_tx_status[curr_block]));
+
+            /* check to see if the TX queue is full, if so wait for a released buffer */ 
+            if( status == SKIQ_TX_ASYNC_SEND_QUEUE_FULL )
+            {
+                // update the in use status since we didn't actually send it yet
+                pthread_mutex_lock( &tx_buf_mutex );
+                p_tx_status[curr_block] = 0;
+                pthread_mutex_unlock( &tx_buf_mutex );
+
+                pthread_mutex_lock( &space_avail_mutex );
+                pthread_cond_wait( &space_avail_cond, &space_avail_mutex );
+                pthread_mutex_unlock( &space_avail_mutex );
+            }
+            else if ( status != 0 ) 
+            {
+                printf("Info: sidekiq transmit failed with error: %d\n", status);
+            } 
+            else {
+                samples_written += samples_to_write;
+
+                /* move the pointer */
+                in += samples_to_write;
+
+                /* move to the next block if we are in async mode, otherwise this is always 1 */
+                curr_block = (curr_block + 1) % num_blocks;
+            }
+        }
+
+        
+        /* Determine if the time has elapsed and display any underruns we have received */
+        if (nitems_read(0) - last_status_update_sample > status_update_rate_in_samples) 
+        {
+            update_tx_error_count();
+            last_status_update_sample = nitems_read(0);
+
 
 #ifdef DEBUG
-        printf("noutput_items %d, tx_buffer_size %d, sample_written %d\n", 
-                noutput_items, tx_buffer_size, samples_written);
+            printf("noutput_items %d, tx_buffer_size %d, sample_written %d\n", 
+                    noutput_items, tx_buffer_size, samples_written);
 #endif
+        }
+       
+#ifdef poo 
+        /* if we are bursting, check to see if we are done */
+        if (burst_length != 0)
+        {
+            burst_samples_sent += tx_buffer_size;
+            if (burst_samples_sent >= burst_length) 
+            {
+                printf("done bursting, sent %ld, length %ld stop streaming\n", burst_samples_sent, burst_length);
+                burst_length = 0;
+                burst_samples_sent = 0;
+                stop();
+            }
+        }
+#endif
+
     }
+
+    if (burst_length != 0)
+    {
+        burst_samples_sent += samples_written;
+        if (burst_samples_sent >= burst_length) 
+        {
+            printf("done bursting, sent %ld, length %ld stop streaming\n", burst_samples_sent, burst_length);
+            burst_length = 0;
+            burst_samples_sent = 0;
+            stop();
+        }
+    }
+
+
+    /* if we are bursting and we have not written anything we need to lie and say we did.  Otherwise 
+     * the flowchart stops sending samples */
+    if (samples_written == 0)
+    {
+        samples_written = ninput_items;
+    }
+
 	
 	return samples_written;
 }

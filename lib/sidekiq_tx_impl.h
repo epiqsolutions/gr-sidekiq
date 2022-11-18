@@ -8,6 +8,7 @@
 #ifndef INCLUDED_SIDEKIQ_SIDEKIQ_TX_IMPL_H
 #define INCLUDED_SIDEKIQ_SIDEKIQ_TX_IMPL_H
 
+#include <pmt/pmt.h>
 #include <gnuradio/sidekiq/sidekiq_tx.h>
 #include <sidekiq_api.h>
 
@@ -63,6 +64,7 @@ public:
 
 
 private:
+
     /* passed in parameters */
     uint8_t card{};
     skiq_tx_hdl_t hdl;
@@ -94,7 +96,16 @@ private:
     int32_t tx_buffer_size{};
     void update_tx_error_count();
     uint64_t timestamp{};
-    
+
+    /* burst length */
+    std::vector<tag_t> _tags;    
+
+    uint64_t burst_length{};
+    uint64_t burst_samples_sent{};
+    uint64_t previous_burst_tag_offset{};
+
+    int handle_tx_burst_tag(tag_t tag);
+
     uint32_t debug_ctr{};
 
 };
