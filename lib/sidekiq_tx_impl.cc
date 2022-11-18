@@ -575,32 +575,29 @@ int sidekiq_tx_impl::work(
     /* if we are streaming in bursts, tx_streaming goes on and off */
     if (tx_streaming)
     {
-#ifdef poo
-        /* if we are bursting then we need to only send the amount of samples in the burst */
-        if (burst_length != 0)
+        /* loop until we have sent the samples we have been given */
+        while (samples_written < ninput_items) 
         {
-            uint64_t delta = burst_length - burst_samples_sent;
-
-            /* if this number is smaller than our buffer size, we need to send only the delta */
-            if (delta < (uint64_t)tx_buffer_size)
+            /* if we are bursting then we need to only send the amount of samples in the burst */
+            if (burst_length != 0)
             {
-               samples_to_write = delta;
+                uint64_t delta = burst_length - burst_samples_sent;
+
+                /* if this number is smaller than our buffer size, we need to send only the delta */
+                if (delta < (uint64_t)tx_buffer_size)
+                {
+                   samples_to_write = delta;
+                }
+                else 
+                {
+                    samples_to_write = tx_buffer_size;
+                }
             }
-            else 
+            else
             {
                 samples_to_write = tx_buffer_size;
             }
-        }
-        else
-        {
-            samples_to_write = tx_buffer_size;
-        }
-#endif
 
-        /* loop until we have sent the samples we have been given */
-//        while (samples_written < ninput_items) 
-        while (samples_written < ninput_items) 
-        {
             /* convert the samples we have received to be within the dac_scaling values */
             volk_32f_s32f_multiply_32f(
                     reinterpret_cast<float *>(&temp_buffer[0]),
@@ -643,6 +640,20 @@ int sidekiq_tx_impl::work(
                 /* move to the next block if we are in async mode, otherwise this is always 1 */
                 curr_block = (curr_block + 1) % num_blocks;
             }
+
+            /* if we are bursting, check to see if we are done */
+            if (burst_length != 0)
+            {
+                burst_samples_sent += samples_to_write;
+                if (burst_samples_sent >= burst_length) 
+                {
+                    printf("done bursting, sent %ld, length %ld stop streaming\n", burst_samples_sent, burst_length);
+                    burst_length = 0;
+                    burst_samples_sent = 0;
+                    stop();
+                    break;
+                }
+            }
         }
 
         
@@ -659,23 +670,10 @@ int sidekiq_tx_impl::work(
 #endif
         }
        
-#ifdef poo 
-        /* if we are bursting, check to see if we are done */
-        if (burst_length != 0)
-        {
-            burst_samples_sent += tx_buffer_size;
-            if (burst_samples_sent >= burst_length) 
-            {
-                printf("done bursting, sent %ld, length %ld stop streaming\n", burst_samples_sent, burst_length);
-                burst_length = 0;
-                burst_samples_sent = 0;
-                stop();
-            }
-        }
-#endif
 
     }
 
+#ifdef poo 
     if (burst_length != 0)
     {
         burst_samples_sent += samples_written;
@@ -687,6 +685,7 @@ int sidekiq_tx_impl::work(
             stop();
         }
     }
+#endif
 
 
     /* if we are bursting and we have not written anything we need to lie and say we did.  Otherwise 
