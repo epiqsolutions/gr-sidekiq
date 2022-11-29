@@ -186,7 +186,7 @@ blocks:
     bus_sink: false
     bus_source: false
     bus_structure: null
-    coordinate: [272, 308.0]
+    coordinate: [264, 324.0]
     rotation: 0
     state: true
 - name: sidekiq_sidekiq_tx_0

@@ -5,7 +5,7 @@
 # SPDX-License-Identifier: GPL-3.0
 #
 # GNU Radio Python Flow Graph
-# Title: Sink Test
+# Title: bursting
 # GNU Radio version: 3.10.3.0
 
 from packaging.version import Version as StrictVersion
@@ -21,6 +21,8 @@ if __name__ == '__main__':
             print("Warning: failed to XInitThreads()")
 
 from PyQt5 import Qt
+from gnuradio import qtgui
+import sip
 from gnuradio import analog
 from gnuradio import blocks
 import pmt
@@ -40,12 +42,12 @@ from PyQt5 import QtCore
 
 from gnuradio import qtgui
 
-class sink_test(gr.top_block, Qt.QWidget):
+class bursting(gr.top_block, Qt.QWidget):
 
     def __init__(self):
-        gr.top_block.__init__(self, "Sink Test", catch_exceptions=True)
+        gr.top_block.__init__(self, "bursting", catch_exceptions=True)
         Qt.QWidget.__init__(self)
-        self.setWindowTitle("Sink Test")
+        self.setWindowTitle("bursting")
         qtgui.util.check_set_qss()
         try:
             self.setWindowIcon(Qt.QIcon.fromTheme('gnuradio-grc'))
@@ -63,7 +65,7 @@ class sink_test(gr.top_block, Qt.QWidget):
         self.top_grid_layout = Qt.QGridLayout()
         self.top_layout.addLayout(self.top_grid_layout)
 
-        self.settings = Qt.QSettings("GNU Radio", "sink_test")
+        self.settings = Qt.QSettings("GNU Radio", "bursting")
 
         try:
             if StrictVersion(Qt.qVersion()) < StrictVersion("5.0.0"):
@@ -102,15 +104,18 @@ class sink_test(gr.top_block, Qt.QWidget):
         self._attenuation_range = Range(0, 255, 10, 125, 100)
         self._attenuation_win = RangeWidget(self._attenuation_range, self.set_attenuation, "'attenuation'", "counter_slider", float, QtCore.Qt.Horizontal)
         self.top_layout.addWidget(self._attenuation_win)
-        self.sidekiq_sidekiq_tx_0 = sidekiq.sidekiq_tx(0, 0, sample_rate, bandwidth, frequency, attenuation, 1, 1020, 0)
+        self.sidekiq_sidekiq_tx_0 = sidekiq.sidekiq_tx(0, 0, sample_rate, bandwidth, frequency, attenuation, 1, 4092, 0)
         _run_tx_calibration_push_button = Qt.QPushButton('')
         _run_tx_calibration_push_button = Qt.QPushButton('run_tx_calibration')
         self._run_tx_calibration_choices = {'Pressed': 1, 'Released': 0}
         _run_tx_calibration_push_button.pressed.connect(lambda: self.set_run_tx_calibration(self._run_tx_calibration_choices['Pressed']))
         _run_tx_calibration_push_button.released.connect(lambda: self.set_run_tx_calibration(self._run_tx_calibration_choices['Released']))
         self.top_layout.addWidget(_run_tx_calibration_push_button)
+        self.qtgui_edit_box_msg_0 = qtgui.edit_box_msg(qtgui.DOUBLE, '0', '', True, False, 'start_burst', None)
+        self._qtgui_edit_box_msg_0_win = sip.wrapinstance(self.qtgui_edit_box_msg_0.qwidget(), Qt.QWidget)
+        self.top_layout.addWidget(self._qtgui_edit_box_msg_0_win)
         self.blocks_throttle_0 = blocks.throttle(gr.sizeof_gr_complex*1, sample_rate,True)
-        self.blocks_tags_strobe_0 = blocks.tags_strobe(gr.sizeof_gr_complex*1, pmt.to_pmt(1000), (int(sample_rate * 4)), pmt.intern("tx_burst"))
+        self.blocks_tags_strobe_0 = blocks.tags_strobe(gr.sizeof_gr_complex*1, pmt.to_pmt(4000000), (int(sample_rate * 4)), pmt.intern("tx_burst"))
         self.blocks_add_xx_0 = blocks.add_vcc(1)
         self.blocks_add_xx_0.set_min_output_buffer(min_output_buffer)
         self.analog_sig_source_x_0 = analog.sig_source_c(sample_rate, analog.GR_COS_WAVE, tone_freq, 1, 0, 0)
@@ -120,6 +125,7 @@ class sink_test(gr.top_block, Qt.QWidget):
         ##################################################
         # Connections
         ##################################################
+        self.msg_connect((self.qtgui_edit_box_msg_0, 'msg'), (self.sidekiq_sidekiq_tx_0, 'command'))
         self.connect((self.analog_sig_source_x_0, 0), (self.blocks_add_xx_0, 0))
         self.connect((self.blocks_add_xx_0, 0), (self.blocks_throttle_0, 0))
         self.connect((self.blocks_tags_strobe_0, 0), (self.blocks_add_xx_0, 1))
@@ -127,7 +133,7 @@ class sink_test(gr.top_block, Qt.QWidget):
 
 
     def closeEvent(self, event):
-        self.settings = Qt.QSettings("GNU Radio", "sink_test")
+        self.settings = Qt.QSettings("GNU Radio", "bursting")
         self.settings.setValue("geometry", self.saveGeometry())
         self.stop()
         self.wait()
@@ -189,7 +195,7 @@ class sink_test(gr.top_block, Qt.QWidget):
 
 
 
-def main(top_block_cls=sink_test, options=None):
+def main(top_block_cls=bursting, options=None):
 
     if StrictVersion("4.5.0") <= StrictVersion(Qt.qVersion()) < StrictVersion("5.0.0"):
         style = gr.prefs().get_string('qtgui', 'style', 'raster')

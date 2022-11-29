@@ -3,3 +3,5 @@ build/*
 lib/libsidekiq.a
 .cache/*
 compile_commands.json
+*.swp
+

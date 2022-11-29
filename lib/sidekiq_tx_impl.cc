@@ -19,6 +19,9 @@ const bool SIDEKIQ_IQ_PACK_MODE_UNPACKED{false};
 
 static const double STATUS_UPDATE_RATE_SECONDS{2.0};
 
+using pmt::pmt_t;
+const pmt_t CONTROL_MESSAGE_PORT{pmt::string_to_symbol("command")};
+
 
 /* The tx_complete function needs to be outside the object so it can be registered with libsidekiq 
  * mutex to protect updates to the tx buffer
@@ -117,6 +120,7 @@ sidekiq_tx_impl::sidekiq_tx_impl( int input_card,
     tx_buffer_size = buffer_size;
     temp_buffer.resize(tx_buffer_size);
     num_blocks = NUM_BLOCKS;
+    bursting_cmd = NO_BURSTING_ALLOWED;
 
     status = skiq_init(skiq_xport_type_pcie, skiq_xport_init_level_full, &card, 1);
     if (status != 0) 
@@ -253,6 +257,9 @@ sidekiq_tx_impl::sidekiq_tx_impl( int input_card,
         p_tx_status[i] = 0;
     }
 
+    message_port_register_in(CONTROL_MESSAGE_PORT);
+    set_msg_handler(CONTROL_MESSAGE_PORT, [this](pmt::pmt_t msg) { this->handle_control_message(msg); });
+
     /* set the frequency and attenuation */
     set_tx_frequency(frequency);
     set_tx_attenuation(attenuation);
@@ -288,6 +295,70 @@ sidekiq_tx_impl::~sidekiq_tx_impl()
     }
 }
 
+double get_double_from_pmt_dict(pmt_t dict, pmt_t key, pmt_t not_found = pmt::PMT_NIL) {
+    auto message_value = pmt::dict_ref(dict, key, not_found);
+
+    return pmt::to_double(message_value);
+}
+
+
+void sidekiq_tx_impl::handle_control_message(pmt_t msg) 
+{
+    printf("in handle_control \n");
+    pmt::print(msg);
+
+    // pmt_dict is a subclass of pmt_pair. Make sure we use pmt_pair!
+    // Old behavior was that these checks were interchangeable. Be aware of this change!
+    if (!(pmt::is_dict(msg)) && pmt::is_pair(msg)) {
+        d_logger->debug(
+            "Command message is pair, converting to dict: '{}': car({}), cdr({})",
+            msg,
+            pmt::car(msg),
+            pmt::cdr(msg));
+        msg = pmt::dict_add(pmt::make_dict(), pmt::car(msg), pmt::cdr(msg));
+     }
+
+     // Make sure, we use dicts!
+     if (!pmt::is_dict(msg)) {
+         d_logger->error("Command message is neither dict nor pair: {}", msg);
+         return;
+     }
+
+    if (pmt::dict_has_key(msg, TX_FREQ_KEY)) 
+    {
+        set_tx_frequency(get_double_from_pmt_dict(msg, TX_FREQ_KEY));
+    }
+
+    if (pmt::dict_has_key(msg, TX_RATE_KEY)) 
+    {
+        set_tx_sample_rate(get_double_from_pmt_dict(msg, TX_RATE_KEY));
+    }
+
+
+    if (pmt::dict_has_key(msg, TX_START_BURST)) 
+    {
+        double cmd = get_double_from_pmt_dict(msg, TX_START_BURST);
+
+        if (cmd == BURSTING_ON)
+        {
+            d_logger->debug("starting bursting..., cmd {}", cmd);
+            bursting_cmd = cmd;
+            this->start();
+        }
+        else if (cmd == BURSTING_OFF) 
+        {
+            d_logger->debug("stopping bursting, cmd {}", cmd);
+            bursting_cmd = cmd;
+            this->stop();
+        }
+        else
+        {
+            bursting_cmd = NO_BURSTING_ALLOWED;
+        }
+    }
+}
+
+
 /* start streaming */
 bool sidekiq_tx_impl::start() 
 {
@@ -295,16 +366,24 @@ bool sidekiq_tx_impl::start()
 
     printf("in start() \n");
 
-    status = skiq_start_tx_streaming(card, hdl);
-    if (status != 0)
+    if (bursting_cmd == NO_BURSTING_ALLOWED || bursting_cmd == BURSTING_ON)
     {
-        fprintf(stderr, "Error: could not start TX streaming, status %d\n", status);
-        throw std::runtime_error("Failure: skiq_start_tx_streaming");
+        
+        status = skiq_start_tx_streaming(card, hdl);
+        if (status != 0)
+        {
+            fprintf(stderr, "Error: could not start TX streaming, status %d\n", status);
+            throw std::runtime_error("Failure: skiq_start_tx_streaming");
+        }
+
+        tx_streaming = true;
+
+        return block::start();
     }
-
-    tx_streaming = true;
-
-    return block::start();
+    else
+    {
+        return false;
+    }
 }
 
 /* stop streaming */
@@ -500,7 +579,8 @@ void sidekiq_tx_impl::update_tx_error_count() {
         return;
     }
 
-    if (last_num_tx_errors != num_tx_errors) {
+    if (last_num_tx_errors != num_tx_errors) 
+    {
         printf("TX underrun count: %u\n", num_tx_errors);
         last_num_tx_errors = num_tx_errors;
 	}
@@ -508,18 +588,25 @@ void sidekiq_tx_impl::update_tx_error_count() {
 
 int sidekiq_tx_impl::handle_tx_burst_tag(tag_t tag) 
 {
-    printf("in handle_tx_burst_tag, tag offset %ld\n", tag.offset);
-
-
-    burst_length = pmt::to_uint64(tag.value);
-    burst_samples_sent = 0;
-
-    if (tx_streaming == false)
+    if (bursting_cmd == BURSTING_ON)
     {
-        start();
-    }
+        printf("in handle_tx_burst_tag, tag offset %ld\n", tag.offset);
 
-    return burst_length;
+
+        burst_length = pmt::to_uint64(tag.value);
+        burst_samples_sent = 0;
+
+        if (tx_streaming == false)
+        {
+            start();
+        }
+
+        return burst_length;
+    }
+    else
+    {
+        return 0;
+    }
 }
 
 

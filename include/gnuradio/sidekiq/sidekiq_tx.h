@@ -17,13 +17,6 @@ using pmt::pmt_t;
 namespace gr {
 namespace sidekiq {
 
-    static const pmt_t TX_TIME_KEY{pmt::string_to_symbol("tx_time")};
-
-    static const pmt_t TX_BURST_KEY{pmt::string_to_symbol("tx_burst")};
-
-    static const pmt_t TX_FREQ_KEY{pmt::string_to_symbol("tx_freq")};
-
-    static const pmt_t TX_GAIN_KEY{pmt::string_to_symbol("tx_gain")};
 
 /*!
  * \brief <+description of block+>

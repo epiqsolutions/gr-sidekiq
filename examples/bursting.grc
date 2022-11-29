@@ -11,7 +11,7 @@ options:
     gen_linking: dynamic
     generate_options: qt_gui
     hier_block_src_path: '.:'
-    id: sink_test
+    id: bursting
     max_nouts: '0'
     output_language: python
     placement: (0,0)
@@ -22,7 +22,7 @@ options:
     run_options: prompt
     sizing_mode: fixed
     thread_safe_setters: ''
-    title: Sink Test
+    title: bursting
     window_size: (1000,1000)
   states:
     bus_sink: false
@@ -93,7 +93,7 @@ blocks:
     bus_sink: false
     bus_source: false
     bus_structure: null
-    coordinate: [696, 60.0]
+    coordinate: [704, 60.0]
     rotation: 0
     state: true
 - name: min_output_buffer
@@ -186,7 +186,7 @@ blocks:
     bus_sink: false
     bus_source: false
     bus_structure: null
-    coordinate: [272, 260.0]
+    coordinate: [232, 380.0]
     rotation: 0
     state: true
 - name: blocks_add_xx_0
@@ -204,7 +204,7 @@ blocks:
     bus_sink: false
     bus_source: false
     bus_structure: null
-    coordinate: [600, 336.0]
+    coordinate: [584, 424.0]
     rotation: 0
     state: true
 - name: blocks_tags_strobe_0
@@ -218,13 +218,13 @@ blocks:
     minoutbuf: '0'
     nsamps: int(sample_rate * 4)
     type: complex
-    value: pmt.to_pmt(1000)
+    value: pmt.to_pmt(4000000)
     vlen: '1'
   states:
     bus_sink: false
     bus_source: false
     bus_structure: null
-    coordinate: [296, 460.0]
+    coordinate: [232, 516.0]
     rotation: 0
     state: true
 - name: blocks_throttle_0
@@ -243,7 +243,29 @@ blocks:
     bus_sink: false
     bus_source: false
     bus_structure: null
-    coordinate: [720, 348.0]
+    coordinate: [704, 436.0]
+    rotation: 0
+    state: true
+- name: qtgui_edit_box_msg_0
+  id: qtgui_edit_box_msg
+  parameters:
+    affinity: ''
+    alias: ''
+    comment: ''
+    gui_hint: ''
+    is_pair: 'True'
+    is_static: 'False'
+    key: start_burst
+    label: ''
+    maxoutbuf: '0'
+    minoutbuf: '0'
+    type: double
+    value: '0'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [232, 236.0]
     rotation: 0
     state: true
 - name: sidekiq_sidekiq_tx_0
@@ -253,7 +275,7 @@ blocks:
     alias: ''
     attenuation: attenuation
     bandwidth: bandwidth
-    buffer_size: '1020'
+    buffer_size: '4092'
     cal_mode: '0'
     card: '0'
     comment: ''
@@ -266,7 +288,7 @@ blocks:
     bus_sink: false
     bus_source: false
     bus_structure: null
-    coordinate: [1008, 284.0]
+    coordinate: [992, 356.0]
     rotation: 0
     state: true
 
@@ -275,6 +297,7 @@ connections:
 - [blocks_add_xx_0, '0', blocks_throttle_0, '0']
 - [blocks_tags_strobe_0, '0', blocks_add_xx_0, '1']
 - [blocks_throttle_0, '0', sidekiq_sidekiq_tx_0, '0']
+- [qtgui_edit_box_msg_0, msg, sidekiq_sidekiq_tx_0, command]
 
 metadata:
   file_format: 1

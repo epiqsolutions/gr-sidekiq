@@ -14,8 +14,22 @@
 
 #define CAL_ON 1
 
+#define BURSTING_OFF 0
+#define BURSTING_ON  1
+#define NO_BURSTING_ALLOWED 2 
+
 namespace gr {
 namespace sidekiq {
+
+    static const pmt_t TX_BURST_KEY{pmt::string_to_symbol("tx_burst")};
+
+    static const pmt_t TX_FREQ_KEY{pmt::string_to_symbol("tx_freq")};
+
+    static const pmt_t TX_RATE_KEY{pmt::string_to_symbol("tx_rate")};
+
+    static const pmt_t TX_START_BURST{pmt::string_to_symbol("start_burst")};
+
+
 
 class sidekiq_tx_impl : public sidekiq_tx
 {
@@ -42,6 +56,7 @@ public:
              gr_vector_void_star& output_items) override;
 
 
+    void handle_control_message(pmt_t message);
 
     bool start() override;
 
@@ -94,20 +109,20 @@ private:
     uint32_t curr_block{};
     std::vector<gr_complex> temp_buffer;
     int32_t tx_buffer_size{};
-    void update_tx_error_count();
     uint64_t timestamp{};
 
-    /* burst length */
+    /* bursting */
+    double bursting_cmd;
     std::vector<tag_t> _tags;    
-
     uint64_t burst_length{};
     uint64_t burst_samples_sent{};
     uint64_t previous_burst_tag_offset{};
 
-    int handle_tx_burst_tag(tag_t tag);
 
     uint32_t debug_ctr{};
 
+    int handle_tx_burst_tag(tag_t tag);
+    void update_tx_error_count();
 };
 
 } // namespace sidekiq
