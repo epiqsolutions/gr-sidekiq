@@ -5,7 +5,7 @@
 # SPDX-License-Identifier: GPL-3.0
 #
 # GNU Radio Python Flow Graph
-# Title: bursting
+# Title: Sink Test
 # GNU Radio version: 3.10.3.0
 
 from packaging.version import Version as StrictVersion
@@ -21,11 +21,7 @@ if __name__ == '__main__':
             print("Warning: failed to XInitThreads()")
 
 from PyQt5 import Qt
-from gnuradio import qtgui
-import sip
 from gnuradio import analog
-from gnuradio import blocks
-import pmt
 from gnuradio import gr
 from gnuradio.filter import firdes
 from gnuradio.fft import window
@@ -42,12 +38,12 @@ from PyQt5 import QtCore
 
 from gnuradio import qtgui
 
-class bursting(gr.top_block, Qt.QWidget):
+class sink_test(gr.top_block, Qt.QWidget):
 
     def __init__(self):
-        gr.top_block.__init__(self, "bursting", catch_exceptions=True)
+        gr.top_block.__init__(self, "Sink Test", catch_exceptions=True)
         Qt.QWidget.__init__(self)
-        self.setWindowTitle("bursting")
+        self.setWindowTitle("Sink Test")
         qtgui.util.check_set_qss()
         try:
             self.setWindowIcon(Qt.QIcon.fromTheme('gnuradio-grc'))
@@ -65,7 +61,7 @@ class bursting(gr.top_block, Qt.QWidget):
         self.top_grid_layout = Qt.QGridLayout()
         self.top_layout.addLayout(self.top_grid_layout)
 
-        self.settings = Qt.QSettings("GNU Radio", "bursting")
+        self.settings = Qt.QSettings("GNU Radio", "sink_test")
 
         try:
             if StrictVersion(Qt.qVersion()) < StrictVersion("5.0.0"):
@@ -78,24 +74,24 @@ class bursting(gr.top_block, Qt.QWidget):
         ##################################################
         # Variables
         ##################################################
-        self.sample_rate = sample_rate = 4e6
-        self.tone_freq = tone_freq = 1e6
+        self.sample_rate = sample_rate = 10e6
+        self.tone_freq = tone_freq = 2e6
         self.run_tx_calibration = run_tx_calibration = 0
         self.min_output_buffer = min_output_buffer = 32764 *2*2
-        self.frequency = frequency = 1000e6
+        self.frequency = frequency = 1002e6
         self.bandwidth = bandwidth = sample_rate * 0.8
         self.attenuation = attenuation = 125
 
         ##################################################
         # Blocks
         ##################################################
-        self._sample_rate_range = Range(1e6, 250e6, 1e6, 4e6, 200)
+        self._sample_rate_range = Range(1e6, 250e6, 1e6, 10e6, 200)
         self._sample_rate_win = RangeWidget(self._sample_rate_range, self.set_sample_rate, "'sample_rate'", "counter_slider", float, QtCore.Qt.Horizontal)
         self.top_layout.addWidget(self._sample_rate_win)
-        self._tone_freq_range = Range(1e6, 25e6, 1e6, 1e6, 200)
+        self._tone_freq_range = Range(1e6, 25e6, 1e6, 2e6, 200)
         self._tone_freq_win = RangeWidget(self._tone_freq_range, self.set_tone_freq, "'tone_freq'", "counter_slider", float, QtCore.Qt.Horizontal)
         self.top_layout.addWidget(self._tone_freq_win)
-        self._frequency_range = Range(500e6, 6000e6, 1e6, 1000e6, 100)
+        self._frequency_range = Range(500e6, 6000e6, 1e6, 1002e6, 100)
         self._frequency_win = RangeWidget(self._frequency_range, self.set_frequency, "Frequency", "counter_slider", float, QtCore.Qt.Horizontal)
         self.top_layout.addWidget(self._frequency_win)
         self._bandwidth_range = Range(1000, 250e6, 1e6, sample_rate * 0.8, 200)
@@ -104,20 +100,13 @@ class bursting(gr.top_block, Qt.QWidget):
         self._attenuation_range = Range(0, 255, 10, 125, 100)
         self._attenuation_win = RangeWidget(self._attenuation_range, self.set_attenuation, "'attenuation'", "counter_slider", float, QtCore.Qt.Horizontal)
         self.top_layout.addWidget(self._attenuation_win)
-        self.sidekiq_sidekiq_tx_0 = sidekiq.sidekiq_tx(0, 0, sample_rate, bandwidth, frequency, attenuation, 1, 4092, 0)
+        self.sidekiq_sidekiq_tx_0 = sidekiq.sidekiq_tx(0, 0, sample_rate, bandwidth, frequency, attenuation, 4, 1020, 0)
         _run_tx_calibration_push_button = Qt.QPushButton('')
         _run_tx_calibration_push_button = Qt.QPushButton('run_tx_calibration')
         self._run_tx_calibration_choices = {'Pressed': 1, 'Released': 0}
         _run_tx_calibration_push_button.pressed.connect(lambda: self.set_run_tx_calibration(self._run_tx_calibration_choices['Pressed']))
         _run_tx_calibration_push_button.released.connect(lambda: self.set_run_tx_calibration(self._run_tx_calibration_choices['Released']))
         self.top_layout.addWidget(_run_tx_calibration_push_button)
-        self.qtgui_edit_box_msg_0 = qtgui.edit_box_msg(qtgui.DOUBLE, '0', '', True, False, 'start_burst', None)
-        self._qtgui_edit_box_msg_0_win = sip.wrapinstance(self.qtgui_edit_box_msg_0.qwidget(), Qt.QWidget)
-        self.top_layout.addWidget(self._qtgui_edit_box_msg_0_win)
-        self.blocks_throttle_0 = blocks.throttle(gr.sizeof_gr_complex*1, sample_rate,True)
-        self.blocks_tags_strobe_0 = blocks.tags_strobe(gr.sizeof_gr_complex*1, pmt.to_pmt(4000000), (int(sample_rate * 4)), pmt.intern("tx_burst"))
-        self.blocks_add_xx_0 = blocks.add_vcc(1)
-        self.blocks_add_xx_0.set_min_output_buffer(min_output_buffer)
         self.analog_sig_source_x_0 = analog.sig_source_c(sample_rate, analog.GR_COS_WAVE, tone_freq, 1, 0, 0)
         self.analog_sig_source_x_0.set_min_output_buffer(min_output_buffer)
 
@@ -125,15 +114,11 @@ class bursting(gr.top_block, Qt.QWidget):
         ##################################################
         # Connections
         ##################################################
-        self.msg_connect((self.qtgui_edit_box_msg_0, 'msg'), (self.sidekiq_sidekiq_tx_0, 'command'))
-        self.connect((self.analog_sig_source_x_0, 0), (self.blocks_add_xx_0, 0))
-        self.connect((self.blocks_add_xx_0, 0), (self.blocks_throttle_0, 0))
-        self.connect((self.blocks_tags_strobe_0, 0), (self.blocks_add_xx_0, 1))
-        self.connect((self.blocks_throttle_0, 0), (self.sidekiq_sidekiq_tx_0, 0))
+        self.connect((self.analog_sig_source_x_0, 0), (self.sidekiq_sidekiq_tx_0, 0))
 
 
     def closeEvent(self, event):
-        self.settings = Qt.QSettings("GNU Radio", "bursting")
+        self.settings = Qt.QSettings("GNU Radio", "sink_test")
         self.settings.setValue("geometry", self.saveGeometry())
         self.stop()
         self.wait()
@@ -147,8 +132,6 @@ class bursting(gr.top_block, Qt.QWidget):
         self.sample_rate = sample_rate
         self.set_bandwidth(self.sample_rate * 0.8)
         self.analog_sig_source_x_0.set_sampling_freq(self.sample_rate)
-        self.blocks_tags_strobe_0.set_nsamps((int(self.sample_rate * 4)))
-        self.blocks_throttle_0.set_sample_rate(self.sample_rate)
         self.sidekiq_sidekiq_tx_0.set_tx_sample_rate(self.sample_rate)
 
     def get_tone_freq(self):
@@ -195,7 +178,7 @@ class bursting(gr.top_block, Qt.QWidget):
 
 
 
-def main(top_block_cls=bursting, options=None):
+def main(top_block_cls=sink_test, options=None):
 
     if StrictVersion("4.5.0") <= StrictVersion(Qt.qVersion()) < StrictVersion("5.0.0"):
         style = gr.prefs().get_string('qtgui', 'style', 'raster')

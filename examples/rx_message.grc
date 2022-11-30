@@ -11,7 +11,7 @@ options:
     gen_linking: dynamic
     generate_options: qt_gui
     hier_block_src_path: '.:'
-    id: bursting
+    id: source_test
     max_nouts: '0'
     output_language: python
     placement: (0,0)
@@ -22,7 +22,7 @@ options:
     run_options: prompt
     sizing_mode: fixed
     thread_safe_setters: ''
-    title: bursting
+    title: source_test
     window_size: (1000,1000)
   states:
     bus_sink: false
@@ -33,27 +33,6 @@ options:
     state: enabled
 
 blocks:
-- name: attenuation
-  id: variable_qtgui_range
-  parameters:
-    comment: ''
-    gui_hint: ''
-    label: ''
-    min_len: '100'
-    orient: QtCore.Qt.Horizontal
-    rangeType: float
-    start: '0'
-    step: '10'
-    stop: '255'
-    value: '125'
-    widget: counter_slider
-  states:
-    bus_sink: false
-    bus_source: false
-    bus_structure: null
-    coordinate: [848, 60.0]
-    rotation: 0
-    state: true
 - name: bandwidth
   id: variable_qtgui_range
   parameters:
@@ -63,16 +42,16 @@ blocks:
     min_len: '200'
     orient: QtCore.Qt.Horizontal
     rangeType: float
-    start: '1000'
+    start: 1e6
     step: 1e6
     stop: 250e6
-    value: sample_rate * 0.8
+    value: sample_rate * .8
     widget: counter_slider
   states:
     bus_sink: false
     bus_source: false
     bus_structure: null
-    coordinate: [552, 60.0]
+    coordinate: [576, 36.0]
     rotation: 0
     state: true
 - name: frequency
@@ -80,11 +59,11 @@ blocks:
   parameters:
     comment: ''
     gui_hint: ''
-    label: Frequency
-    min_len: '100'
+    label: ''
+    min_len: '200'
     orient: QtCore.Qt.Horizontal
     rangeType: float
-    start: 500e6
+    start: 250e6
     step: 1e6
     stop: 6000e6
     value: 1000e6
@@ -93,27 +72,15 @@ blocks:
     bus_sink: false
     bus_source: false
     bus_structure: null
-    coordinate: [704, 60.0]
+    coordinate: [784, 36.0]
     rotation: 0
     state: true
-- name: min_output_buffer
-  id: variable
-  parameters:
-    comment: ''
-    value: 32764 *2*2
-  states:
-    bus_sink: false
-    bus_source: false
-    bus_structure: null
-    coordinate: [240, 60.0]
-    rotation: 0
-    state: true
-- name: run_tx_calibration
+- name: run_rx_calibration
   id: variable_qtgui_push_button
   parameters:
     comment: ''
     gui_hint: ''
-    label: ''
+    label: Run RX Calibration
     pressed: '1'
     released: '0'
     type: int
@@ -122,9 +89,21 @@ blocks:
     bus_sink: false
     bus_source: false
     bus_structure: null
-    coordinate: [1216, 60.0]
+    coordinate: [944, 52.0]
     rotation: 0
     state: true
+- name: samp_rate
+  id: variable
+  parameters:
+    comment: ''
+    value: '32000'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [184, 12]
+    rotation: 0
+    state: enabled
 - name: sample_rate
   id: variable_qtgui_range
   parameters:
@@ -137,113 +116,13 @@ blocks:
     start: 1e6
     step: 1e6
     stop: 250e6
-    value: 5e6
+    value: 10e6
     widget: counter_slider
   states:
     bus_sink: false
     bus_source: false
     bus_structure: null
-    coordinate: [392, 60.0]
-    rotation: 0
-    state: true
-- name: tone_freq
-  id: variable_qtgui_range
-  parameters:
-    comment: ''
-    gui_hint: ''
-    label: ''
-    min_len: '200'
-    orient: QtCore.Qt.Horizontal
-    rangeType: float
-    start: 1e6
-    step: 1e6
-    stop: 25e6
-    value: 2e6
-    widget: counter_slider
-  states:
-    bus_sink: false
-    bus_source: false
-    bus_structure: null
-    coordinate: [1000, 60.0]
-    rotation: 0
-    state: true
-- name: analog_sig_source_x_0
-  id: analog_sig_source_x
-  parameters:
-    affinity: ''
-    alias: ''
-    amp: '1'
-    comment: ''
-    freq: tone_freq
-    maxoutbuf: '0'
-    minoutbuf: min_output_buffer
-    offset: '0'
-    phase: '0'
-    samp_rate: sample_rate
-    type: complex
-    waveform: analog.GR_COS_WAVE
-  states:
-    bus_sink: false
-    bus_source: false
-    bus_structure: null
-    coordinate: [232, 380.0]
-    rotation: 0
-    state: true
-- name: blocks_add_xx_0
-  id: blocks_add_xx
-  parameters:
-    affinity: ''
-    alias: ''
-    comment: ''
-    maxoutbuf: '0'
-    minoutbuf: min_output_buffer
-    num_inputs: '2'
-    type: complex
-    vlen: '1'
-  states:
-    bus_sink: false
-    bus_source: false
-    bus_structure: null
-    coordinate: [584, 424.0]
-    rotation: 0
-    state: true
-- name: blocks_tags_strobe_0
-  id: blocks_tags_strobe
-  parameters:
-    affinity: ''
-    alias: ''
-    comment: ''
-    key: pmt.intern("tx_burst")
-    maxoutbuf: '0'
-    minoutbuf: '0'
-    nsamps: int(sample_rate * 4)
-    type: complex
-    value: pmt.to_pmt(4000000)
-    vlen: '1'
-  states:
-    bus_sink: false
-    bus_source: false
-    bus_structure: null
-    coordinate: [232, 516.0]
-    rotation: 0
-    state: true
-- name: blocks_throttle_0
-  id: blocks_throttle
-  parameters:
-    affinity: ''
-    alias: ''
-    comment: ''
-    ignoretag: 'True'
-    maxoutbuf: '0'
-    minoutbuf: '0'
-    samples_per_second: sample_rate
-    type: complex
-    vlen: '1'
-  states:
-    bus_sink: false
-    bus_source: false
-    bus_structure: null
-    coordinate: [704, 436.0]
+    coordinate: [392, 36.0]
     rotation: 0
     state: true
 - name: qtgui_edit_box_msg_0
@@ -255,17 +134,39 @@ blocks:
     gui_hint: ''
     is_pair: 'True'
     is_static: 'False'
-    key: start_burst
+    key: rx_freq
     label: ''
     maxoutbuf: '0'
     minoutbuf: '0'
     type: double
-    value: '1'
+    value: '1000000000'
   states:
     bus_sink: false
     bus_source: false
     bus_structure: null
-    coordinate: [232, 236.0]
+    coordinate: [152, 212.0]
+    rotation: 0
+    state: true
+- name: qtgui_edit_box_msg_1
+  id: qtgui_edit_box_msg
+  parameters:
+    affinity: ''
+    alias: ''
+    comment: ''
+    gui_hint: ''
+    is_pair: 'True'
+    is_static: 'False'
+    key: rx_rate
+    label: ''
+    maxoutbuf: '0'
+    minoutbuf: '0'
+    type: double
+    value: '10000000'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [152, 348.0]
     rotation: 0
     state: true
 - name: qtgui_freq_sink_x_0
@@ -346,7 +247,7 @@ blocks:
     bus_sink: false
     bus_source: false
     bus_structure: null
-    coordinate: [984, 652.0]
+    coordinate: [1048, 380.0]
     rotation: 0
     state: true
 - name: qtgui_time_sink_x_0
@@ -405,9 +306,9 @@ blocks:
     name: '""'
     nconnections: '1'
     size: '1024'
-    srate: sample_rate
+    srate: samp_rate
     stemplot: 'False'
-    style1: '2'
+    style1: '1'
     style10: '1'
     style2: '1'
     style3: '1'
@@ -420,9 +321,9 @@ blocks:
     tr_chan: '0'
     tr_delay: '0'
     tr_level: '0.0'
-    tr_mode: qtgui.TRIG_MODE_AUTO
+    tr_mode: qtgui.TRIG_MODE_FREE
     tr_slope: qtgui.TRIG_SLOPE_POS
-    tr_tag: '"tx_burst"'
+    tr_tag: '""'
     type: complex
     update_time: '0.10'
     width1: '1'
@@ -443,41 +344,41 @@ blocks:
     bus_sink: false
     bus_source: false
     bus_structure: null
-    coordinate: [984, 556.0]
+    coordinate: [1048, 252.0]
     rotation: 0
     state: true
-- name: sidekiq_sidekiq_tx_0
-  id: sidekiq_sidekiq_tx
+- name: sidekiq_sidekiq_rx_0
+  id: sidekiq_sidekiq_rx
   parameters:
     affinity: ''
     alias: ''
-    attenuation: attenuation
     bandwidth: bandwidth
-    buffer_size: '4092'
     cal_mode: '0'
+    cal_type: '0'
     card: '0'
     comment: ''
     frequency: frequency
-    handle: '0'
-    run_cal: run_tx_calibration
+    gain_index: '1'
+    gain_mode: '1'
+    handle1: '0'
+    handle2: '100'
+    maxoutbuf: '16000'
+    minoutbuf: '0'
+    run_cal: run_rx_calibration
     sample_rate: sample_rate
-    threads: '1'
   states:
     bus_sink: false
     bus_source: false
     bus_structure: null
-    coordinate: [992, 356.0]
+    coordinate: [608, 260.0]
     rotation: 0
     state: true
 
 connections:
-- [analog_sig_source_x_0, '0', blocks_add_xx_0, '0']
-- [blocks_add_xx_0, '0', blocks_throttle_0, '0']
-- [blocks_tags_strobe_0, '0', blocks_add_xx_0, '1']
-- [blocks_throttle_0, '0', qtgui_freq_sink_x_0, '0']
-- [blocks_throttle_0, '0', qtgui_time_sink_x_0, '0']
-- [blocks_throttle_0, '0', sidekiq_sidekiq_tx_0, '0']
-- [qtgui_edit_box_msg_0, msg, sidekiq_sidekiq_tx_0, command]
+- [qtgui_edit_box_msg_0, msg, sidekiq_sidekiq_rx_0, command]
+- [qtgui_edit_box_msg_1, msg, sidekiq_sidekiq_rx_0, command]
+- [sidekiq_sidekiq_rx_0, '0', qtgui_freq_sink_x_0, '0']
+- [sidekiq_sidekiq_rx_0, '0', qtgui_time_sink_x_0, '0']
 
 metadata:
   file_format: 1

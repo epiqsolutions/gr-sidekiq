@@ -16,6 +16,9 @@ const int DATA_MAX_BUFFER_SIZE{SKIQ_MAX_RX_BLOCK_SIZE_IN_WORDS - SKIQ_RX_HEADER_
 
 #define IQ_SHORT_COUNT 2        // number of shorts in a sample
 
+using pmt::pmt_t;
+const pmt_t CONTROL_MESSAGE_PORT{pmt::string_to_symbol("command")};
+
 namespace gr {
 namespace sidekiq {
 
@@ -30,7 +33,8 @@ sidekiq_rx::sptr sidekiq_rx::make(
         uint8_t gain_mode,
         int gain_index,
         int cal_mode,
-        int cal_type) {
+        int cal_type) 
+{
   return gnuradio::make_block_sptr<sidekiq_rx_impl>(
           input_card,
           port1_handle,
@@ -138,6 +142,9 @@ sidekiq_rx_impl::sidekiq_rx_impl(
           throw std::runtime_error("Failure: skiq_write_iq_pack_mode");
     }
 
+    message_port_register_in(CONTROL_MESSAGE_PORT);
+    set_msg_handler(CONTROL_MESSAGE_PORT, [this](pmt::pmt_t msg) { this->handle_control_message(msg); });
+
     set_rx_frequency(frequency);
     set_rx_gain_mode(gain_mode);
     set_rx_cal_mode(cal_mode);
@@ -152,6 +159,49 @@ sidekiq_rx_impl::sidekiq_rx_impl(
 
 sidekiq_rx_impl::~sidekiq_rx_impl() 
 {
+}
+
+
+double sidekiq_rx_impl::get_double_from_pmt_dict(pmt_t dict, pmt_t key, pmt_t not_found = pmt::PMT_NIL) {
+    auto message_value = pmt::dict_ref(dict, key, not_found);
+
+    return pmt::to_double(message_value);
+}
+
+
+void sidekiq_rx_impl::handle_control_message(pmt_t msg) 
+{
+    printf("in handle_control \n");
+    pmt::print(msg);
+
+    // pmt_dict is a subclass of pmt_pair. Make sure we use pmt_pair!
+    // Old behavior was that these checks were interchangeable. Be aware of this change!
+    if (!(pmt::is_dict(msg)) && pmt::is_pair(msg)) {
+        d_logger->debug(
+            "Command message is pair, converting to dict: '{}': car({}), cdr({})",
+            msg,
+            pmt::car(msg),
+            pmt::cdr(msg));
+        msg = pmt::dict_add(pmt::make_dict(), pmt::car(msg), pmt::cdr(msg));
+     }
+
+     // Make sure, we use dicts!
+     if (!pmt::is_dict(msg)) {
+         d_logger->error("Command message is neither dict nor pair: {}", msg);
+         return;
+     }
+
+    if (pmt::dict_has_key(msg, RX_FREQ_KEY)) 
+    {
+        set_rx_frequency(get_double_from_pmt_dict(msg, RX_FREQ_KEY));
+    }
+
+    if (pmt::dict_has_key(msg, RX_RATE_KEY)) 
+    {
+        set_rx_sample_rate(get_double_from_pmt_dict(msg, RX_RATE_KEY));
+    }
+
+
 }
 
 bool sidekiq_rx_impl::start() 

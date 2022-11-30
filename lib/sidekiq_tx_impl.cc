@@ -295,7 +295,8 @@ sidekiq_tx_impl::~sidekiq_tx_impl()
     }
 }
 
-double get_double_from_pmt_dict(pmt_t dict, pmt_t key, pmt_t not_found = pmt::PMT_NIL) {
+double sidekiq_tx_impl::get_double_from_pmt_dict(pmt_t dict, pmt_t key, pmt_t not_found = pmt::PMT_NIL) 
+{
     auto message_value = pmt::dict_ref(dict, key, not_found);
 
     return pmt::to_double(message_value);

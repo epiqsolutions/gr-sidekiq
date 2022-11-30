@@ -22,3 +22,4 @@ sudo make uninstall
 
 sudo make install
 
+sudo ldconfig

@@ -16,7 +16,7 @@
 /* BINDTOOL_GEN_AUTOMATIC(0) */
 /* BINDTOOL_USE_PYGCCXML(0) */
 /* BINDTOOL_HEADER_FILE(sidekiq_rx.h)                                        */
-/* BINDTOOL_HEADER_FILE_HASH(7ec5a38138710e972af7e841721a5828) */
+/* BINDTOOL_HEADER_FILE_HASH(03adf404e8b5b2f58572d591e5149235) */
 /***********************************************************************************/
 
 #include <pybind11/complex.h>

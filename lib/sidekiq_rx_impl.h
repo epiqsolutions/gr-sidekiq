@@ -8,6 +8,7 @@
 #ifndef INCLUDED_SIDEKIQ_SIDEKIQ_RX_IMPL_H
 #define INCLUDED_SIDEKIQ_SIDEKIQ_RX_IMPL_H
 
+#include <pmt/pmt.h>
 #include <gnuradio/sidekiq/sidekiq_rx.h>
 #include <sidekiq_api.h>
 
@@ -20,6 +21,10 @@
 
 namespace gr {
 namespace sidekiq {
+
+    static const pmt_t RX_FREQ_KEY{pmt::string_to_symbol("rx_freq")};
+
+    static const pmt_t RX_RATE_KEY{pmt::string_to_symbol("rx_rate")};
 
 class sidekiq_rx_impl : public sidekiq_rx {
 private:
@@ -43,6 +48,8 @@ public:
   // Where all the action really happens
   int work(int noutput_items, gr_vector_const_void_star &input_items,
            gr_vector_void_star &output_items) override;
+
+   void handle_control_message(pmt_t message);
 
    bool start() override;
 
@@ -70,6 +77,7 @@ public:
 private:
     uint32_t get_new_block(uint32_t portno);
     bool determine_if_done(int32_t *samples_written, int32_t noutput_items, uint32_t *portno);
+    double get_double_from_pmt_dict(pmt_t dict, pmt_t key, pmt_t not_found );
 
      /* passed in parameters */
     uint8_t card{};
@@ -87,8 +95,8 @@ private:
     bool dual_port{};
 
 
+    /* work parameters */
     double adc_scaling{};
-
     int16_t *curr_block_ptr[MAX_PORT]{};
     int32_t curr_block_samples_left[MAX_PORT]{};
 
@@ -97,6 +105,8 @@ private:
     bool rx_streaming;
 
     uint32_t debug_ctr{};
+
+    /* methods */
 };
 
 } // namespace sidekiq

@@ -1,5 +1,6 @@
 id: sidekiq_sidekiq_rx
 label: new Sidekiq RX Source
+flags: hardware
 category: '[sidekiq]'
 
 templates:
@@ -66,6 +67,7 @@ parameters:
 
 - id: gain_index
   label: Gain_index
+  hide: ${ ('all' if (gain_mode == '1') else 'part') }
   dtype: int
   default: 1
 
@@ -86,7 +88,7 @@ parameters:
 
 - id: run_cal
   label: Run Cal 
-  hide: part
+  hide: ${ ('all' if (cal_mode == '0') else 'part') }
   dtype: int
   default: rx_run_calibration
 
@@ -100,6 +102,10 @@ parameters:
 #      * vlen (optional - data stream vector length. Default is 1)
 #      * optional (optional - set to 1 for optional inputs. Default is 0)
 inputs:
+- label: command
+  domain: message
+  dtype: float
+  optional: true
 #- label: ...
 #  domain: ...
 #  dtype: ...
@@ -107,6 +113,7 @@ inputs:
 #  optional: ...
 
 outputs:
+
 - label: Samples
   domain: stream
   dtype: complex
@@ -119,6 +126,43 @@ outputs:
 #  dtype: ...
 #  vlen: ...
 #  optional: ...
+
+documentation: |-
+    A Source Block for Epiq Sidekiq SDRs.
+
+    Block features:
+        Dual Port - The Handles define how many ports are used on the card.  
+        One or two ports can be used.  If the handle is not available on the card, 
+        an error will occur when run.
+
+        RX Calibration - Set the mode to manual or auto, if manual the block needs 
+        to set run_cal to 1.
+
+        Configuration messages - The block also can receive the "rx_freq", "rx_rate" 
+        messages to modify the LO frequency and sample rate.
+
+    Parameters:
+         Card: The card number of the Sidekiq card.
+
+         Handle: The handle (port) to use.
+
+         Sample_rate: The sample rate of the card.
+
+         Bandwidth: The bandwidth of the card.
+
+         Frequency: The LO frequency of the port.
+
+         Gain Mode: Auto or Manual, if Manual the gain_index must be set.
+
+         Gain Index: This is the gain index for the specific card.  Each hardware 
+         platform has a valid range.
+
+         Calibration Mode: Auto or Manual, if Manual the run_cal is used to manually 
+         run the calibration.
+
+         run_cal: If in Manual Mode, the a 1 for this parameter will force calibration to run.
+
+
 
 #  'file_format' specifies the version of the GRC yml format used in the file
 #  and should usually not be changed.

@@ -8,29 +8,19 @@
 #ifndef INCLUDED_SIDEKIQ_SIDEKIQ_RX_H
 #define INCLUDED_SIDEKIQ_SIDEKIQ_RX_H
 
+#include <pmt/pmt.h>
 #include <gnuradio/sidekiq/api.h>
 #include <gnuradio/sync_block.h>
+
+using pmt::pmt_t;
 
 namespace gr {
 namespace sidekiq {
 
-/*!
- * \brief <+description of block+>
- * \ingroup sidekiq
- *
- */
 class SIDEKIQ_API sidekiq_rx : virtual public gr::sync_block {
 public:
   typedef std::shared_ptr<sidekiq_rx> sptr;
 
-  /*!
-   * \brief Return a shared_ptr to a new instance of sidekiq::sidekiq_rx.
-   *
-   * To avoid accidental use of raw pointers, sidekiq::sidekiq_rx's
-   * constructor is in a private implementation
-   * class. sidekiq::sidekiq_rx::make is the public interface for
-   * creating new instances.
-   */
   static sptr make(
           int input_card,
           int port1_handle,

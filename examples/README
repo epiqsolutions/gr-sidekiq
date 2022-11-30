@@ -1,3 +1,31 @@
-It is considered good practice to add examples in here to demonstrate the
-functionality of your OOT module. Python scripts, GRC flow graphs or other
-code can go here.
+
+sink_test.grc - Shows sidekiq_tx_block working
+parameters:
+    Card: Which sidekiq card in the chassis to use. 
+            If you don't know, then when you run this, all the cards will be printed out which one is which.
+
+    Handle ID: Which handle to use on the card.
+
+    Threads: If 1, then running in tx_sync mode, if > 1 then running in tx_async mode.  
+                Async mode can handle a faster sample rate then sync mode.
+
+    Buffer Size: The size of the TX buffers.  Larger buffers will allow higher sample rates without underruns.                   But they introduce more delay between packet.
+
+    Calibration Mode: Tx calibration will perform quad calibration, either in auto or manual.  
+                        If manual then the run_tx_calibration button should be pressed when you want 
+                        to manually run tx calibration.
+
+    Run Cal: When set to 1, it will manually run calibration.
+
+
+source_test.grc - Shows sidekiq_rx_block working
+
+dual_source.grc - Shows 2 RX ports with sidekiq_rx_block
+
+bursting.grc - Shows bursting transmit.  There is a message to stop and start the bursting feature. 
+    The tx_block will assume no_bursting, but the edit message box will pass in, 
+    buy default, a 1, which will turn on bursting capability.
+
+tx_message.grc - Shows rate and frequency messages being sent into the tx_block.
+
+

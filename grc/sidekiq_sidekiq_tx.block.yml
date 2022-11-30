@@ -1,5 +1,5 @@
 id: sidekiq_sidekiq_tx
-label: new_sidekiq_tx
+label: new Sidekiq TX Sink
 category: '[sidekiq]'
 
 templates:
@@ -74,7 +74,7 @@ parameters:
 
 - id: run_cal
   label: Run Cal 
-  hide: part
+  hide: ${ ('all' if (cal_mode == '0') else 'part') }
   dtype: int
   default: run_tx_calibration 
 
@@ -90,6 +90,7 @@ parameters:
 inputs:
 - label: command
   domain: message
+  dtype: float
   optional: true
 
 - label: Samples
@@ -103,12 +104,59 @@ inputs:
 #  vlen: ...
 #  optional: ...
 
-outputs:
+#outputs:
 #- label: ...
 #  domain: ...
 #  dtype: ...
 #  vlen: ...
 #  optional: ...
+
+documentation: |-
+    A Sink Block for Epiq Sidekiq SDRs.
+
+    Block features:
+        Async vs Sync mode - To handle higher sample rates, libsidekiq can be placed into 
+        Async mode by setting the Threads parameter greater than 1.  If 1, it is in sync mode.
+
+        Buffer Size - To handle higher sample rates, choose a bigger TX buffer size.
+
+        TX Calibration - Set the mode to manual or auto, if manual the block needs to set 
+        run_cal to 1.
+
+        Bursting TX - To transmit a burst, the block needs to receive the "start_burst" 
+        message with a value of 1.  To turn bursting off send a start_burst 
+        message with a value of 0.  Then it uses the tx_burst stream tag to indicate 
+        the start-of-burst and length.
+
+        Configuration messages - The block also can receive the "tx_freq", "tx_rate" 
+        messages to modify the LO frequency and sample rate.
+
+    Parameters:
+         Card: The card number of the Sidekiq card.
+
+         Handle: The handle (port) to use.
+
+         Sample Rate: The sample rate of the card.
+
+         Bandwidth: The bandwidth of the card.
+
+         Frequency: The LO frequency of the port.
+
+         Attenuation: The attenuation of the port.
+
+         Threads: The number of threads. If '1' then running in sync mode.
+
+         Buffer Size: The size of the TX buffer. The larger the buffer the faster 
+         sample rate with no underruns.
+
+         Calibration Mode: The calibration mode 'auto or manual'. If manual then run_cal 
+         must be 1 to manually run the calibration.
+
+         run_cal: If calibration is in manual mode, a 1 for this parameter will force 
+         calibration to run.
+
+
+
 
 #  'file_format' specifies the version of the GRC yml format used in the file
 #  and should usually not be changed.
