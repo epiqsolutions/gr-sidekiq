@@ -454,7 +454,7 @@ blocks:
     attenuation: attenuation
     bandwidth: bandwidth
     buffer_size: '4092'
-    cal_mode: '0'
+    cal_mode: '1'
     card: '0'
     comment: ''
     frequency: frequency
@@ -466,7 +466,7 @@ blocks:
     bus_sink: false
     bus_source: false
     bus_structure: null
-    coordinate: [992, 356.0]
+    coordinate: [984, 356.0]
     rotation: 0
     state: true
 

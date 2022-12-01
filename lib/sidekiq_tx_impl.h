@@ -12,14 +12,23 @@
 #include <gnuradio/sidekiq/sidekiq_tx.h>
 #include <sidekiq_api.h>
 
-#define CAL_ON 1
+#define CAL_ON 1            // run_cal parameter if a manual calibration is requested
 
-#define BURSTING_OFF 0
-#define BURSTING_ON  1
-#define NO_BURSTING_ALLOWED 2 
+#define BURSTING_OFF 0          // User wants bursting, but its off now
+#define BURSTING_ON  1          // User is bursting now
+#define NO_BURSTING_ALLOWED 2   // User does not want bursting (default)
+
+using pmt::pmt_t;
 
 namespace gr {
 namespace sidekiq {
+
+    static const bool SIDEKIQ_IQ_PACK_MODE_UNPACKED{false};
+
+    static const double STATUS_UPDATE_RATE_SECONDS{2.0};
+
+    /* message and tag keys */
+    static const pmt_t CONTROL_MESSAGE_PORT{pmt::string_to_symbol("command")};
 
     static const pmt_t TX_BURST_KEY{pmt::string_to_symbol("tx_burst")};
 
@@ -28,8 +37,6 @@ namespace sidekiq {
     static const pmt_t TX_RATE_KEY{pmt::string_to_symbol("tx_rate")};
 
     static const pmt_t TX_START_BURST{pmt::string_to_symbol("start_burst")};
-
-
 
 class sidekiq_tx_impl : public sidekiq_tx
 {
@@ -56,6 +63,7 @@ public:
              gr_vector_void_star& output_items) override;
 
 
+    /* message handler */
     void handle_control_message(pmt_t message);
 
     bool start() override;
@@ -74,11 +82,16 @@ public:
 
     void set_tx_cal_mode(int value) override;
 
+    /* User sends 1 when it wants to run calibration */
     void run_tx_cal(int value) override;
 
 
 
 private:
+    /* method prototypes */
+    int handle_tx_burst_tag(tag_t tag);
+    void update_tx_error_count();
+    double get_double_from_pmt_dict(pmt_t dict, pmt_t key, pmt_t not_found ); 
 
     /* passed in parameters */
     uint8_t card{};
@@ -91,10 +104,10 @@ private:
 
     /* flags */
     bool libsidekiq_init;
-    bool in_async_mode;
     bool tx_streaming;
 
     /* sync/async parameters */
+    bool in_async_mode;
     skiq_tx_block_t **p_tx_blocks;
     skiq_tx_block_t *sync_tx_block;
     int32_t *p_tx_status;
@@ -119,11 +132,9 @@ private:
     uint64_t previous_burst_tag_offset{};
 
 
+    /* displaying info in work() needs to stop after a few calls */
     uint32_t debug_ctr{};
 
-    int handle_tx_burst_tag(tag_t tag);
-    void update_tx_error_count();
-    double get_double_from_pmt_dict(pmt_t dict, pmt_t key, pmt_t not_found ); 
 };
 
 } // namespace sidekiq
