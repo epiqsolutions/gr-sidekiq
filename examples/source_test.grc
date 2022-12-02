@@ -309,7 +309,7 @@ blocks:
     affinity: ''
     alias: ''
     bandwidth: bandwidth
-    cal_mode: '0'
+    cal_mode: '1'
     cal_type: '0'
     card: '0'
     comment: ''
@@ -326,7 +326,7 @@ blocks:
     bus_sink: false
     bus_source: false
     bus_structure: null
-    coordinate: [152, 204.0]
+    coordinate: [168, 220.0]
     rotation: 0
     state: true
 

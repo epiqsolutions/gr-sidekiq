@@ -12,7 +12,9 @@
 #include <gnuradio/sidekiq/sidekiq_tx.h>
 #include <sidekiq_api.h>
 
-#define CAL_ON 1            // run_cal parameter if a manual calibration is requested
+#define NUM_BLOCKS 20           // number of tx blocks to allocate and use.
+
+#define CAL_ON 1                // run_cal parameter if a manual calibration is requested
 
 #define BURSTING_OFF 0          // User wants bursting, but its off now
 #define BURSTING_ON  1          // User is bursting now

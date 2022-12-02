@@ -87,7 +87,7 @@ blocks:
     start: 500e6
     step: 1e6
     stop: 6000e6
-    value: 1002e6
+    value: 1000e6
     widget: counter_slider
   states:
     bus_sink: false
@@ -186,7 +186,7 @@ blocks:
     bus_sink: false
     bus_source: false
     bus_structure: null
-    coordinate: [264, 324.0]
+    coordinate: [256, 292.0]
     rotation: 0
     state: true
 - name: sidekiq_sidekiq_tx_0
@@ -196,8 +196,8 @@ blocks:
     alias: ''
     attenuation: attenuation
     bandwidth: bandwidth
-    buffer_size: '1020'
-    cal_mode: '0'
+    buffer_size: '32764'
+    cal_mode: '1'
     card: '0'
     comment: ''
     frequency: frequency
@@ -209,7 +209,7 @@ blocks:
     bus_sink: false
     bus_source: false
     bus_structure: null
-    coordinate: [1008, 284.0]
+    coordinate: [1008, 252.0]
     rotation: 0
     state: true
 

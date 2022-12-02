@@ -208,7 +208,7 @@ class bursting(gr.top_block, Qt.QWidget):
         self._qtgui_edit_box_msg_0_win = sip.wrapinstance(self.qtgui_edit_box_msg_0.qwidget(), Qt.QWidget)
         self.top_layout.addWidget(self._qtgui_edit_box_msg_0_win)
         self.blocks_throttle_0 = blocks.throttle(gr.sizeof_gr_complex*1, sample_rate,True)
-        self.blocks_tags_strobe_0 = blocks.tags_strobe(gr.sizeof_gr_complex*1, pmt.to_pmt(4000000), (int(sample_rate * 4)), pmt.intern("tx_burst"))
+        self.blocks_tags_strobe_0 = blocks.tags_strobe(gr.sizeof_gr_complex*1, pmt.to_pmt(5000000), (int(sample_rate * 4)), pmt.intern("tx_burst"))
         self.blocks_add_xx_0 = blocks.add_vcc(1)
         self.blocks_add_xx_0.set_min_output_buffer(min_output_buffer)
         self.analog_sig_source_x_0 = analog.sig_source_c(sample_rate, analog.GR_COS_WAVE, tone_freq, 1, 0, 0)

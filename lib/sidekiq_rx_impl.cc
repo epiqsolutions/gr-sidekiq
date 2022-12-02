@@ -11,10 +11,7 @@
 #include <volk/volk.h>
 #include <boost/asio.hpp>
 
-const bool SIDEKIQ_IQ_PACK_MODE_UNPACKED{false}; 
-const int DATA_MAX_BUFFER_SIZE{SKIQ_MAX_RX_BLOCK_SIZE_IN_WORDS - SKIQ_RX_HEADER_SIZE_IN_WORDS};
-
-#define IQ_SHORT_COUNT 2        // number of shorts in a sample
+#define DEBUG_LEVEL "error"
 
 using pmt::pmt_t;
 const pmt_t CONTROL_MESSAGE_PORT{pmt::string_to_symbol("command")};
@@ -60,10 +57,18 @@ sidekiq_rx_impl::sidekiq_rx_impl(
         int cal_mode,
         int cal_type) 
     : gr::sync_block("sidekiq_rx", gr::io_signature::make(0, 0, 0),
-                     gr::io_signature::make(1 /* min outputs */,
-                                            2 /*max outputs */,
+                                   gr::io_signature::make(1 /* min outputs */, 2 /*max outputs */,
                                             sizeof(gr_complex))) 
 {
+    std::string str;
+
+    /* the goal is to use the debugger for debug info, but not normal Info or Errors 
+     * this will allow us to turn it on and off.  But Info and Errors look better with printf */
+    d_logger->set_level(DEBUG_LEVEL);
+    d_logger->get_level(str);
+
+    printf("in constructor, debug level: %s\n", str.c_str());
+
     int status = 0;
     uint8_t iq_resolution = 0;
 
@@ -142,24 +147,37 @@ sidekiq_rx_impl::sidekiq_rx_impl(
           throw std::runtime_error("Failure: skiq_write_iq_pack_mode");
     }
 
+    /* support two messages */
     message_port_register_in(CONTROL_MESSAGE_PORT);
     set_msg_handler(CONTROL_MESSAGE_PORT, [this](pmt::pmt_t msg) { this->handle_control_message(msg); });
 
+    /* set the rest of the parameters */
     set_rx_frequency(frequency);
     set_rx_gain_mode(gain_mode);
+    set_rx_gain_index(gain_index);
     set_rx_cal_mode(cal_mode);
     set_rx_cal_type(cal_type);
+}
 
-    if (gain_mode == 0)
+
+/* deconstructor */
+sidekiq_rx_impl::~sidekiq_rx_impl() 
+{
+    d_logger->debug("in deconstructor");
+
+    if (rx_streaming == true)
     {
-        set_rx_gain_index(gain_index);
+        stop();
+        rx_streaming = false;
+    }
+
+    if (libsidekiq_init == true)
+    {
+        skiq_exit();
+        libsidekiq_init = false;
     }
 }
 
-
-sidekiq_rx_impl::~sidekiq_rx_impl() 
-{
-}
 
 
 double sidekiq_rx_impl::get_double_from_pmt_dict(pmt_t dict, pmt_t key, pmt_t not_found = pmt::PMT_NIL) {
@@ -168,11 +186,13 @@ double sidekiq_rx_impl::get_double_from_pmt_dict(pmt_t dict, pmt_t key, pmt_t no
     return pmt::to_double(message_value);
 }
 
-
+/*
+ * Handle control messages
+ *
+ */
 void sidekiq_rx_impl::handle_control_message(pmt_t msg) 
 {
-    printf("in handle_control \n");
-    pmt::print(msg);
+    d_logger->debug("in handle_control_message");
 
     // pmt_dict is a subclass of pmt_pair. Make sure we use pmt_pair!
     // Old behavior was that these checks were interchangeable. Be aware of this change!
@@ -204,11 +224,16 @@ void sidekiq_rx_impl::handle_control_message(pmt_t msg)
 
 }
 
+/* 
+ * start streaming
+ * 
+ * Called by generated python code
+ */
 bool sidekiq_rx_impl::start() 
 {
     int status = 0;
 
-    printf("in start() \n");
+    d_logger->debug("in start");
 
     status = skiq_start_rx_streaming(card, hdl1);
     if (status != 0)
@@ -239,8 +264,9 @@ bool sidekiq_rx_impl::stop()
 {
     int status = 0;
     
-    printf("in stop() \n");
+    d_logger->debug("in stop");
 
+    /* only call stop if we are actually streaming */
     if (rx_streaming == true)
     {
         status = skiq_stop_rx_streaming(card, hdl1);
@@ -266,14 +292,17 @@ bool sidekiq_rx_impl::stop()
     return block::stop();
 }
 
-/* set the sample rate 
- * this may be called from the flowgraph if the user changes the variable
+/* 
+ * set the sample rate 
+ * this may be called from the generated python code if the user changes the variable
+ *
+ * let libsidekiq determine if the value range is valid
  */
 void sidekiq_rx_impl::set_rx_sample_rate(double value) 
 {
 
     int status = 0;
-    printf("in set_rx_sample_rate() \n");
+    d_logger->debug("in set_rx_sample_rate");
 
     auto rate = static_cast<uint32_t>(value);
     auto bw = static_cast<uint32_t>(this->bandwidth);
@@ -303,13 +332,16 @@ void sidekiq_rx_impl::set_rx_sample_rate(double value)
 
 }
   
-/* set the bandwidth
- * this may be called from the flowgraph if the user changes the variable
+/* 
+ * set the bandwidth
+ * this may be called from the generated python code if the user changes the variablea
+ *
+ * let libsidekiq determine if the value range is valid
  */
 void sidekiq_rx_impl::set_rx_bandwidth(double value) 
 {
     int status = 0;
-    printf("in set_rx_bandwidth() \n");
+    d_logger->debug("in set_rx_bandwidth");
 
     auto rate = static_cast<uint32_t>(this->sample_rate);
     auto bw = static_cast<uint32_t>(value);
@@ -341,13 +373,16 @@ void sidekiq_rx_impl::set_rx_bandwidth(double value)
 
 }
 
-/* set the LO frequency
- * this may be called from the flowgraph if the user changes the variable
+/* 
+ * set the LO frequency
+ * this may be called from the generated python code if the user changes the variable
+ *
+ * let libsidekiq determine if the value is valid
  */
 void sidekiq_rx_impl::set_rx_frequency(double value) 
 {
     int status = 0;
-    printf("in set_rx_frequency() \n");
+    d_logger->debug("in set_rx_frequency");
 
     auto freq = static_cast<uint64_t>(value);
 
@@ -377,11 +412,17 @@ void sidekiq_rx_impl::set_rx_frequency(double value)
     this->frequency = freq;
 }
 
+/* 
+ * set the gain_mode
+ * this may be called from the generated python code if the user changes the variable
+ *
+ * let libsidekiq determine if the value is valid
+ */
 void sidekiq_rx_impl::set_rx_gain_mode(double value) 
 {
     int status = 0;
 
-    printf("in set_gain_mode() \n");
+    d_logger->debug("in set_rx_gain_mode");
 
     auto gain_mode = static_cast<skiq_rx_gain_t>(value);
 
@@ -412,8 +453,11 @@ void sidekiq_rx_impl::set_rx_gain_mode(double value)
     
 }
 
-/* set the gain_index
- * this may be called from the flowgraph if the user changes the variable
+/* 
+ * set the gain_index
+ * this may be called from the generated python code if the user changes the variable
+ *
+ * let libsidekiq determine if the value is valid
  */
 void sidekiq_rx_impl::set_rx_gain_index(int value) 
 {
@@ -421,62 +465,68 @@ void sidekiq_rx_impl::set_rx_gain_index(int value)
     uint8_t min_range = 0;
     uint8_t max_range = 0;
     
-    printf("in set_gain_index() \n");
+    d_logger->debug("in set_rx_gain_index");
 
     auto gain = static_cast<uint8_t>(value);
 
-    status = skiq_read_rx_gain_index_range(card, hdl1, &min_range, &max_range);
-    if (status != 0) 
+    if (this->gain_mode == skiq_rx_gain_manual)
     {
-        fprintf(stderr,"Error: read_rx_gain_index failed, status %d, %s\n", 
-                status, strerror(abs(status)) );
-        throw std::runtime_error("Failure: set read_rx_gain_index");
-        return;
-    }
-    printf("Info: gain range for current frequency is %d - %d\n", min_range, max_range);
-
-    if (gain > max_range || gain < min_range)
-    {
-        fprintf(stderr,"Error: gain_index %d is out of range\n", gain);
-        throw std::runtime_error("Failure: gain index is out of range");
-        return;
-    }
-
-    status = skiq_write_rx_gain(card, hdl1, gain);
-    if (status != 0) 
-    {
-        fprintf(stderr,"Error: write_rx_gain failed on hdl1, status %d, %s\n", 
-                status, strerror(abs(status)) );
-        throw std::runtime_error("Failure: set read_rx_gain_index");
-        return;
-    }
-
-    if (dual_port)
-    {
-        status = skiq_write_rx_gain(card, hdl2, gain);
+        status = skiq_read_rx_gain_index_range(card, hdl1, &min_range, &max_range);
         if (status != 0) 
         {
-            fprintf(stderr,"Error: write_rx_gain failed on hdl2, status %d, %s\n", 
+            fprintf(stderr,"Error: read_rx_gain_index failed, status %d, %s\n", 
                     status, strerror(abs(status)) );
             throw std::runtime_error("Failure: set read_rx_gain_index");
             return;
         }
+        printf("Info: gain range for current frequency is %d - %d\n", min_range, max_range);
+
+        if (gain > max_range || gain < min_range)
+        {
+            fprintf(stderr,"Error: gain_index %d is out of range\n", gain);
+            throw std::runtime_error("Failure: gain index is out of range");
+            return;
+        }
+
+        status = skiq_write_rx_gain(card, hdl1, gain);
+        if (status != 0) 
+        {
+            fprintf(stderr,"Error: write_rx_gain failed on hdl1, status %d, %s\n", 
+                    status, strerror(abs(status)) );
+            throw std::runtime_error("Failure: set read_rx_gain_index");
+            return;
+        }
+
+        if (dual_port)
+        {
+            status = skiq_write_rx_gain(card, hdl2, gain);
+            if (status != 0) 
+            {
+                fprintf(stderr,"Error: write_rx_gain failed on hdl2, status %d, %s\n", 
+                        status, strerror(abs(status)) );
+                throw std::runtime_error("Failure: set read_rx_gain_index");
+                return;
+            }
+        }
+
+        printf("Info: gain index %d\n", gain); 
+
+        this->gain_index = gain;
     }
-
-    printf("Info: gain index %d\n", gain); 
-
-    this->gain_index = gain;
 }
 
 
-/* set the cal_mode
- * this may be called from the flowgraph if the user changes the variable
+/* 
+ * set the cal_mode
+ * this may be called from the generated python code if the user changes the variable
+ *
+ * let libsidekiq determine if the value is valid
  */
 void sidekiq_rx_impl::set_rx_cal_mode(int value) 
 {
     int status = 0;
 
-    printf("in set_cal_mode() \n");
+    d_logger->debug("in set_cal_mode");
 
     if (value == CAL_OFF)
     {
@@ -526,17 +576,21 @@ void sidekiq_rx_impl::set_rx_cal_mode(int value)
 
 }
 
-/* set the cal_type
- * this may be called from the flowgraph if the user changes the variable
+/* 
+ * set the cal_type
+ *
+ * Some cards have DC_OFFSET some QUADRATURE and some BOTH
+ *
+ * this may be called from the generated python code if the user changes the variable
+ *
+ * let libsidekiq determine if the value is valid
  */
 void sidekiq_rx_impl::set_rx_cal_type(int value) 
 {
     int status = 0;
     uint32_t cal_mask = (uint32_t)(skiq_rx_cal_type_none);
 
-    printf("in set_cal_type() \n");
-
-
+    d_logger->debug("in set_cal_type");
     
     if (cal_enabled == true)
     {
@@ -553,7 +607,7 @@ void sidekiq_rx_impl::set_rx_cal_type(int value)
             cal_mask = skiq_rx_cal_type_quadrature;
         }
 
-        uint32_t read_cal_mask=0;
+        uint32_t read_cal_mask = 0;
         if( (status = skiq_read_rx_cal_types_avail( card, hdl1, &read_cal_mask )) == 0 )
         {
             if( read_cal_mask != cal_mask )
@@ -587,21 +641,27 @@ void sidekiq_rx_impl::set_rx_cal_type(int value)
             }
         }
 
-        printf("Info: rx cal_mask 0X%x, written successfully\n", cal_mask);
+        printf("Info: rx cal_mask 0x%2X, written successfully\n", cal_mask);
 
     }
 
 }
 
 /* run_cal
- * this may be called from the flowgraph if the user changes the variable
+ *
+ * This manually runs the calibration set by the mode and type.
+ *
+ * this may be called from the generated python if the user changes the variable
  */
 void sidekiq_rx_impl::run_rx_cal(int value) 
 {
     int status = 0;
 
+    d_logger->debug("in run_rx_cal");
 
-    if (value == 1 && cal_enabled == true && cal_mode == skiq_rx_cal_mode_manual )
+    /* only run calibration if calibration is enabled, in manual mode, 
+     * and this call has the right parameter */
+    if ((value == RUN_CAL) && (cal_enabled == true) && (cal_mode == skiq_rx_cal_mode_manual) )
     {    
         printf("in run_rx_cal() \n");
         status = skiq_run_rx_cal( card, hdl1);
@@ -626,6 +686,12 @@ void sidekiq_rx_impl::run_rx_cal(int value)
 }
 
 
+/*
+ * get_new_block
+ *
+ * This call will wait until we get a new block of data.
+ *
+ */
 uint32_t sidekiq_rx_impl::get_new_block(uint32_t portno)
 {
     int status = 0;
@@ -670,10 +736,20 @@ uint32_t sidekiq_rx_impl::get_new_block(uint32_t portno)
     return new_portno;
 
 }
+
+/*
+ * determine_if_done
+ *
+ * With multiple ports, we need to get all the data from both ports then we are done.
+ *
+ * With single port, this will just determine if we have enough data for the single port
+ *
+ */
 bool sidekiq_rx_impl::determine_if_done(int32_t *samples_written, int32_t noutput_items, uint32_t *portno)
 {
     bool looping = true;
 
+    /* handle single port different than dual port */
     if (dual_port)
     {
         /* neither port is done so just leave the port as it is */
@@ -702,7 +778,7 @@ bool sidekiq_rx_impl::determine_if_done(int32_t *samples_written, int32_t noutpu
     }
     else
     {
-        /* single port */
+        /* single port, always port number is 0 */
         if (samples_written[0] < noutput_items )
         {
             *portno = 0;
@@ -718,6 +794,11 @@ bool sidekiq_rx_impl::determine_if_done(int32_t *samples_written, int32_t noutpu
     return looping;
 }
 
+/*
+ * work
+ *
+ * This is called by the gnuradio scheduler when it wants to receive a buffer full of samples
+ */
 int sidekiq_rx_impl::work(int noutput_items,
                           gr_vector_const_void_star &input_items,
                           gr_vector_void_star &output_items) 
@@ -735,20 +816,19 @@ int sidekiq_rx_impl::work(int noutput_items,
     out[0] = static_cast<gr_complex *>(output_items[0]);
     curr_out_ptr[0] = out[0];
 
+    /* if dual port, initialize the other */
     if (dual_port)
     { 
         out[1] = static_cast<gr_complex *>(output_items[1]);
         curr_out_ptr[1] = out[1];
     }
 
-
-#ifdef DEBUG
     if (debug_ctr < 2)
     {
-        printf("noutput_items %d, dual_port %d, buffer_size %d, out0 %p, out1 %p\n", 
-                noutput_items, dual_port, DATA_MAX_BUFFER_SIZE, out[0], out[1]);
+        d_logger->debug("here");
+        d_logger->debug("noutput_items {}, dual_port {}, buffer_size {}", 
+               noutput_items, dual_port, DATA_MAX_BUFFER_SIZE);
     }
-#endif
 
     /* loop until we have filled up these "out" packet(s) */
     while (looping == true)
@@ -774,12 +854,6 @@ int sidekiq_rx_impl::work(int noutput_items,
                 samples_to_write[portno] = curr_block_samples_left[portno];
             }
 
-            if (samples_to_write[portno] == 0)
-            {
-                printf("samples to write is 0\n");
-                exit(1);
-            }
-
             /* convert and write the samples */
             volk_16i_s32f_convert_32f_u(
                   (float *) curr_out_ptr[portno],
@@ -798,14 +872,12 @@ int sidekiq_rx_impl::work(int noutput_items,
                 curr_block_ptr[portno] = NULL;
             }
 
-#ifdef DEBUG
             if (debug_ctr < 2)
             {
-                printf("portno %d, samples_to_write %d, curr_block_samples_left %d, samples_written %d\n", 
+                d_logger->debug("portno {}, samples_to_write {}, curr_block_samples_left {}, samples_written {}", 
                         portno, samples_to_write[portno], curr_block_samples_left[portno], 
                         samples_written[portno]);
             }
-#endif
         }
 
         /* determine if we are done with this work() call */

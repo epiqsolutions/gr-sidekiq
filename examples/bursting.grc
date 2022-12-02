@@ -218,7 +218,7 @@ blocks:
     minoutbuf: '0'
     nsamps: int(sample_rate * 4)
     type: complex
-    value: pmt.to_pmt(4000000)
+    value: pmt.to_pmt(5000000)
     vlen: '1'
   states:
     bus_sink: false

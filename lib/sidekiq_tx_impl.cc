@@ -122,6 +122,7 @@ sidekiq_tx_impl::sidekiq_tx_impl( int input_card,
     tx_buffer_size = buffer_size;
     temp_buffer.resize(tx_buffer_size);
     bursting_cmd = NO_BURSTING_ALLOWED;
+    num_blocks = NUM_BLOCKS;
 
     status = skiq_init(skiq_xport_type_pcie, skiq_xport_init_level_full, &card, 1);
     if (status != 0) 

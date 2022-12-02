@@ -12,24 +12,33 @@
 #include <gnuradio/sidekiq/sidekiq_rx.h>
 #include <sidekiq_api.h>
 
-#define MAX_PORT 2
+#define MAX_PORT 2              // max ports allowed
+#define IQ_SHORT_COUNT 2        // number of shorts in a sample
 
+/* calibration modes */
 #define CAL_OFF 2
 #define CAL_TYPE_DC_OFFSET 0
 #define CAL_TYPE_QUADRATURE 1
 #define CAL_TYPE_BOTH 2
 
+#define RUN_CAL 1
+
+using pmt::pmt_t;
+
 namespace gr {
 namespace sidekiq {
+
+    const bool SIDEKIQ_IQ_PACK_MODE_UNPACKED{false}; 
+
+    const int DATA_MAX_BUFFER_SIZE{SKIQ_MAX_RX_BLOCK_SIZE_IN_WORDS - SKIQ_RX_HEADER_SIZE_IN_WORDS};
+
+    const pmt_t CONTROL_MESSAGE_PORT{pmt::string_to_symbol("command")};
 
     static const pmt_t RX_FREQ_KEY{pmt::string_to_symbol("rx_freq")};
 
     static const pmt_t RX_RATE_KEY{pmt::string_to_symbol("rx_rate")};
 
 class sidekiq_rx_impl : public sidekiq_rx {
-private:
-  // Nothing to declare in this block.
-
 public:
   sidekiq_rx_impl(
           int input_card,
@@ -71,18 +80,16 @@ public:
 
    void run_rx_cal(int value) override;
 
-
-
-
 private:
+    /* private methods */
     uint32_t get_new_block(uint32_t portno);
     bool determine_if_done(int32_t *samples_written, int32_t noutput_items, uint32_t *portno);
     double get_double_from_pmt_dict(pmt_t dict, pmt_t key, pmt_t not_found );
 
      /* passed in parameters */
     uint8_t card{};
-    skiq_rx_hdl_t hdl1;
-    skiq_rx_hdl_t hdl2;
+    skiq_rx_hdl_t hdl1{};
+    skiq_rx_hdl_t hdl2{};
     uint32_t sample_rate{};
     uint32_t bandwidth{};
     uint64_t frequency{};
@@ -90,23 +97,20 @@ private:
     uint8_t gain_index{};
     skiq_rx_cal_mode_t cal_mode{};
     skiq_rx_cal_type_t cal_type{};
-    
-    bool cal_enabled;
-    bool dual_port{};
 
+    /* flags */    
+    bool libsidekiq_init{};
+    bool rx_streaming{};
+    bool cal_enabled{};
+    bool dual_port{};
 
     /* work parameters */
     double adc_scaling{};
     int16_t *curr_block_ptr[MAX_PORT]{};
     int32_t curr_block_samples_left[MAX_PORT]{};
 
-    /* flags */
-    bool libsidekiq_init{};
-    bool rx_streaming;
-
+    /* used to debug the work function */
     uint32_t debug_ctr{};
-
-    /* methods */
 };
 
 } // namespace sidekiq

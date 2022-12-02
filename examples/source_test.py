@@ -93,7 +93,7 @@ class source_test(gr.top_block, Qt.QWidget):
         self._bandwidth_range = Range(1e6, 250e6, 1e6, sample_rate * .8, 200)
         self._bandwidth_win = RangeWidget(self._bandwidth_range, self.set_bandwidth, "'bandwidth'", "counter_slider", float, QtCore.Qt.Horizontal)
         self.top_layout.addWidget(self._bandwidth_win)
-        self.sidekiq_sidekiq_rx_0 = sidekiq.sidekiq_rx(0, 0, 100, sample_rate, bandwidth, frequency, 1, 1, 0, 0)
+        self.sidekiq_sidekiq_rx_0 = sidekiq.sidekiq_rx(0, 0, 100, sample_rate, bandwidth, frequency, 1, 1, 1, 0)
         self.sidekiq_sidekiq_rx_0.set_max_output_buffer(16000)
         _run_rx_calibration_push_button = Qt.QPushButton('Run RX Calibration')
         _run_rx_calibration_push_button = Qt.QPushButton('Run RX Calibration')
@@ -194,19 +194,11 @@ class source_test(gr.top_block, Qt.QWidget):
 
         self._qtgui_freq_sink_x_0_win = sip.wrapinstance(self.qtgui_freq_sink_x_0.qwidget(), Qt.QWidget)
         self.top_layout.addWidget(self._qtgui_freq_sink_x_0_win)
-        self.qtgui_edit_box_msg_1 = qtgui.edit_box_msg(qtgui.DOUBLE, '10000000', '', True, False, 'rx_rate', None)
-        self._qtgui_edit_box_msg_1_win = sip.wrapinstance(self.qtgui_edit_box_msg_1.qwidget(), Qt.QWidget)
-        self.top_layout.addWidget(self._qtgui_edit_box_msg_1_win)
-        self.qtgui_edit_box_msg_0 = qtgui.edit_box_msg(qtgui.DOUBLE, '1000000000', '', True, False, 'rx_freq', None)
-        self._qtgui_edit_box_msg_0_win = sip.wrapinstance(self.qtgui_edit_box_msg_0.qwidget(), Qt.QWidget)
-        self.top_layout.addWidget(self._qtgui_edit_box_msg_0_win)
 
 
         ##################################################
         # Connections
         ##################################################
-        self.msg_connect((self.qtgui_edit_box_msg_0, 'msg'), (self.sidekiq_sidekiq_rx_0, 'command'))
-        self.msg_connect((self.qtgui_edit_box_msg_1, 'msg'), (self.sidekiq_sidekiq_rx_0, 'command'))
         self.connect((self.sidekiq_sidekiq_rx_0, 0), (self.qtgui_freq_sink_x_0, 0))
         self.connect((self.sidekiq_sidekiq_rx_0, 0), (self.qtgui_time_sink_x_0, 0))
 
