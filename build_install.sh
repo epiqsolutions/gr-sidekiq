@@ -4,8 +4,6 @@
 set -x
 set -e
 
-source configure_env.sh
-
 gr_modtool bind sidekiq_tx
 gr_modtool bind sidekiq_rx
 

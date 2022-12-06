@@ -32,9 +32,6 @@ if(NOT Sidekiq_FOUND)
         set(otherlib "libiio.so")
     endif()
 
-    message(STATUS "library is ${libname} ")
-    message(STATUS "otherlib is ${otherlib} ")
-
     find_library(Sidekiq_LIBRARY
         NAMES ${libname}
         HINTS ${Sidekiq_PKG_LIBRARY_DIRS} $ENV{Sidekiq_DIR}/include

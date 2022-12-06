@@ -29,8 +29,6 @@ message(STATUS "Sidekiq_INCLUDE_DIRS - ${Sidekiq_INCLUDE_DIRS}")
 message(STATUS "Sidekiq_LIBRARIES - ${Sidekiq_LIBRARIES}")
 message(STATUS "OTHER_LIBS - ${OTHER_LIBS}")
 
-
-message(STATUS "cmake current source dir ${CMAKE_CURRENT_SOURCE_DIR} ")
 include_directories(${CMAKE_CURRENT_SOURCE_DIR})
 include_directories(${Sidekiq_INCLUDE_DIRS})
 
@@ -42,19 +40,9 @@ endif(NOT sidekiq_sources)
 
 add_library(gnuradio-sidekiq SHARED ${sidekiq_sources})
 
-
-message(STATUS "Searching for libsidekiq in ${CMAKE_SOURCE_DIR}/lib...")
-find_library(SIDEKIQ NAMES sidekiq PATHS ${CMAKE_SOURCE_DIR}/lib)
-message(STATUS "library ${SIDEKIQ}")
-
 include_directories(sidekiq_sources)
 
-#include_directories(
-#        sidekiq_sources
-#        $ENV{SIDEKIQ_SDK}/sidekiq_core/inc)
-
-
-target_link_libraries(gnuradio-sidekiq gnuradio::gnuradio-runtime ${SIDEKIQ} glib-2.0 usb-1.0)
+target_link_libraries(gnuradio-sidekiq gnuradio::gnuradio-runtime ${Sidekiq_LIBRARIES} ${OTHER_LIBS} glib-2.0 usb-1.0)
 
 target_include_directories(gnuradio-sidekiq
     PUBLIC $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/../include>
