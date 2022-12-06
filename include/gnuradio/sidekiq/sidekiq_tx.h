@@ -29,6 +29,7 @@ public:
                         double bandwidth,
                         double frequency,
                         double attenuation,
+                        double bursting,
                         int threads,
                         int buffer_size,
                         int cal_mode);

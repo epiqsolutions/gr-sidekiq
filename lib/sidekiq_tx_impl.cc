@@ -72,6 +72,7 @@ sidekiq_tx::sptr sidekiq_tx::make(int card,
                                   double bandwidth,
                                   double frequency,
                                   double attenuation,
+                                  double bursting,
                                   int threads,
                                   int buffer_size,
                                   int cal_mode)
@@ -84,6 +85,7 @@ sidekiq_tx::sptr sidekiq_tx::make(int card,
                                   bandwidth,
                                   frequency,
                                   attenuation,
+                                  bursting,
                                   threads,
                                   buffer_size,
                                   cal_mode);
@@ -99,6 +101,7 @@ sidekiq_tx_impl::sidekiq_tx_impl( int input_card,
                                   double bandwidth,
                                   double frequency,
                                   double attenuation,
+                                  double bursting,
                                   int threads,
                                   int buffer_size, 
                                   int cal_mode)
@@ -121,8 +124,17 @@ sidekiq_tx_impl::sidekiq_tx_impl( int input_card,
     curr_block = 0;
     tx_buffer_size = buffer_size;
     temp_buffer.resize(tx_buffer_size);
-    bursting_cmd = NO_BURSTING_ALLOWED;
     num_blocks = NUM_BLOCKS;
+
+    bursting_mode = bursting;
+    if (bursting_mode == BURSTING_ENABLED)
+    {
+        bursting_cmd = BURSTING_OFF;
+    }
+    else
+    {
+        bursting_cmd = NO_BURSTING_ENABLED;
+    }
 
     status = skiq_init(skiq_xport_type_pcie, skiq_xport_init_level_full, &card, 1);
     if (status != 0) 
@@ -335,28 +347,6 @@ void sidekiq_tx_impl::handle_control_message(pmt_t msg)
         set_tx_sample_rate(get_double_from_pmt_dict(msg, TX_RATE_KEY));
     }
 
-
-    if (pmt::dict_has_key(msg, TX_START_BURST)) 
-    {
-        double cmd = get_double_from_pmt_dict(msg, TX_START_BURST);
-
-        if (cmd == BURSTING_ON)
-        {
-            d_logger->debug("starting bursting..., cmd {}", cmd);
-            bursting_cmd = cmd;
-            this->start();
-        }
-        else if (cmd == BURSTING_OFF) 
-        {
-            d_logger->debug("stopping bursting, cmd {}", cmd);
-            bursting_cmd = cmd;
-            this->stop();
-        }
-        else
-        {
-            bursting_cmd = NO_BURSTING_ALLOWED;
-        }
-    }
 }
 
 
@@ -365,9 +355,8 @@ bool sidekiq_tx_impl::start()
 {
     int status = 0;
 
-    d_logger->debug("in start() ");
-
-    if (bursting_cmd == NO_BURSTING_ALLOWED || bursting_cmd == BURSTING_ON)
+    d_logger->debug("in start() mode {}, cmd {}", bursting_mode, bursting_cmd);
+    if (bursting_mode == BURSTING_DISABLED || bursting_cmd == BURSTING_ON)
     {
         
         status = skiq_start_tx_streaming(card, hdl);
@@ -589,13 +578,14 @@ void sidekiq_tx_impl::update_tx_error_count() {
 
 int sidekiq_tx_impl::handle_tx_burst_tag(tag_t tag) 
 {
-    if (bursting_cmd == BURSTING_ON)
+    if (bursting_mode == BURSTING_ENABLED)
     {
-        d_logger->debug("in handle_tx_burst_tag, tag offset {}", tag.offset);
+        d_logger->debug("in handle_tx_burst_tag, tag offset {}, mode {}, cmd {}", tag.offset, bursting_mode, bursting_cmd);
 
 
         burst_length = pmt::to_uint64(tag.value);
         burst_samples_sent = 0;
+        bursting_cmd = BURSTING_ON;
 
         if (tx_streaming == false)
         {
@@ -657,6 +647,11 @@ int sidekiq_tx_impl::work(
     }
 
 
+    if (bursting_mode == BURSTING_ENABLED && bursting_cmd == BURSTING_OFF)
+    {
+        // We are not transmitting yet
+        return noutput_items;
+    }
 
     int32_t samples_to_write = tx_buffer_size;
 
@@ -718,6 +713,7 @@ int sidekiq_tx_impl::work(
             else if ( status != 0 ) 
             {
                 d_logger->info("Info: sidekiq transmit failed with error: {}", status);
+                throw std::runtime_error("Failure: skiq_transmit");
             } 
             else {
                 samples_written += samples_to_write;
@@ -739,6 +735,7 @@ int sidekiq_tx_impl::work(
                     burst_length = 0;
                     burst_samples_sent = 0;
                     stop();
+                    bursting_cmd = BURSTING_OFF;
                     break;
                 }
             }

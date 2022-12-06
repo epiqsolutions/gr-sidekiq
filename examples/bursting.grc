@@ -186,7 +186,7 @@ blocks:
     bus_sink: false
     bus_source: false
     bus_structure: null
-    coordinate: [232, 380.0]
+    coordinate: [304, 220.0]
     rotation: 0
     state: true
 - name: blocks_add_xx_0
@@ -204,7 +204,7 @@ blocks:
     bus_sink: false
     bus_source: false
     bus_structure: null
-    coordinate: [584, 424.0]
+    coordinate: [656, 264.0]
     rotation: 0
     state: true
 - name: blocks_tags_strobe_0
@@ -224,7 +224,7 @@ blocks:
     bus_sink: false
     bus_source: false
     bus_structure: null
-    coordinate: [232, 516.0]
+    coordinate: [304, 356.0]
     rotation: 0
     state: true
 - name: blocks_throttle_0
@@ -243,29 +243,7 @@ blocks:
     bus_sink: false
     bus_source: false
     bus_structure: null
-    coordinate: [704, 436.0]
-    rotation: 0
-    state: true
-- name: qtgui_edit_box_msg_0
-  id: qtgui_edit_box_msg
-  parameters:
-    affinity: ''
-    alias: ''
-    comment: ''
-    gui_hint: ''
-    is_pair: 'True'
-    is_static: 'False'
-    key: start_burst
-    label: ''
-    maxoutbuf: '0'
-    minoutbuf: '0'
-    type: double
-    value: '1'
-  states:
-    bus_sink: false
-    bus_source: false
-    bus_structure: null
-    coordinate: [232, 236.0]
+    coordinate: [776, 276.0]
     rotation: 0
     state: true
 - name: qtgui_freq_sink_x_0
@@ -346,7 +324,7 @@ blocks:
     bus_sink: false
     bus_source: false
     bus_structure: null
-    coordinate: [984, 652.0]
+    coordinate: [1056, 492.0]
     rotation: 0
     state: true
 - name: qtgui_time_sink_x_0
@@ -443,7 +421,7 @@ blocks:
     bus_sink: false
     bus_source: false
     bus_structure: null
-    coordinate: [984, 556.0]
+    coordinate: [1056, 396.0]
     rotation: 0
     state: true
 - name: sidekiq_sidekiq_tx_0
@@ -454,6 +432,7 @@ blocks:
     attenuation: attenuation
     bandwidth: bandwidth
     buffer_size: '4092'
+    bursting: '1'
     cal_mode: '1'
     card: '0'
     comment: ''
@@ -466,7 +445,7 @@ blocks:
     bus_sink: false
     bus_source: false
     bus_structure: null
-    coordinate: [984, 356.0]
+    coordinate: [1056, 196.0]
     rotation: 0
     state: true
 
@@ -477,7 +456,6 @@ connections:
 - [blocks_throttle_0, '0', qtgui_freq_sink_x_0, '0']
 - [blocks_throttle_0, '0', qtgui_time_sink_x_0, '0']
 - [blocks_throttle_0, '0', sidekiq_sidekiq_tx_0, '0']
-- [qtgui_edit_box_msg_0, msg, sidekiq_sidekiq_tx_0, command]
 
 metadata:
   file_format: 1

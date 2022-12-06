@@ -104,7 +104,7 @@ class bursting(gr.top_block, Qt.QWidget):
         self._attenuation_range = Range(0, 255, 10, 125, 100)
         self._attenuation_win = RangeWidget(self._attenuation_range, self.set_attenuation, "'attenuation'", "counter_slider", float, QtCore.Qt.Horizontal)
         self.top_layout.addWidget(self._attenuation_win)
-        self.sidekiq_sidekiq_tx_0 = sidekiq.sidekiq_tx(0, 0, sample_rate, bandwidth, frequency, attenuation, 1, 4092, 1)
+        self.sidekiq_sidekiq_tx_0 = sidekiq.sidekiq_tx(0, 0, sample_rate, bandwidth, frequency, attenuation, 1, 1, 4092, 1)
         _run_tx_calibration_push_button = Qt.QPushButton('')
         _run_tx_calibration_push_button = Qt.QPushButton('run_tx_calibration')
         self._run_tx_calibration_choices = {'Pressed': 1, 'Released': 0}
@@ -204,9 +204,6 @@ class bursting(gr.top_block, Qt.QWidget):
 
         self._qtgui_freq_sink_x_0_win = sip.wrapinstance(self.qtgui_freq_sink_x_0.qwidget(), Qt.QWidget)
         self.top_layout.addWidget(self._qtgui_freq_sink_x_0_win)
-        self.qtgui_edit_box_msg_0 = qtgui.edit_box_msg(qtgui.DOUBLE, '1', '', True, False, 'start_burst', None)
-        self._qtgui_edit_box_msg_0_win = sip.wrapinstance(self.qtgui_edit_box_msg_0.qwidget(), Qt.QWidget)
-        self.top_layout.addWidget(self._qtgui_edit_box_msg_0_win)
         self.blocks_throttle_0 = blocks.throttle(gr.sizeof_gr_complex*1, sample_rate,True)
         self.blocks_tags_strobe_0 = blocks.tags_strobe(gr.sizeof_gr_complex*1, pmt.to_pmt(5000000), (int(sample_rate * 4)), pmt.intern("tx_burst"))
         self.blocks_add_xx_0 = blocks.add_vcc(1)
@@ -218,7 +215,6 @@ class bursting(gr.top_block, Qt.QWidget):
         ##################################################
         # Connections
         ##################################################
-        self.msg_connect((self.qtgui_edit_box_msg_0, 'msg'), (self.sidekiq_sidekiq_tx_0, 'command'))
         self.connect((self.analog_sig_source_x_0, 0), (self.blocks_add_xx_0, 0))
         self.connect((self.blocks_add_xx_0, 0), (self.blocks_throttle_0, 0))
         self.connect((self.blocks_tags_strobe_0, 0), (self.blocks_add_xx_0, 1))

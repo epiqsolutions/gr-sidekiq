@@ -16,7 +16,7 @@
 /* BINDTOOL_GEN_AUTOMATIC(0) */
 /* BINDTOOL_USE_PYGCCXML(0) */
 /* BINDTOOL_HEADER_FILE(sidekiq_tx.h)                                        */
-/* BINDTOOL_HEADER_FILE_HASH(f6d432f0a1929664469a5dc2d4465ca7) */
+/* BINDTOOL_HEADER_FILE_HASH(dce4396481dea9d2dd9939f62f4804ae) */
 /***********************************************************************************/
 
 #include <pybind11/complex.h>
@@ -38,8 +38,8 @@ void bind_sidekiq_tx(py::module &m) {
 
       .def(py::init(&sidekiq_tx::make), py::arg("card"), py::arg("handle"),
            py::arg("sample_rate"), py::arg("bandwidth"), py::arg("frequency"),
-           py::arg("attenuation"), py::arg("threads"), py::arg("buffer_size"),
-           py::arg("cal_mode"), D(sidekiq_tx, make))
+           py::arg("attenuation"), py::arg("bursting"), py::arg("threads"),
+           py::arg("buffer_size"), py::arg("cal_mode"), D(sidekiq_tx, make))
 
       .def("set_tx_sample_rate", &sidekiq_tx::set_tx_sample_rate,
            py::arg("value"), D(sidekiq_tx, set_tx_sample_rate))
