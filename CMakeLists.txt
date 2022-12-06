@@ -117,7 +117,7 @@ add_custom_target(uninstall
     )
 
 link_directories(
-    $ENV{EPIQ_LIBS}
+    "/usr/lib/epiq"
 )
 
 ########################################################################

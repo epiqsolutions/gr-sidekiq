@@ -16,6 +16,24 @@ list(APPEND sidekiq_sources
     sidekiq_rx_impl.cc
 )
 
+
+list(APPEND CMAKE_MODULE_PATH ${CMAKE_CURRENT_SOURCE_DIR})
+
+find_package(Sidekiq)
+
+if (NOT Sidekiq_FOUND)
+    message(FATAL_ERROR "Sidekiq development files not found...")
+endif ()
+
+message(STATUS "Sidekiq_INCLUDE_DIRS - ${Sidekiq_INCLUDE_DIRS}")
+message(STATUS "Sidekiq_LIBRARIES - ${Sidekiq_LIBRARIES}")
+message(STATUS "OTHER_LIBS - ${OTHER_LIBS}")
+
+
+message(STATUS "cmake current source dir ${CMAKE_CURRENT_SOURCE_DIR} ")
+include_directories(${CMAKE_CURRENT_SOURCE_DIR})
+include_directories(${Sidekiq_INCLUDE_DIRS})
+
 set(sidekiq_sources "${sidekiq_sources}" PARENT_SCOPE)
 if(NOT sidekiq_sources)
     MESSAGE(STATUS "No C++ sources... skipping lib/")
@@ -24,12 +42,17 @@ endif(NOT sidekiq_sources)
 
 add_library(gnuradio-sidekiq SHARED ${sidekiq_sources})
 
-message(WARNING "Searching for libsidekiq in ${CMAKE_SOURCE_DIR}/lib...")
-find_library(SIDEKIQ NAMES sidekiq PATHS ${CMAKE_SOURCE_DIR}/lib)
 
-include_directories(
-        sidekiq_sources
-        $ENV{SIDEKIQ_SDK}/sidekiq_core/inc)
+message(STATUS "Searching for libsidekiq in ${CMAKE_SOURCE_DIR}/lib...")
+find_library(SIDEKIQ NAMES sidekiq PATHS ${CMAKE_SOURCE_DIR}/lib)
+message(STATUS "library ${SIDEKIQ}")
+
+include_directories(sidekiq_sources)
+
+#include_directories(
+#        sidekiq_sources
+#        $ENV{SIDEKIQ_SDK}/sidekiq_core/inc)
+
 
 target_link_libraries(gnuradio-sidekiq gnuradio::gnuradio-runtime ${SIDEKIQ} glib-2.0 usb-1.0)
 
