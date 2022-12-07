@@ -77,7 +77,7 @@ class sink_test_headless(gr.top_block, Qt.QWidget):
         ##################################################
         # Blocks
         ##################################################
-        self.sidekiq_sidekiq_tx_0 = sidekiq.sidekiq_tx(0, 0, 4e6, 3e6, 1000e6, 10, 0, 4, 32764, 1)
+        self.sidekiq_sidekiq_tx_0 = sidekiq.sidekiq_tx(0, 0, 4e6, 3e6, 1000e6, 10, 0, 1, 32764, 1)
         self.analog_sig_source_x_0 = analog.sig_source_c(4e6, analog.GR_COS_WAVE, 2e6, 1, 0, 0)
         self.analog_sig_source_x_0.set_min_output_buffer(min_output_buffer)
 

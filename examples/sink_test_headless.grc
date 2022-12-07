@@ -83,7 +83,7 @@ blocks:
     handle: '0'
     run_cal: '0'
     sample_rate: 4e6
-    threads: '4'
+    threads: '1'
   states:
     bus_sink: false
     bus_source: false

@@ -4,8 +4,8 @@
 set -x
 set -e
 
-gr_modtool bind sidekiq_tx
-gr_modtool bind sidekiq_rx
+#gr_modtool bind sidekiq_tx
+#gr_modtool bind sidekiq_rx
 
 sudo rm -r -f build
 
