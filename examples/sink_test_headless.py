@@ -5,7 +5,7 @@
 # SPDX-License-Identifier: GPL-3.0
 #
 # GNU Radio Python Flow Graph
-# Title: Sink Test
+# Title: Sink Test Headless
 # GNU Radio version: 3.10.3.0
 
 from packaging.version import Version as StrictVersion
@@ -36,12 +36,12 @@ from gnuradio import sidekiq
 
 from gnuradio import qtgui
 
-class sink_test(gr.top_block, Qt.QWidget):
+class sink_test_headless(gr.top_block, Qt.QWidget):
 
     def __init__(self):
-        gr.top_block.__init__(self, "Sink Test", catch_exceptions=True)
+        gr.top_block.__init__(self, "Sink Test Headless", catch_exceptions=True)
         Qt.QWidget.__init__(self)
-        self.setWindowTitle("Sink Test")
+        self.setWindowTitle("Sink Test Headless")
         qtgui.util.check_set_qss()
         try:
             self.setWindowIcon(Qt.QIcon.fromTheme('gnuradio-grc'))
@@ -59,7 +59,7 @@ class sink_test(gr.top_block, Qt.QWidget):
         self.top_grid_layout = Qt.QGridLayout()
         self.top_layout.addLayout(self.top_grid_layout)
 
-        self.settings = Qt.QSettings("GNU Radio", "sink_test")
+        self.settings = Qt.QSettings("GNU Radio", "sink_test_headless")
 
         try:
             if StrictVersion(Qt.qVersion()) < StrictVersion("5.0.0"):
@@ -89,7 +89,7 @@ class sink_test(gr.top_block, Qt.QWidget):
 
 
     def closeEvent(self, event):
-        self.settings = Qt.QSettings("GNU Radio", "sink_test")
+        self.settings = Qt.QSettings("GNU Radio", "sink_test_headless")
         self.settings.setValue("geometry", self.saveGeometry())
         self.stop()
         self.wait()
@@ -105,7 +105,7 @@ class sink_test(gr.top_block, Qt.QWidget):
 
 
 
-def main(top_block_cls=sink_test, options=None):
+def main(top_block_cls=sink_test_headless, options=None):
 
     if StrictVersion("4.5.0") <= StrictVersion(Qt.qVersion()) < StrictVersion("5.0.0"):
         style = gr.prefs().get_string('qtgui', 'style', 'raster')
