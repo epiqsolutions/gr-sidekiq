@@ -78,7 +78,7 @@ class bursting(gr.top_block, Qt.QWidget):
         ##################################################
         # Variables
         ##################################################
-        self.sample_rate = sample_rate = 5e6
+        self.sample_rate = sample_rate = 240000
         self.tone_freq = tone_freq = 2e6
         self.run_tx_calibration = run_tx_calibration = 0
         self.min_output_buffer = min_output_buffer = 32764 *2*2
@@ -89,7 +89,7 @@ class bursting(gr.top_block, Qt.QWidget):
         ##################################################
         # Blocks
         ##################################################
-        self._sample_rate_range = Range(1e6, 250e6, 1e6, 5e6, 200)
+        self._sample_rate_range = Range(0, 250e6, 1e6, 240000, 200)
         self._sample_rate_win = RangeWidget(self._sample_rate_range, self.set_sample_rate, "'sample_rate'", "counter_slider", float, QtCore.Qt.Horizontal)
         self.top_layout.addWidget(self._sample_rate_win)
         self._tone_freq_range = Range(1e6, 25e6, 1e6, 2e6, 200)

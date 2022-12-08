@@ -5,7 +5,7 @@
 # SPDX-License-Identifier: GPL-3.0
 #
 # GNU Radio Python Flow Graph
-# Title: source_test
+# Title: FM Radio
 # GNU Radio version: 3.10.3.0
 
 from packaging.version import Version as StrictVersion
@@ -41,12 +41,12 @@ from PyQt5 import QtCore
 
 from gnuradio import qtgui
 
-class source_test(gr.top_block, Qt.QWidget):
+class fm_radio(gr.top_block, Qt.QWidget):
 
     def __init__(self):
-        gr.top_block.__init__(self, "source_test", catch_exceptions=True)
+        gr.top_block.__init__(self, "FM Radio", catch_exceptions=True)
         Qt.QWidget.__init__(self)
-        self.setWindowTitle("source_test")
+        self.setWindowTitle("FM Radio")
         qtgui.util.check_set_qss()
         try:
             self.setWindowIcon(Qt.QIcon.fromTheme('gnuradio-grc'))
@@ -64,7 +64,7 @@ class source_test(gr.top_block, Qt.QWidget):
         self.top_grid_layout = Qt.QGridLayout()
         self.top_layout.addLayout(self.top_grid_layout)
 
-        self.settings = Qt.QSettings("GNU Radio", "source_test")
+        self.settings = Qt.QSettings("GNU Radio", "fm_radio")
 
         try:
             if StrictVersion(Qt.qVersion()) < StrictVersion("5.0.0"):
@@ -77,7 +77,7 @@ class source_test(gr.top_block, Qt.QWidget):
         ##################################################
         # Variables
         ##################################################
-        self.volume = volume = .5
+        self.volume = volume = .2
         self.sample_rate = sample_rate = 240000
         self.frequency = frequency = 88.1e6
         self.bandwidth = bandwidth = 200000
@@ -85,7 +85,7 @@ class source_test(gr.top_block, Qt.QWidget):
         ##################################################
         # Blocks
         ##################################################
-        self._volume_range = Range(0, 1, .1, .5, 200)
+        self._volume_range = Range(0, 1, .1, .2, 200)
         self._volume_win = RangeWidget(self._volume_range, self.set_volume, "'volume'", "counter", float, QtCore.Qt.Horizontal)
         self.top_layout.addWidget(self._volume_win)
         # Create the options list
@@ -137,7 +137,7 @@ class source_test(gr.top_block, Qt.QWidget):
 
 
     def closeEvent(self, event):
-        self.settings = Qt.QSettings("GNU Radio", "source_test")
+        self.settings = Qt.QSettings("GNU Radio", "fm_radio")
         self.settings.setValue("geometry", self.saveGeometry())
         self.stop()
         self.wait()
@@ -176,7 +176,7 @@ class source_test(gr.top_block, Qt.QWidget):
 
 
 
-def main(top_block_cls=source_test, options=None):
+def main(top_block_cls=fm_radio, options=None):
 
     if StrictVersion("4.5.0") <= StrictVersion(Qt.qVersion()) < StrictVersion("5.0.0"):
         style = gr.prefs().get_string('qtgui', 'style', 'raster')

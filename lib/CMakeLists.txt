@@ -44,7 +44,7 @@ add_library(gnuradio-sidekiq SHARED ${sidekiq_sources})
 
 include_directories(sidekiq_sources)
 
-target_link_libraries(gnuradio-sidekiq gnuradio::gnuradio-runtime ${Sidekiq_LIBRARIES} ${OTHER_LIBS} glib-2.0 usb-1.0)
+target_link_libraries(gnuradio-sidekiq gnuradio::gnuradio-runtime ${Sidekiq_LIBRARIES} iio glib-2.0 usb-1.0)
 
 target_include_directories(gnuradio-sidekiq
     PUBLIC $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/../include>
