@@ -1,10 +1,10 @@
 id: sidekiq_sidekiq_tx
-label: new Sidekiq TX Sink
+label: Sidekiq TX Sink
 category: '[sidekiq]'
 
 templates:
   imports: from gnuradio import sidekiq
-  make: sidekiq.sidekiq_tx(${card}, ${handle}, ${sample_rate}, ${bandwidth}, ${frequency}, ${attenuation}, ${bursting}, ${threads}, ${buffer_size}, ${cal_mode})
+  make: sidekiq.sidekiq_tx(${card}, ${transceive}, ${handle}, ${sample_rate}, ${bandwidth}, ${frequency}, ${attenuation}, ${bursting}, ${threads}, ${buffer_size}, ${cal_mode})
 
   callbacks:
   - set_tx_sample_rate(${sample_rate})
@@ -25,6 +25,13 @@ parameters:
   label: Card
   dtype: int
   default: 0 
+
+- id: transceive
+  label: Tranceive
+  dtype: enum
+  options: ['0', '1']
+  option_labels: ['Disabled', 'Enabled']
+  default: 0
 
 - id: handle
   label: Handle Id

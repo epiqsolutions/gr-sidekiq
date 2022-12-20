@@ -13,7 +13,7 @@
 #include "sidekiq_tx_impl.h"
 
 
-#define DEBUG_LEVEL "debug"  //Can be debug, info, warning, error, critical
+#define DEBUG_LEVEL "info"  //Can be debug, info, warning, error, critical
 
 /* The tx_complete function needs to be outside the object so it can be registered with libsidekiq 
  * mutex to protect updates to the tx buffer
@@ -67,6 +67,7 @@ using input_type = float;
 
 /* This is the top level class instantiated by gnuradio */
 sidekiq_tx::sptr sidekiq_tx::make(int card,
+                                  int transceive,
                                   int handle,
                                   double sample_rate,
                                   double bandwidth,
@@ -80,6 +81,7 @@ sidekiq_tx::sptr sidekiq_tx::make(int card,
     /* then make instantiates the tx_block */
     return gnuradio::make_block_sptr<sidekiq_tx_impl>(
                                   card, 
+                                  transceive,
                                   handle,
                                   sample_rate,
                                   bandwidth,
@@ -96,6 +98,7 @@ sidekiq_tx::sptr sidekiq_tx::make(int card,
  * Initialize the card
  */
 sidekiq_tx_impl::sidekiq_tx_impl( int input_card,
+                                  int transceive,
                                   int handle,
                                   double sample_rate,
                                   double bandwidth,
@@ -114,12 +117,13 @@ sidekiq_tx_impl::sidekiq_tx_impl( int input_card,
     d_logger->set_level(DEBUG_LEVEL);
     d_logger->get_level(str);
 
-    printf("in constructor, debug level:%s\n", str.c_str());
+    printf("in TX constructor, debug level:%s\n", str.c_str());
     
     int status = 0;
     uint8_t iq_resolution = 0;
 
     card = input_card;
+    transceive_mode = transceive;
     hdl = (skiq_tx_hdl_t)handle;
     curr_block = 0;
     tx_buffer_size = buffer_size;
@@ -139,11 +143,30 @@ sidekiq_tx_impl::sidekiq_tx_impl( int input_card,
     status = skiq_init(skiq_xport_type_pcie, skiq_xport_init_level_full, &card, 1);
     if (status != 0) 
     {
-        d_logger->error( "Error: unable to initialize libsidekiq with status {}", status);
-        throw std::runtime_error("Failure: skiq_init");
+        if (status != -EEXIST)
+        {
+            d_logger->error( "Error: unable to initialize libsidekiq with status {}", status);
+            throw std::runtime_error("Failure: skiq_init");
+        }
+        else 
+        {
+            if (transceive_mode != TRANSCEIVE_ENABLED)
+            {
+                d_logger->error( "Error: unable to initialize libsidekiq with status {}", status);
+                throw std::runtime_error("Failure: skiq_init");
+            }
+            else
+            {
+                d_logger->info("Info: The RX block initialized libsidekiq");
+            }
+        }
     }
-    libsidekiq_init = true;
-    d_logger->info("Info: libsidkiq initialized successfully");
+    else
+    {
+        libsidekiq_init = true;
+        d_logger->info("Info: libsidkiq initialized successfully");
+
+    }
 
     set_tx_sample_rate(sample_rate);
     set_tx_bandwidth(bandwidth);
@@ -283,7 +306,7 @@ sidekiq_tx_impl::sidekiq_tx_impl( int input_card,
 /* Destructor, free all the memory allocated */
 sidekiq_tx_impl::~sidekiq_tx_impl() 
 {
-    d_logger->debug("in destructor");
+    d_logger->debug("in TX destructor");
 
     for (uint32_t i = 0; i < num_blocks; i++)
     {

@@ -11,7 +11,7 @@
 #include <volk/volk.h>
 #include <boost/asio.hpp>
 
-#define DEBUG_LEVEL "error"
+#define DEBUG_LEVEL "info" //Can be debug, info, warning, error, critical
 
 using pmt::pmt_t;
 const pmt_t CONTROL_MESSAGE_PORT{pmt::string_to_symbol("command")};
@@ -22,6 +22,7 @@ namespace sidekiq {
 using output_type = float;
 sidekiq_rx::sptr sidekiq_rx::make(
         int input_card,
+        int transceive,
         int port1_handle,
         int port2_handle,
         double sample_rate,
@@ -34,6 +35,7 @@ sidekiq_rx::sptr sidekiq_rx::make(
 {
   return gnuradio::make_block_sptr<sidekiq_rx_impl>(
           input_card,
+          transceive,
           port1_handle,
           port2_handle,
           sample_rate,
@@ -47,6 +49,7 @@ sidekiq_rx::sptr sidekiq_rx::make(
 
 sidekiq_rx_impl::sidekiq_rx_impl(
         int input_card,
+        int transceive,
         int port1_handle,
         int port2_handle,
         double sample_rate,
@@ -67,12 +70,13 @@ sidekiq_rx_impl::sidekiq_rx_impl(
     d_logger->set_level(DEBUG_LEVEL);
     d_logger->get_level(str);
 
-    printf("in constructor, debug level: %s\n", str.c_str());
+    printf("in constructor RX, debug level: %s\n", str.c_str());
 
     int status = 0;
     uint8_t iq_resolution = 0;
 
     card = input_card;
+    transceive_mode = transceive;
     hdl1 = (skiq_rx_hdl_t) port1_handle;
 
     /* determine if we are in dual port */
@@ -91,11 +95,29 @@ sidekiq_rx_impl::sidekiq_rx_impl(
     status = skiq_init(skiq_xport_type_pcie, skiq_xport_init_level_full, &card, 1);
     if (status != 0)
     {
-        fprintf(stderr, "Error: unable to initialize libsidekiq with status %d\n", status);
-        throw std::runtime_error("Failure: skiq_init");
+        if (status != -EEXIST)
+        {
+            d_logger->error( "Error: unable to initialize libsidekiq with status {}", status);
+            throw std::runtime_error("Failure: skiq_init");
+        }
+        else
+        {
+            if (transceive_mode != TRANSCEIVE_ENABLED)
+            {
+                d_logger->error( "Error: unable to initialize libsidekiq with status {}", status);
+                throw std::runtime_error("Failure: skiq_init");
+            }
+            else
+            {
+                d_logger->info("Info: The TX block initialized libsidekiq");
+            }
+        }
     }
-    libsidekiq_init = true;
-    printf("Info: libsidkiq initialized successfully\n");
+    else
+    {
+        libsidekiq_init = true;
+        printf("Info: libsidkiq initialized successfully\n");
+    }
 
     set_rx_sample_rate(sample_rate);
     set_rx_bandwidth(bandwidth);
@@ -163,7 +185,7 @@ sidekiq_rx_impl::sidekiq_rx_impl(
 /* deconstructor */
 sidekiq_rx_impl::~sidekiq_rx_impl() 
 {
-    d_logger->debug("in deconstructor");
+    d_logger->debug("in RX deconstructor");
 
     if (rx_streaming == true)
     {
@@ -825,7 +847,6 @@ int sidekiq_rx_impl::work(int noutput_items,
 
     if (debug_ctr < 2)
     {
-        d_logger->debug("here");
         d_logger->debug("noutput_items {}, dual_port {}, buffer_size {}", 
                noutput_items, dual_port, DATA_MAX_BUFFER_SIZE);
     }

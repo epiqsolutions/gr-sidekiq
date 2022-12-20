@@ -12,16 +12,20 @@
 #include <gnuradio/sidekiq/sidekiq_rx.h>
 #include <sidekiq_api.h>
 
-#define MAX_PORT 2              // max ports allowed
-#define IQ_SHORT_COUNT 2        // number of shorts in a sample
+#define MAX_PORT                2        // max ports allowed
+#define IQ_SHORT_COUNT          2        // number of shorts in a sample
 
 /* calibration modes */
-#define CAL_OFF 2
-#define CAL_TYPE_DC_OFFSET 0
-#define CAL_TYPE_QUADRATURE 1
-#define CAL_TYPE_BOTH 2
+#define CAL_OFF                 2
+#define CAL_TYPE_DC_OFFSET      0
+#define CAL_TYPE_QUADRATURE     1
+#define CAL_TYPE_BOTH           2
 
-#define RUN_CAL 1
+#define RUN_CAL                 1
+
+#define NO_TRANSCEIVE           0
+#define TRANSCEIVE_ENABLED      1
+
 
 using pmt::pmt_t;
 
@@ -42,6 +46,7 @@ class sidekiq_rx_impl : public sidekiq_rx {
 public:
   sidekiq_rx_impl(
           int input_card,
+          int transcieve,
           int port1_handle,
           int port2_handle,
           double sample_rate,
@@ -88,6 +93,7 @@ private:
 
      /* passed in parameters */
     uint8_t card{};
+    int transceive_mode{};
     skiq_rx_hdl_t hdl1{};
     skiq_rx_hdl_t hdl2{};
     uint32_t sample_rate{};

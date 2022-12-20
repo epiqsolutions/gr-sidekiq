@@ -12,16 +12,19 @@
 #include <gnuradio/sidekiq/sidekiq_tx.h>
 #include <sidekiq_api.h>
 
-#define NUM_BLOCKS 20           // number of tx blocks to allocate and use.
+#define NUM_BLOCKS              20    // number of tx blocks to allocate and use.
 
-#define CAL_ON 1                // run_cal parameter if a manual calibration is requested
+#define CAL_ON                  1     // run_cal parameter if a manual calibration is requested
 
-#define BURSTING_DISABLED 0     // Bursting mode disabled
-#define BURSTING_ENABLED  1     // Bursting mode enabled
+#define BURSTING_DISABLED       0     // Bursting mode disabled
+#define BURSTING_ENABLED        1     // Bursting mode enabled
 
-#define BURSTING_OFF 0          
-#define BURSTING_ON 1
-#define NO_BURSTING_ENABLED 2
+#define BURSTING_OFF            0          
+#define BURSTING_ON             1
+#define NO_BURSTING_ENABLED     2
+
+#define TRANSCEIVE_ENABLED      1
+#define NO_TRANSCEIVE           0
 
 using pmt::pmt_t;
 
@@ -46,6 +49,7 @@ class sidekiq_tx_impl : public sidekiq_tx
 public:
     sidekiq_tx_impl(
                     int card, 
+                    int transceive,
                     int handle,
                     double sample_rate,
                     double bandwidth,
@@ -99,6 +103,7 @@ private:
 
     /* passed in parameters */
     uint8_t card{};
+    int transceive_mode{};
     skiq_tx_hdl_t hdl{};
     uint32_t sample_rate{};
     uint32_t bandwidth{};

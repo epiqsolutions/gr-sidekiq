@@ -24,6 +24,7 @@ public:
 
     static sptr make(
                         int card,
+                        int transceive,
                         int handle,
                         double sample_rate,
                         double bandwidth,
