@@ -144,20 +144,20 @@ blocks:
     affinity: ''
     alias: ''
     bandwidth: samp_rate * .8
+    burst_tag_name: tx_burst
     cal_mode: '0'
     cal_type: '0'
     card: '0'
     comment: ''
     frequency: frequency
-    gain_index: '1'
-    gain_mode: '1'
+    gain_index: '10'
+    gain_mode: '0'
     handle1: '0'
     handle2: '100'
     maxoutbuf: '0'
     minoutbuf: '0'
     run_cal: '0'
     sample_rate: samp_rate
-    transceive: '1'
   states:
     bus_sink: false
     bus_source: false
@@ -172,7 +172,7 @@ blocks:
     alias: ''
     attenuation: '100'
     bandwidth: samp_rate * .8
-    buffer_size: '4092'
+    buffer_size: '16380'
     bursting: '0'
     cal_mode: '0'
     card: '0'
@@ -182,7 +182,6 @@ blocks:
     run_cal: '0'
     sample_rate: samp_rate
     threads: '4'
-    transceive: '1'
   states:
     bus_sink: false
     bus_source: false

@@ -46,7 +46,6 @@ class sidekiq_rx_impl : public sidekiq_rx {
 public:
   sidekiq_rx_impl(
           int input_card,
-          int transcieve,
           int port1_handle,
           int port2_handle,
           double sample_rate,
@@ -91,9 +90,8 @@ private:
     bool determine_if_done(int32_t *samples_written, int32_t noutput_items, uint32_t *portno);
     double get_double_from_pmt_dict(pmt_t dict, pmt_t key, pmt_t not_found );
 
-     /* passed in parameters */
+    /* passed in parameters */
     uint8_t card{};
-    int transceive_mode{};
     skiq_rx_hdl_t hdl1{};
     skiq_rx_hdl_t hdl2{};
     uint32_t sample_rate{};

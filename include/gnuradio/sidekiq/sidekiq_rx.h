@@ -23,7 +23,6 @@ public:
 
   static sptr make(
           int input_card,
-          int transceive,
           int port1_handle,
           int port2_handle,
           double sample_rate,

@@ -16,7 +16,7 @@
 /* BINDTOOL_GEN_AUTOMATIC(0) */
 /* BINDTOOL_USE_PYGCCXML(0) */
 /* BINDTOOL_HEADER_FILE(sidekiq_rx.h)                                        */
-/* BINDTOOL_HEADER_FILE_HASH(32d5b7e5bfe1a2337a184664c9e66329) */
+/* BINDTOOL_HEADER_FILE_HASH(03adf404e8b5b2f58572d591e5149235) */
 /***********************************************************************************/
 
 #include <pybind11/complex.h>
@@ -37,11 +37,10 @@ void bind_sidekiq_rx(py::module &m) {
              std::shared_ptr<sidekiq_rx>>(m, "sidekiq_rx", D(sidekiq_rx))
 
       .def(py::init(&sidekiq_rx::make), py::arg("input_card"),
-           py::arg("transceive"), py::arg("port1_handle"),
-           py::arg("port2_handle"), py::arg("sample_rate"),
-           py::arg("bandwidth"), py::arg("frequency"), py::arg("gain_mode"),
-           py::arg("gain_index"), py::arg("cal_mode"), py::arg("cal_type"),
-           D(sidekiq_rx, make))
+           py::arg("port1_handle"), py::arg("port2_handle"),
+           py::arg("sample_rate"), py::arg("bandwidth"), py::arg("frequency"),
+           py::arg("gain_mode"), py::arg("gain_index"), py::arg("cal_mode"),
+           py::arg("cal_type"), D(sidekiq_rx, make))
 
       .def("set_rx_sample_rate", &sidekiq_rx::set_rx_sample_rate,
            py::arg("value"), D(sidekiq_rx, set_rx_sample_rate))

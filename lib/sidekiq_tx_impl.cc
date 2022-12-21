@@ -13,7 +13,7 @@
 #include "sidekiq_tx_impl.h"
 
 
-#define DEBUG_LEVEL "info"  //Can be debug, info, warning, error, critical
+#define DEBUG_LEVEL "debug"  //Can be debug, info, warning, error, critical
 
 /* The tx_complete function needs to be outside the object so it can be registered with libsidekiq 
  * mutex to protect updates to the tx buffer
@@ -67,13 +67,12 @@ using input_type = float;
 
 /* This is the top level class instantiated by gnuradio */
 sidekiq_tx::sptr sidekiq_tx::make(int card,
-                                  int transceive,
                                   int handle,
                                   double sample_rate,
                                   double bandwidth,
                                   double frequency,
                                   double attenuation,
-                                  double bursting,
+                                  std::string burst_tag,
                                   int threads,
                                   int buffer_size,
                                   int cal_mode)
@@ -81,13 +80,12 @@ sidekiq_tx::sptr sidekiq_tx::make(int card,
     /* then make instantiates the tx_block */
     return gnuradio::make_block_sptr<sidekiq_tx_impl>(
                                   card, 
-                                  transceive,
                                   handle,
                                   sample_rate,
                                   bandwidth,
                                   frequency,
                                   attenuation,
-                                  bursting,
+                                  burst_tag,
                                   threads,
                                   buffer_size,
                                   cal_mode);
@@ -98,13 +96,12 @@ sidekiq_tx::sptr sidekiq_tx::make(int card,
  * Initialize the card
  */
 sidekiq_tx_impl::sidekiq_tx_impl( int input_card,
-                                  int transceive,
                                   int handle,
                                   double sample_rate,
                                   double bandwidth,
                                   double frequency,
                                   double attenuation,
-                                  double bursting,
+                                  std::string burst_tag,
                                   int threads,
                                   int buffer_size, 
                                   int cal_mode)
@@ -123,21 +120,22 @@ sidekiq_tx_impl::sidekiq_tx_impl( int input_card,
     uint8_t iq_resolution = 0;
 
     card = input_card;
-    transceive_mode = transceive;
     hdl = (skiq_tx_hdl_t)handle;
     curr_block = 0;
     tx_buffer_size = buffer_size;
     temp_buffer.resize(tx_buffer_size);
     num_blocks = NUM_BLOCKS;
 
-    bursting_mode = bursting;
-    if (bursting_mode == BURSTING_ENABLED)
+    burst_tag_name = burst_tag;
+    d_logger->debug("burst_tag_name: {}", burst_tag_name);   
+
+    if( 0 == burst_tag_name.compare("") )
     {
-        bursting_cmd = BURSTING_OFF;
+        bursting_cmd = NO_BURSTING_ENABLED;
     }
     else
     {
-        bursting_cmd = NO_BURSTING_ENABLED;
+        bursting_cmd = BURSTING_OFF;
     }
 
     status = skiq_init(skiq_xport_type_pcie, skiq_xport_init_level_full, &card, 1);
@@ -150,15 +148,7 @@ sidekiq_tx_impl::sidekiq_tx_impl( int input_card,
         }
         else 
         {
-            if (transceive_mode != TRANSCEIVE_ENABLED)
-            {
-                d_logger->error( "Error: unable to initialize libsidekiq with status {}", status);
-                throw std::runtime_error("Failure: skiq_init");
-            }
-            else
-            {
-                d_logger->info("Info: The RX block initialized libsidekiq");
-            }
+            d_logger->info("Info: The RX block initialized libsidekiq");
         }
     }
     else
@@ -378,10 +368,10 @@ bool sidekiq_tx_impl::start()
 {
     int status = 0;
 
-    d_logger->debug("in start() mode {}, cmd {}", bursting_mode, bursting_cmd);
-    if (bursting_mode == BURSTING_DISABLED || bursting_cmd == BURSTING_ON)
+    d_logger->debug("in start() cmd {}", bursting_cmd);
+
+    if (bursting_cmd == BURSTING_ON || bursting_cmd == NO_BURSTING_ENABLED)
     {
-        
         status = skiq_start_tx_streaming(card, hdl);
         if (status != 0)
         {
@@ -601,10 +591,9 @@ void sidekiq_tx_impl::update_tx_error_count() {
 
 int sidekiq_tx_impl::handle_tx_burst_tag(tag_t tag) 
 {
-    if (bursting_mode == BURSTING_ENABLED)
+    if (bursting_cmd != NO_BURSTING_ENABLED)
     {
-        d_logger->debug("in handle_tx_burst_tag, tag offset {}, mode {}, cmd {}", tag.offset, bursting_mode, bursting_cmd);
-
+        d_logger->debug("in handle_tx_burst_tag, tag offset {}, cmd {}, length {}", tag.offset, bursting_cmd, tag.value);
 
         burst_length = pmt::to_uint64(tag.value);
         burst_samples_sent = 0;
@@ -656,21 +645,22 @@ int sidekiq_tx_impl::work(
         throw std::runtime_error("Failure: input items too small");
     }
 
+    pmt_t tx_burst_key{pmt::string_to_symbol(burst_tag_name)};
+
     /* see if we received the TX_BURST tag, if so process it */
     get_tags_in_range(tags, 0, nitems_read(0), nitems_read(0) + ninput_items);
     if (not tags.empty())
     {
         BOOST_FOREACH( const tag_t &tag, tags) 
         {
-            if (pmt::equal(tag.key, TX_BURST_KEY)) 
+            if (pmt::equal(tag.key, tx_burst_key))
             {
                 handle_tx_burst_tag(tag);
             }
         }
     }
 
-
-    if (bursting_mode == BURSTING_ENABLED && bursting_cmd == BURSTING_OFF)
+    if (bursting_cmd == BURSTING_OFF)
     {
         // We are not transmitting yet
         return noutput_items;
@@ -764,7 +754,6 @@ int sidekiq_tx_impl::work(
             }
         }
 
-        
         /* Determine if the time has elapsed and display any underruns we have received */
         if (nitems_read(0) - last_status_update_sample > status_update_rate_in_samples) 
         {
@@ -775,10 +764,7 @@ int sidekiq_tx_impl::work(
             d_logger->debug("noutput_items {}, tx_buffer_size {}, sample_written {}", 
                     noutput_items, tx_buffer_size, samples_written);
         }
-       
-
     }
-
 
     /* if we are bursting and we have not written anything we need to lie and say we did.  Otherwise 
      * the flowchart stops sending samples */

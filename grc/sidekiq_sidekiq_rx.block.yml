@@ -5,13 +5,13 @@ category: '[sidekiq]'
 
 templates:
   imports: from gnuradio import sidekiq
-  make: sidekiq.sidekiq_rx(${card}, ${transceive}, ${handle1}, ${handle2}, ${sample_rate}, ${bandwidth}, ${frequency}, ${gain_mode}, ${gain_index}, ${cal_mode}, ${cal_type})
+  make: sidekiq.sidekiq_rx(${card}, ${handle1}, ${handle2}, ${sample_rate}, ${bandwidth}, ${frequency}, ${gain_mode}, ${gain_index}, ${cal_mode}, ${cal_type})
   callbacks:
   - set_rx_sample_rate(${sample_rate})
   - set_rx_bandwidth(${bandwidth})
   - set_rx_frequency(${frequency})
   - set_rx_gain_mode(${gain_mode})
-  - set_rx_gain(${gain_index})
+  - set_rx_gain_index(${gain_index})
   - set_rx_cal_mode(${cal_mode})
   - set_rx_cal_type(${cal_type})
   - run_rx_cal(${run_cal})
@@ -27,13 +27,6 @@ parameters:
 - id: card
   label: Card
   dtype: int
-  default: 0
-
-- id: transceive
-  label: Tranceive 
-  dtype: enum
-  options: ['0', '1']
-  option_labels: ['Disabled', 'Enabled']
   default: 0
 
 - id: handle1

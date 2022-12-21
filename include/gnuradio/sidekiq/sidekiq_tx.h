@@ -24,13 +24,12 @@ public:
 
     static sptr make(
                         int card,
-                        int transceive,
                         int handle,
                         double sample_rate,
                         double bandwidth,
                         double frequency,
                         double attenuation,
-                        double bursting,
+                        std::string burst_tag,
                         int threads,
                         int buffer_size,
                         int cal_mode);

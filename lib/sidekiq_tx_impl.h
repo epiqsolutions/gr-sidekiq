@@ -16,9 +16,6 @@
 
 #define CAL_ON                  1     // run_cal parameter if a manual calibration is requested
 
-#define BURSTING_DISABLED       0     // Bursting mode disabled
-#define BURSTING_ENABLED        1     // Bursting mode enabled
-
 #define BURSTING_OFF            0          
 #define BURSTING_ON             1
 #define NO_BURSTING_ENABLED     2
@@ -49,13 +46,12 @@ class sidekiq_tx_impl : public sidekiq_tx
 public:
     sidekiq_tx_impl(
                     int card, 
-                    int transceive,
                     int handle,
                     double sample_rate,
                     double bandwidth,
                     double frequency,
                     double attenuation,
-                    double bursting,
+                    std::string burst_tag,
                     int threads,
                     int buffer_size,
                     int cal_mode);
@@ -103,12 +99,12 @@ private:
 
     /* passed in parameters */
     uint8_t card{};
-    int transceive_mode{};
     skiq_tx_hdl_t hdl{};
     uint32_t sample_rate{};
     uint32_t bandwidth{};
     uint64_t frequency{};
     uint32_t attenuation{};
+    std::string burst_tag_name{};
     skiq_tx_quadcal_mode_t calibration_mode{};
 
     /* flags */
@@ -134,8 +130,7 @@ private:
     uint64_t timestamp{};
 
     /* bursting */
-    double bursting_cmd{};
-    double bursting_mode{};
+    uint32_t bursting_cmd{};
     std::vector<tag_t> _tags;    
     uint64_t burst_length{};
     uint64_t burst_samples_sent{};

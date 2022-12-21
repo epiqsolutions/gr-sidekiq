@@ -22,7 +22,6 @@ namespace sidekiq {
 using output_type = float;
 sidekiq_rx::sptr sidekiq_rx::make(
         int input_card,
-        int transceive,
         int port1_handle,
         int port2_handle,
         double sample_rate,
@@ -35,7 +34,6 @@ sidekiq_rx::sptr sidekiq_rx::make(
 {
   return gnuradio::make_block_sptr<sidekiq_rx_impl>(
           input_card,
-          transceive,
           port1_handle,
           port2_handle,
           sample_rate,
@@ -49,7 +47,6 @@ sidekiq_rx::sptr sidekiq_rx::make(
 
 sidekiq_rx_impl::sidekiq_rx_impl(
         int input_card,
-        int transceive,
         int port1_handle,
         int port2_handle,
         double sample_rate,
@@ -76,7 +73,6 @@ sidekiq_rx_impl::sidekiq_rx_impl(
     uint8_t iq_resolution = 0;
 
     card = input_card;
-    transceive_mode = transceive;
     hdl1 = (skiq_rx_hdl_t) port1_handle;
 
     /* determine if we are in dual port */
@@ -102,15 +98,7 @@ sidekiq_rx_impl::sidekiq_rx_impl(
         }
         else
         {
-            if (transceive_mode != TRANSCEIVE_ENABLED)
-            {
-                d_logger->error( "Error: unable to initialize libsidekiq with status {}", status);
-                throw std::runtime_error("Failure: skiq_init");
-            }
-            else
-            {
-                d_logger->info("Info: The TX block initialized libsidekiq");
-            }
+            d_logger->info("Info: If not running Transceive Mode, then this is an error");
         }
     }
     else

@@ -137,7 +137,7 @@ blocks:
     start: '0'
     step: 1e6
     stop: 250e6
-    value: '240000'
+    value: 10e6
     widget: counter_slider
   states:
     bus_sink: false
@@ -432,7 +432,7 @@ blocks:
     attenuation: attenuation
     bandwidth: bandwidth
     buffer_size: '4092'
-    bursting: '1'
+    burst_tag: tx_burst
     cal_mode: '1'
     card: '0'
     comment: ''
