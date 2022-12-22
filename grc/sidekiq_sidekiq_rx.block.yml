@@ -138,8 +138,8 @@ documentation: |-
         RX Calibration - Set the mode to manual or auto, if manual the block needs 
         to set run_cal to 1.
 
-        Configuration messages - The block also can receive the "freq", "rate", "bandwidth", and "gain" 
-        messages to modify the LO frequency and sample rate.
+        Configuration messages - The block also can receive the "freq", "rate", 
+        "bandwidth", and "gain" messages to modify those parameters.
 
         Transceive - The block can be used with the TX block to allow Transceive mode.  
         There will be a warning when the second block initializes.

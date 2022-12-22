@@ -79,8 +79,8 @@ class transceive(gr.top_block, Qt.QWidget):
         ##################################################
         # Blocks
         ##################################################
-        self.sidekiq_sidekiq_tx_0 = sidekiq.sidekiq_tx(0, 0, samp_rate, (samp_rate * .8), frequency, 100, 0, 4, 16380, 0)
-        self.sidekiq_sidekiq_rx_0 = sidekiq.sidekiq_rx(0, 0, 100, samp_rate, (samp_rate * .8), frequency, 0, 10, 'tx_burst', 0, 0)
+        self.sidekiq_sidekiq_tx_0 = sidekiq.sidekiq_tx(0, 0, samp_rate, (samp_rate * .8), frequency, 100, '', 4, 16380, 0)
+        self.sidekiq_sidekiq_rx_0 = sidekiq.sidekiq_rx(0, 0, 100, samp_rate, (samp_rate * .8), frequency, 0, 10, 0, 0)
         self.qtgui_freq_sink_x_0 = qtgui.freq_sink_c(
             1024, #size
             window.WIN_BLACKMAN_hARRIS, #wintype

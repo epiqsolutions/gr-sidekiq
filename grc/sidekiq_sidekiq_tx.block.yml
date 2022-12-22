@@ -128,13 +128,13 @@ documentation: |-
         TX Calibration - Set the mode to manual or auto, if manual the block needs to set 
         run_cal to 1.
 
-        Bursting TX - To transmit a burst, the block needs to receive the <burst_name> stream tag
-        If then name is "" then no bursting is supported.
-        It uses the <burst_tag_name stream tag to indicate 
-        the start-of-burst and length.
+        Bursting TX - To transmit a burst, the block needs to receive 
+        the <burst_tag_name> stream tag.
+        If the name is "" then no bursting is enabled.
+        It uses the <burst_tag_name> stream tag to indicate the start-of-burst and length.
 
-        Configuration messages - The block also can receive the "lo_freq", "rate", "bandwidth" and "attenuation" 
-        messages to modify the LO frequency and sample rate.
+        Configuration messages - The block also can receive the "lo_freq", "rate", 
+        "bandwidth" and "attenuation" messages to modify those parameters.
 
         Transceive - The block can be used with the RX block to allow Transceive mode.
         There will be a warning when the second block initializes.
@@ -152,7 +152,10 @@ documentation: |-
 
          Attenuation: The attenuation of the port. 
 
-         Threads: The number of threads. If '1' then running in sync mode. 0 is not allowed.
+         Burst Tag Name: The name of the burst tag key that will be received to do bursting.
+         If the value is "" or empty, then no bursting enabled.
+
+         Threads: The number of threads. If '1' or '0' then it is running in sync mode. 
 
          Buffer Size: The size of the TX buffer. The larger the buffer the faster 
          sample rate with no underruns.

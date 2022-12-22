@@ -197,7 +197,7 @@ blocks:
     attenuation: attenuation
     bandwidth: bandwidth
     buffer_size: '32764'
-    bursting: '0'
+    burst_tag: ''
     cal_mode: '1'
     card: '0'
     comment: ''

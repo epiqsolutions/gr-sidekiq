@@ -20,17 +20,19 @@ if __name__ == '__main__':
         except:
             print("Warning: failed to XInitThreads()")
 
+from PyQt5 import Qt
 from gnuradio import analog
 from gnuradio import gr
 from gnuradio.filter import firdes
 from gnuradio.fft import window
 import sys
 import signal
-from PyQt5 import Qt
 from argparse import ArgumentParser
 from gnuradio.eng_arg import eng_float, intx
 from gnuradio import eng_notation
 from gnuradio import sidekiq
+from gnuradio.qtgui import Range, RangeWidget
+from PyQt5 import QtCore
 
 
 
@@ -72,13 +74,40 @@ class sink_test(gr.top_block, Qt.QWidget):
         ##################################################
         # Variables
         ##################################################
+        self.sample_rate = sample_rate = 10e6
+        self.tone_freq = tone_freq = 2e6
+        self.run_tx_calibration = run_tx_calibration = 0
         self.min_output_buffer = min_output_buffer = 32764 *2*2
+        self.frequency = frequency = 1000e6
+        self.bandwidth = bandwidth = sample_rate * 0.8
+        self.attenuation = attenuation = 125
 
         ##################################################
         # Blocks
         ##################################################
-        self.sidekiq_sidekiq_tx_0 = sidekiq.sidekiq_tx(0, 0, 4e6, 3e6, 1000e6, 10, 0, 4, 32764, 1)
-        self.analog_sig_source_x_0 = analog.sig_source_c(4e6, analog.GR_COS_WAVE, 2e6, 1, 0, 0)
+        self._sample_rate_range = Range(1e6, 250e6, 1e6, 10e6, 200)
+        self._sample_rate_win = RangeWidget(self._sample_rate_range, self.set_sample_rate, "'sample_rate'", "counter_slider", float, QtCore.Qt.Horizontal)
+        self.top_layout.addWidget(self._sample_rate_win)
+        self._tone_freq_range = Range(1e6, 25e6, 1e6, 2e6, 200)
+        self._tone_freq_win = RangeWidget(self._tone_freq_range, self.set_tone_freq, "'tone_freq'", "counter_slider", float, QtCore.Qt.Horizontal)
+        self.top_layout.addWidget(self._tone_freq_win)
+        self._frequency_range = Range(500e6, 6000e6, 1e6, 1000e6, 100)
+        self._frequency_win = RangeWidget(self._frequency_range, self.set_frequency, "Frequency", "counter_slider", float, QtCore.Qt.Horizontal)
+        self.top_layout.addWidget(self._frequency_win)
+        self._bandwidth_range = Range(1000, 250e6, 1e6, sample_rate * 0.8, 200)
+        self._bandwidth_win = RangeWidget(self._bandwidth_range, self.set_bandwidth, "'bandwidth'", "counter_slider", float, QtCore.Qt.Horizontal)
+        self.top_layout.addWidget(self._bandwidth_win)
+        self._attenuation_range = Range(0, 255, 10, 125, 100)
+        self._attenuation_win = RangeWidget(self._attenuation_range, self.set_attenuation, "'attenuation'", "counter_slider", float, QtCore.Qt.Horizontal)
+        self.top_layout.addWidget(self._attenuation_win)
+        self.sidekiq_sidekiq_tx_0 = sidekiq.sidekiq_tx(0, 0, sample_rate, bandwidth, frequency, attenuation, '', 4, 32764, 1)
+        _run_tx_calibration_push_button = Qt.QPushButton('')
+        _run_tx_calibration_push_button = Qt.QPushButton('run_tx_calibration')
+        self._run_tx_calibration_choices = {'Pressed': 1, 'Released': 0}
+        _run_tx_calibration_push_button.pressed.connect(lambda: self.set_run_tx_calibration(self._run_tx_calibration_choices['Pressed']))
+        _run_tx_calibration_push_button.released.connect(lambda: self.set_run_tx_calibration(self._run_tx_calibration_choices['Released']))
+        self.top_layout.addWidget(_run_tx_calibration_push_button)
+        self.analog_sig_source_x_0 = analog.sig_source_c(sample_rate, analog.GR_COS_WAVE, tone_freq, 1, 0, 0)
         self.analog_sig_source_x_0.set_min_output_buffer(min_output_buffer)
 
 
@@ -96,11 +125,55 @@ class sink_test(gr.top_block, Qt.QWidget):
 
         event.accept()
 
+    def get_sample_rate(self):
+        return self.sample_rate
+
+    def set_sample_rate(self, sample_rate):
+        self.sample_rate = sample_rate
+        self.set_bandwidth(self.sample_rate * 0.8)
+        self.analog_sig_source_x_0.set_sampling_freq(self.sample_rate)
+        self.sidekiq_sidekiq_tx_0.set_tx_sample_rate(self.sample_rate)
+
+    def get_tone_freq(self):
+        return self.tone_freq
+
+    def set_tone_freq(self, tone_freq):
+        self.tone_freq = tone_freq
+        self.analog_sig_source_x_0.set_frequency(self.tone_freq)
+
+    def get_run_tx_calibration(self):
+        return self.run_tx_calibration
+
+    def set_run_tx_calibration(self, run_tx_calibration):
+        self.run_tx_calibration = run_tx_calibration
+        self.sidekiq_sidekiq_tx_0.run_tx_cal(self.run_tx_calibration)
+
     def get_min_output_buffer(self):
         return self.min_output_buffer
 
     def set_min_output_buffer(self, min_output_buffer):
         self.min_output_buffer = min_output_buffer
+
+    def get_frequency(self):
+        return self.frequency
+
+    def set_frequency(self, frequency):
+        self.frequency = frequency
+        self.sidekiq_sidekiq_tx_0.set_tx_frequency(self.frequency)
+
+    def get_bandwidth(self):
+        return self.bandwidth
+
+    def set_bandwidth(self, bandwidth):
+        self.bandwidth = bandwidth
+        self.sidekiq_sidekiq_tx_0.set_tx_bandwidth(self.bandwidth)
+
+    def get_attenuation(self):
+        return self.attenuation
+
+    def set_attenuation(self, attenuation):
+        self.attenuation = attenuation
+        self.sidekiq_sidekiq_tx_0.set_tx_attenuation(self.attenuation)
 
 
 
