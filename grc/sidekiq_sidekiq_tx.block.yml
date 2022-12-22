@@ -1,78 +1,89 @@
-id: sidekiq_tx
+id: sidekiq_sidekiq_tx
 label: Sidekiq TX Sink
 category: '[sidekiq]'
 
 templates:
-  imports: import sidekiq
-  make: sidekiq.sidekiq_tx(${card}, ${handle}, ${sample_rate}, ${attenuation}, ${frequency}, ${bandwidth}, ${sync}, ${suppress_tune_transients}, ${dataflow_mode}, ${buffer_size} )
-  callbacks: 
+  imports: from gnuradio import sidekiq
+  make: sidekiq.sidekiq_tx(${card}, ${handle}, ${sample_rate}, ${bandwidth}, ${frequency}, ${attenuation}, ${burst_tag}, ${threads}, ${buffer_size}, ${cal_mode})
+
+  callbacks:
   - set_tx_sample_rate(${sample_rate})
   - set_tx_attenuation(${attenuation})
   - set_tx_frequency(${frequency})
   - set_tx_bandwidth(${bandwidth})
-  - set_tx_suppress_tune_transients(${suppress_tune_transients})
-  - set_tx_filter_override_taps(${filter_override_taps})
-  
+  - set_tx_cal_mode(${cal_mode})
+  - run_tx_cal(${run_cal})
+
 #  Make one 'parameters' list entry for every parameter you want settable from the GUI.
 #     Keys include:
 #     * id (makes the value accessible as keyname, e.g. in the make entry)
 #     * label (label shown in the GUI)
 #     * dtype (e.g. int, float, complex, byte, short, xxx_vector, ...)
-
+#     * default
 parameters:
 - id: card
   label: Card
   dtype: int
-  default: 0
+  default: 0 
+
 - id: handle
   label: Handle Id
   dtype: enum
   options: ['0', '2',]
   option_labels: ['TxA1', 'TxB1']
   default: 0
+
 - id: sample_rate
   label: Sample Rate
   dtype: real
   default: 1e6
-- id: attenuation
-  label: Attenuation
-  dtype: real
-  default: 1
-- id: frequency
-  label: Frequency
-  dtype: real
-  default: 2400e6
+
 - id: bandwidth
   label: Bandwidth
   default: 1e6
   dtype: real
-- id: sync
-  label: Sync
-  dtype: enum
-  options: ['1','2', '3']
-  option_labels: ['Zero', 'GPS PPS', 'PC Clock']
+
+- id: frequency
+  label: Frequency
+  dtype: real
+  default: 2400e6
+
+- id: attenuation
+  label: Attenuation
+  dtype: real
   default: 1
-- id: suppress_tune_transients
-  label: Suppress Tune Transients
-  dtype: enum
-  default: 0
-  options: [ '0', '1' ]
-  option_labels: [ 'False', 'True' ]
-- id: dataflow_mode
-  label: Dataflow Mode
-  dtype: enum
-  options: ['0', '1']
-  option_labels: ['Immediate', 'Timestamp']
-  default: 0
-- id: filter_override_taps
-  label: Filter Override Taps
-  dtype: real_vector
+
+- id: burst_tag
+  label: Bursting Tag Name 
+  dtype: string
+  default: "" 
+
+- id: threads
+  label: Threads
+  dtype: int
+  default: 4
+
 - id: buffer_size
   label: Buffer Size
   dtype: int
-  default: 1020
-  options: [1020, 4092, 16380, 32764]
-  option_labels: ['1K', '4K', '16k', '32k']
+  default: 4092
+  options: [1020, 4092, 8188, 16380, 32764]
+  option_labels: ['1K', '4K', '8K', '16k', '32k']
+
+- id: cal_mode
+  label: Calibration Mode
+  dtype: enum
+  options: ['0', '1']
+  option_labels: ['Auto', 'Manual']
+  default: 0
+
+- id: run_cal
+  label: Run Cal 
+  hide: ${ ('all' if (cal_mode == '0') else 'part') }
+  dtype: int
+  default: run_tx_calibration 
+
+
 
 #  Make one 'inputs' list entry per input and one 'outputs' list entry per output.
 #  Keys include:
@@ -81,21 +92,83 @@ parameters:
 #      * dtype (e.g. int, float, complex, byte, short, xxx_vector, ...)
 #      * vlen (optional - data stream vector length. Default is 1)
 #      * optional (optional - set to 1 for optional inputs. Default is 0)
-
 inputs:
 - label: command
   domain: message
+  dtype: float
   optional: true
+
 - label: Samples
   domain: stream
   optional: false
-  dtype: complex  
-outputs:
-- label: telemetry
-  domain: message
-  optional: true
-  
+  dtype: complex
+
+#- label: ...
+#  domain: ...
+#  dtype: ...
+#  vlen: ...
+#  optional: ...
+
+#outputs:
+#- label: ...
+#  domain: ...
+#  dtype: ...
+#  vlen: ...
+#  optional: ...
+
+documentation: |-
+    A Sink Block for Epiq Sidekiq SDRs.
+
+    Block features:
+        Async vs Sync mode - To handle higher sample rates, libsidekiq can be placed into 
+        Async mode by setting the Threads parameter greater than 1.  If 1, it is in sync mode.
+
+        Buffer Size - To handle higher sample rates, choose a bigger TX buffer size.
+
+        TX Calibration - Set the mode to manual or auto, if manual the block needs to set 
+        run_cal to 1.
+
+        Bursting TX - To transmit a burst, the block needs to receive 
+        the <burst_tag_name> stream tag.
+        If the name is "" then no bursting is enabled.
+        It uses the <burst_tag_name> stream tag to indicate the start-of-burst and length.
+
+        Configuration messages - The block also can receive the "lo_freq", "rate", 
+        "bandwidth" and "attenuation" messages to modify those parameters.
+
+        Transceive - The block can be used with the RX block to allow Transceive mode.
+        There will be a warning when the second block initializes.
+
+    Parameters:
+         Card: The card number of the Sidekiq card.
+
+         Handle: The handle (port) to use.
+
+         Sample Rate: The sample rate of the card.
+
+         Bandwidth: The bandwidth of the card.
+
+         Frequency: The LO frequency of the port.
+
+         Attenuation: The attenuation of the port. 
+
+         Burst Tag Name: The name of the burst tag key that will be received to do bursting.
+         If the value is "" or empty, then no bursting enabled.
+
+         Threads: The number of threads. If '1' or '0' then it is running in sync mode. 
+
+         Buffer Size: The size of the TX buffer. The larger the buffer the faster 
+         sample rate with no underruns.
+
+         Calibration Mode: The calibration mode 'auto or manual'. If manual then run_cal 
+         must be 1 to manually run the calibration.
+
+         run_cal: If calibration is in manual mode, a 1 for this parameter will force 
+         calibration to run.
+
+
+
+
 #  'file_format' specifies the version of the GRC yml format used in the file
 #  and should usually not be changed.
 file_format: 1
-

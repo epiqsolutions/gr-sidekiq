@@ -1,90 +1,127 @@
+/* -*- c++ -*- */
 /*
-* Copyright 2018    US Naval Research Lab
-* Copyright 2018    Epiq Solutions
-*
-*
-* This is free software; you can redistribute it and/or modify
-* it under the terms of the GNU General Public License as published by
-* the Free Software Foundation; either version 3, or (at your option)
-* any later version.
-*
-* This software is distributed in the hope that it will be useful,
-* but WITHOUT ANY WARRANTY; without even the implied warranty of
-* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-* GNU General Public License for more details.
-*
-* You should have received a copy of the GNU General Public License
-* along with this software; see the file COPYING. If not, write to
-* the Free Software Foundation, Inc., 51 Franklin Street,
-* Boston, MA 02110-1301, USA.
-*/
+ * Copyright 2022 epiq.
+ *
+ * SPDX-License-Identifier: GPL-3.0-or-later
+ */
 
 #ifndef INCLUDED_SIDEKIQ_SIDEKIQ_RX_IMPL_H
 #define INCLUDED_SIDEKIQ_SIDEKIQ_RX_IMPL_H
 
-#include <sidekiq/sidekiq_rx.h>
-#include <sidekiq/sidekiq_base.h>
+#include <pmt/pmt.h>
+#include <gnuradio/sidekiq/sidekiq_rx.h>
+#include <sidekiq_api.h>
 
-#define MAX_PORT 2 
+#define MAX_PORT                2        // max ports allowed
+#define IQ_SHORT_COUNT          2        // number of shorts in a sample
 
+/* calibration modes */
+#define CAL_OFF                 2
+#define CAL_TYPE_DC_OFFSET      0
+#define CAL_TYPE_QUADRATURE     1
+#define CAL_TYPE_BOTH           2
+
+#define RUN_CAL                 1
+
+#define NO_TRANSCEIVE           0
+#define TRANSCEIVE_ENABLED      1
+
+
+using pmt::pmt_t;
 
 namespace gr {
-	namespace sidekiq {
+namespace sidekiq {
 
-		class sidekiq_rx_impl : public sidekiq_rx, sidekiq_rx_base {
-		public:
-			sidekiq_rx_impl(
-                    int _card,
-                    int port_id,
-                    int port_id2,
-					double sample_rate,
-					double gain,
-					uint8_t gain_mode,
-					double frequency,
-					double bandwitdh,
-					int sync_type);
+    const bool SIDEKIQ_IQ_PACK_MODE_UNPACKED{false}; 
 
-			int work(
-					int noutput_items,
-					gr_vector_const_void_star &input_items,
-					gr_vector_void_star &output_items) override;
+    const int DATA_MAX_BUFFER_SIZE{SKIQ_MAX_RX_BLOCK_SIZE_IN_WORDS - SKIQ_RX_HEADER_SIZE_IN_WORDS};
 
-			bool start() override;
+    const pmt_t CONTROL_MESSAGE_PORT{pmt::string_to_symbol("command")};
 
-			bool stop() override;
+    static const pmt_t LO_FREQ_KEY{pmt::string_to_symbol("lo_freq")};
 
-			void set_rx_sample_rate(double value) override;
+    static const pmt_t RATE_KEY{pmt::string_to_symbol("rate")};
 
-			void set_rx_gain(double value) override;
+    static const pmt_t BANDWIDTH_KEY{pmt::string_to_symbol("bandwidth")};
 
-			void set_rx_frequency(double value) override;
+    static const pmt_t GAIN_KEY{pmt::string_to_symbol("gain")};
 
-			void set_rx_bandwidth(double bandwidth) override;
+class sidekiq_rx_impl : public sidekiq_rx {
+public:
+  sidekiq_rx_impl(
+          int input_card,
+          int port1_handle,
+          int port2_handle,
+          double sample_rate,
+          double bandwidth,
+          double frequency,
+          uint8_t gain_mode,
+          int gain_index,
+          int cal_mode,
+          int cal_type
+          );
+  ~sidekiq_rx_impl();
 
-			void set_rx_filter_override_taps(const std::vector<float> &taps) override;
+  // Where all the action really happens
+  int work(int noutput_items, gr_vector_const_void_star &input_items,
+           gr_vector_void_star &output_items) override;
 
+   void handle_control_message(pmt_t message);
 
-		private:
-            uint32_t debug_ctr;
-			size_t vector_length;
-			bool tag_now;
-			size_t timestamp_gap_count[MAX_PORT]{0,0};
-			uint64_t next_timestamp[MAX_PORT]{0,0};
-			pmt::pmt_t block_id;
-			size_t last_status_update_sample[MAX_PORT]{0,0};
-			size_t status_update_rate_in_samples{};
-			std::vector<int16_t> filter_override_taps;
+   bool start() override;
 
-			uint8_t get_rx_gain_mode();
-			void set_rx_gain_mode(uint8_t value);
-			double get_rx_gain(int handle);
-            void get_rx_gain_range( double *p_min_gain, double *p_max_gain );
-			void output_telemetry_message();
-			void handle_control_message(pmt::pmt_t message);
-			void apply_all_tags(size_t sample_index, size_t timestamp);
-		};
-	} // namespace sidekiq
+   bool stop() override;
+
+   void set_rx_sample_rate(double value) override;
+
+   void set_rx_bandwidth(double value) override;
+
+   void set_rx_frequency(double value) override;
+
+   void set_rx_gain_mode(double value) override;
+
+   void set_rx_gain_index(int value) override;
+
+   void set_rx_cal_mode(int value) override;
+
+   void set_rx_cal_type(int value) override;
+
+   void run_rx_cal(int value) override;
+
+private:
+    /* private methods */
+    uint32_t get_new_block(uint32_t portno);
+    bool determine_if_done(int32_t *samples_written, int32_t noutput_items, uint32_t *portno);
+    double get_double_from_pmt_dict(pmt_t dict, pmt_t key, pmt_t not_found );
+
+    /* passed in parameters */
+    uint8_t card{};
+    skiq_rx_hdl_t hdl1{};
+    skiq_rx_hdl_t hdl2{};
+    uint32_t sample_rate{};
+    uint32_t bandwidth{};
+    uint64_t frequency{};
+    skiq_rx_gain_t gain_mode{};
+    uint8_t gain_index{};
+    skiq_rx_cal_mode_t cal_mode{};
+    skiq_rx_cal_type_t cal_type{};
+
+    /* flags */    
+    bool libsidekiq_init{};
+    bool rx_streaming{};
+    bool cal_enabled{};
+    bool dual_port{};
+
+    /* work parameters */
+    double adc_scaling{};
+    int16_t *curr_block_ptr[MAX_PORT]{};
+    int32_t curr_block_samples_left[MAX_PORT]{};
+
+    /* used to debug the work function */
+    uint32_t debug_ctr{};
+};
+
+} // namespace sidekiq
 } // namespace gr
 
 #endif /* INCLUDED_SIDEKIQ_SIDEKIQ_RX_IMPL_H */
-

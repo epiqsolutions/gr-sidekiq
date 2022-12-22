@@ -1,3 +1,5 @@
+release/V3.0
+
 The SIDEKIQ OOT Module
 Basic implementation of source and sink blocks for Sidekiq radios
 - tags: sdr, sidekiq, skiq, epiq
@@ -13,22 +15,20 @@ This release requires GNURadio v3.10
 
 ---
 To Build and Install (from the gr-sidekiq directory)
-  1) Configure the environment to build
-      > source configure_env.sh
-  2) Create a build directory
+  1) Create a build directory
       > mkdir build
-  3) Change to the build directory
+  2) Change to the build directory
       > cd build
-  4) Run cmake 
+  3) Run cmake 
      (NOTE: if you wish to install to a specific directory, 
           run with -DCMAKE_INSTALL_PREFIX)
       > cmake ../
            OR
       > cmake -DCMAKE_INSTALL_PREFIX=/my_install_directory ../
-  5) Build the code
+  4) Build the code
       > make
-  6) Install it
+  5) Install it
       > sudo make install
-  7) Update dynamic linker for new library (Linux only)
+  6) Update dynamic linker for new library (Linux only)
       > sudo ldconfig
-  8) Refer to examples of sink/source blocks located in examples
+  7) Refer to examples of sink/source blocks located in examples

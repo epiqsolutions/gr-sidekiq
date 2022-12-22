@@ -1,99 +1,147 @@
+/* -*- c++ -*- */
 /*
-* Copyright 2018    US Naval Research Lab
-* Copyright 2018    Epiq Solutions
-*
-*
-* This is free software; you can redistribute it and/or modify
-* it under the terms of the GNU General Public License as published by
-* the Free Software Foundation; either version 3, or (at your option)
-* any later version.
-*
-* This software is distributed in the hope that it will be useful,
-* but WITHOUT ANY WARRANTY; without even the implied warranty of
-* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-* GNU General Public License for more details.
-*
-* You should have received a copy of the GNU General Public License
-* along with this software; see the file COPYING. If not, write to
-* the Free Software Foundation, Inc., 51 Franklin Street,
-* Boston, MA 02110-1301, USA.
-*/
+ * Copyright 2022 gr-sidekiq author.
+ *
+ * SPDX-License-Identifier: GPL-3.0-or-later
+ */
 
 #ifndef INCLUDED_SIDEKIQ_SIDEKIQ_TX_IMPL_H
 #define INCLUDED_SIDEKIQ_SIDEKIQ_TX_IMPL_H
 
-#include <sidekiq/sidekiq_tx.h>
-#include <sidekiq/sidekiq_base.h>
+#include <pmt/pmt.h>
+#include <gnuradio/sidekiq/sidekiq_tx.h>
+#include <sidekiq_api.h>
+
+#define NUM_BLOCKS              20    // number of tx blocks to allocate and use.
+
+#define CAL_ON                  1     // run_cal parameter if a manual calibration is requested
+
+#define BURSTING_OFF            0          
+#define BURSTING_ON             1
+#define NO_BURSTING_ENABLED     2
 
 using pmt::pmt_t;
 
 namespace gr {
-	namespace sidekiq {
+namespace sidekiq {
 
-		class sidekiq_tx_impl : public sidekiq_tx, sidekiq_tx_base {
-		public:
-			sidekiq_tx_impl(
-                    int input_card_number,
+    static const bool SIDEKIQ_IQ_PACK_MODE_UNPACKED{false};
+
+    static const double STATUS_UPDATE_RATE_SECONDS{2.0};
+
+    /* message and tag keys */
+    static const pmt_t CONTROL_MESSAGE_PORT{pmt::string_to_symbol("command")};
+
+    static const pmt_t LO_FREQ_KEY{pmt::string_to_symbol("lo_freq")};
+
+    static const pmt_t RATE_KEY{pmt::string_to_symbol("rate")};
+
+    static const pmt_t BANDWIDTH_KEY{pmt::string_to_symbol("bandwidth")};
+
+    static const pmt_t ATTENUATION_KEY{pmt::string_to_symbol("attenuation")};
+
+class sidekiq_tx_impl : public sidekiq_tx
+{
+public:
+    sidekiq_tx_impl(
+                    int card, 
                     int handle,
-					double sample_rate,
-					double attenuation,
-					double frequency,
-					double bandwitdh,
-					int sync_type,
-					bool suppress_tune_transients,
-					uint8_t dataflow_mode,
-					int buffer_size);
+                    double sample_rate,
+                    double bandwidth,
+                    double frequency,
+                    double attenuation,
+                    std::string burst_tag,
+                    int threads,
+                    int buffer_size,
+                    int cal_mode);
 
-			int work(
-					int noutput_items,
-					gr_vector_const_void_star &input_items,
-					gr_vector_void_star &output_items) override;
 
-			bool start() override;
 
-			bool stop() override;
 
-			void forecast(int noutput_items, gr_vector_int &ninput_items_required) override;
+    ~sidekiq_tx_impl();
 
-			void set_tx_sample_rate(double value) override;
+    // Where all the action really happens
+    int work(int noutput_items,
+             gr_vector_const_void_star& input_items,
+             gr_vector_void_star& output_items) override;
 
-			void set_tx_attenuation(double value) override;
 
-			void set_tx_frequency(double value) override;
+    /* message handler */
+    void handle_control_message(pmt_t message);
 
-			void set_tx_bandwidth(double value) override;
+    bool start() override;
 
-			void set_tx_suppress_tune_transients(bool value);
+    bool stop() override;
 
-			void set_tx_filter_override_taps(const std::vector<float> &taps) override;
+    void forecast(int noutput_items, gr_vector_int &ninput_items_required) override;
 
-		private:
-			bool suppress_tune_transients;
-			uint64_t timestamp{};
-			uint64_t burst_length{};
-			uint64_t burst_samples_sent{};
-			uint64_t previous_burst_tag_offset{};
-			skiq_tx_flow_mode_t dataflow_mode;
-			uint32_t last_num_tx_errors{};
-			uint16_t tx_buffer_size;
-			skiq_tx_block_t *tx_data_block;
-			size_t last_status_update_sample{};
-			size_t status_update_rate_in_samples{};
-			std::vector<int16_t> filter_override_taps;
-			std::vector<gr_complex> temp_buffer;
+    void set_tx_sample_rate(double value) override;
 
-			uint16_t get_tx_attenuation();
-			void output_telemetry_message();
-			void update_tx_error_count();
-			void handle_control_message(pmt::pmt_t message);
-			void handle_tx_gain_tag(tag_t tag);
-			void handle_tx_freq_tag(tag_t tag);
-			void handle_tx_time_tag(tag_t tag);
-			void handle_tx_burst_length_tag(tag_t tag);
-			void check_burst_length(size_t current_tag_offset, size_t burst_sample_length);
-		};
-	} // namespace sidekiq
+    void set_tx_attenuation(double value) override;
+
+    void set_tx_frequency(double value) override;
+
+    void set_tx_bandwidth(double value) override;
+
+    void set_tx_cal_mode(int value) override;
+
+    /* User sends 1 when it wants to run calibration */
+    void run_tx_cal(int value) override;
+
+
+
+private:
+    /* method prototypes */
+    int handle_tx_burst_tag(tag_t tag);
+    void update_tx_error_count();
+    double get_double_from_pmt_dict(pmt_t dict, pmt_t key, pmt_t not_found ); 
+
+    /* passed in parameters */
+    uint8_t card{};
+    skiq_tx_hdl_t hdl{};
+    uint32_t sample_rate{};
+    uint32_t bandwidth{};
+    uint64_t frequency{};
+    uint32_t attenuation{};
+    std::string burst_tag_name{};
+    skiq_tx_quadcal_mode_t calibration_mode{};
+
+    /* flags */
+    bool libsidekiq_init{};
+    bool tx_streaming{};
+
+    /* sync/async parameters */
+    bool in_async_mode{};
+    skiq_tx_block_t **p_tx_blocks{};
+    skiq_tx_block_t *sync_tx_block{};
+    int32_t *p_tx_status{};
+    uint32_t num_blocks{};
+
+
+    /* work() parameters */
+    double dac_scaling{};
+    size_t last_status_update_sample{};
+    size_t status_update_rate_in_samples{};
+    uint32_t last_num_tx_errors{};
+    uint32_t curr_block{};
+    std::vector<gr_complex> temp_buffer;
+    int32_t tx_buffer_size{};
+    uint64_t timestamp{};
+
+    /* bursting */
+    uint32_t bursting_cmd{};
+    std::vector<tag_t> _tags;    
+    uint64_t burst_length{};
+    uint64_t burst_samples_sent{};
+    uint64_t previous_burst_tag_offset{};
+
+
+    /* displaying info in work() needs to stop after a few calls */
+    uint32_t debug_ctr{};
+
+};
+
+} // namespace sidekiq
 } // namespace gr
 
 #endif /* INCLUDED_SIDEKIQ_SIDEKIQ_TX_IMPL_H */
-

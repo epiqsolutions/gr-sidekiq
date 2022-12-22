@@ -1,72 +1,99 @@
-id: sidekiq_rx
+id: sidekiq_sidekiq_rx
 label: Sidekiq RX Source
+flags: hardware
 category: '[sidekiq]'
 
 templates:
-  imports: import sidekiq
-  make: sidekiq.sidekiq_rx(${card}, ${handle1}, ${handle2}, ${sample_rate}, ${gain}, ${gain_mode}, ${frequency}, ${bandwidth}, ${sync_type} )
-  callbacks: 
+  imports: from gnuradio import sidekiq
+  make: sidekiq.sidekiq_rx(${card}, ${handle1}, ${handle2}, ${sample_rate}, ${bandwidth}, ${frequency}, ${gain_mode}, ${gain_index}, ${cal_mode}, ${cal_type})
+  callbacks:
   - set_rx_sample_rate(${sample_rate})
-  - set_rx_gain(${gain})
-  - set_rx_frequency(${frequency})
   - set_rx_bandwidth(${bandwidth})
-  - set_rx_filter_override_taps(${filter_override_taps})
-  
+  - set_rx_frequency(${frequency})
+  - set_rx_gain_mode(${gain_mode})
+  - set_rx_gain_index(${gain_index})
+  - set_rx_cal_mode(${cal_mode})
+  - set_rx_cal_type(${cal_type})
+  - run_rx_cal(${run_cal})
+
+
 #  Make one 'parameters' list entry for every parameter you want settable from the GUI.
 #     Keys include:
 #     * id (makes the value accessible as keyname, e.g. in the make entry)
 #     * label (label shown in the GUI)
 #     * dtype (e.g. int, float, complex, byte, short, xxx_vector, ...)
-
+#     * default
 parameters:
 - id: card
   label: Card
   dtype: int
   default: 0
+
 - id: handle1
   label: Handle Id1
   dtype: enum
   options: ['0', '1', '2', '3', '4', '5']
   option_labels: ['RxA1', 'RxA2', 'RxB1', 'RxB2', 'RxC1', 'RxD1']
   default: 0
+
 - id: handle2
   label: Handle Id2
   dtype: enum
   options: ['100', '0', '1', '2', '3', '4', '5']
   option_labels: ['None', 'RxA1', 'RxA2', 'RxB1', 'RxB2', 'RxC1', 'RxD1']
   default: 100
+
 - id: sample_rate
   label: Sample Rate
   dtype: real
   default: 1e6
-- id: gain
-  label: Gain
-  dtype: int
-  default: 1
+
+- id: bandwidth
+  label: Bandwidth
+  default: 1e6
+  dtype: real
+
+- id: frequency
+  label: Frequency
+  dtype: real
+  default: 1000e6
+
 - id: gain_mode
   label: Gain Mode
   dtype: enum
   options: ['0', '1']
   option_labels: ['Manual', 'Auto']
   default: 0
-- id: frequency
-  label: Frequency
-  dtype: real
-  default: 2400e6
-- id: bandwidth
-  label: Bandwidth
-  default: 1e6
-  dtype: real
-- id: sync_type
-  label: Sync Type
-  dtype: enum
-  options: ['1','2', '3']
-  option_labels: ['Zero', 'GPS PPS', 'PC Clock']
-  default: 1
-- id: filter_override_taps
-  label: Filter Override Taps
-  dtype: real_vector
 
+- id: gain_index
+  label: Gain_index
+  hide: ${ ('all' if (gain_mode == '1') else 'part') }
+  dtype: int
+  default: 1
+
+- id: cal_mode
+  label: Calibration Mode
+  dtype: enum
+  options: ['0', '1', '2']
+  option_labels: ['Auto', 'Manual', 'off']
+  default: 0
+
+- id: cal_type
+  label: Calibration Type
+  dtype: enum
+  options: ['0', '1', '2']
+  option_labels: ['DC offset', 'Quadrature', 'Both']
+  default: 0
+
+
+- id: run_cal
+  label: Run Cal 
+  hide: ${ ('all' if (cal_mode == '0') else 'part') }
+  dtype: int
+  default: rx_run_calibration
+
+
+  
 #  Make one 'inputs' list entry per input and one 'outputs' list entry per output.
 #  Keys include:
 #      * label (an identifier for the GUI)
@@ -74,25 +101,72 @@ parameters:
 #      * dtype (e.g. int, float, complex, byte, short, xxx_vector, ...)
 #      * vlen (optional - data stream vector length. Default is 1)
 #      * optional (optional - set to 1 for optional inputs. Default is 0)
-
 inputs:
 - label: command
   domain: message
+  dtype: float
   optional: true
-  
+#- label: ...
+#  domain: ...
+#  dtype: ...
+#  vlen: ...
+#  optional: ...
+
 outputs:
+
 - label: Samples
   domain: stream
   dtype: complex
   multiplicity: ${ (2 if (handle2 != '100') else 1) }
   #  multiplicity: 2
-  vlen: 1018
   optional: false
-- label: telemetry
-  domain: message
-  optional: true
-  
+
+#- label: ...
+#  domain: ...
+#  dtype: ...
+#  vlen: ...
+#  optional: ...
+
+documentation: |-
+    A Source Block for Epiq Sidekiq SDRs.
+
+    Block features:
+        Dual Port - The Handles define how many ports are used on the card.  
+        One or two ports can be used.  If the handle is not available on the card, 
+        an error will occur when run.
+
+        RX Calibration - Set the mode to manual or auto, if manual the block needs 
+        to set run_cal to 1.
+
+        Configuration messages - The block also can receive the "freq", "rate", 
+        "bandwidth", and "gain" messages to modify those parameters.
+
+        Transceive - The block can be used with the TX block to allow Transceive mode.  
+        There will be a warning when the second block initializes.
+
+    Parameters:
+         Card: The card number of the Sidekiq card.
+
+         Handle: The handle (port) to use. There are two variables if dual port is used.
+
+         Sample_rate: The sample rate of the card.
+
+         Bandwidth: The bandwidth of the card.
+
+         Frequency: The LO frequency of the port.
+
+         Gain Mode: Auto or Manual, if Manual the gain_index must be set.
+
+         Gain Index: This is the gain index for the specific card.  Each hardware 
+         platform has a different valid range.
+
+         Calibration Mode: Auto or Manual, if Manual the run_cal is used to manually 
+         run the calibration.
+
+         run_cal: If in Manual Calibration Mode, a 1 for this parameter will force calibration to run.
+
+
+
 #  'file_format' specifies the version of the GRC yml format used in the file
 #  and should usually not be changed.
 file_format: 1
-
