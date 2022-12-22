@@ -1,3 +1,5 @@
+release/V1.0
+
 The SIDEKIQ OOT Module
 Basic implementation of source and sink blocks for Sidekiq radios
 - tags: sdr, sidekiq, skiq, epiq
