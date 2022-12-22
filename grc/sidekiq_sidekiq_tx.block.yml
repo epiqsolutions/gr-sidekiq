@@ -128,13 +128,16 @@ documentation: |-
         TX Calibration - Set the mode to manual or auto, if manual the block needs to set 
         run_cal to 1.
 
-        Bursting TX - To transmit a burst, the block needs to receive the "start_burst" 
-        message with a value of 1.  To turn bursting off send a start_burst 
-        message with a value of 0.  Then it uses the tx_burst stream tag to indicate 
+        Bursting TX - To transmit a burst, the block needs to receive the <burst_name> stream tag
+        If then name is "" then no bursting is supported.
+        It uses the <burst_tag_name stream tag to indicate 
         the start-of-burst and length.
 
-        Configuration messages - The block also can receive the "tx_freq", "tx_rate" 
+        Configuration messages - The block also can receive the "lo_freq", "rate", "bandwidth" and "attenuation" 
         messages to modify the LO frequency and sample rate.
+
+        Transceive - The block can be used with the RX block to allow Transceive mode.
+        There will be a warning when the second block initializes.
 
     Parameters:
          Card: The card number of the Sidekiq card.
@@ -147,9 +150,9 @@ documentation: |-
 
          Frequency: The LO frequency of the port.
 
-         Attenuation: The attenuation of the port.
+         Attenuation: The attenuation of the port. 
 
-         Threads: The number of threads. If '1' then running in sync mode.
+         Threads: The number of threads. If '1' then running in sync mode. 0 is not allowed.
 
          Buffer Size: The size of the TX buffer. The larger the buffer the faster 
          sample rate with no underruns.

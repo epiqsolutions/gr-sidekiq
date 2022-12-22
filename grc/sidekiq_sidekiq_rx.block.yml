@@ -138,13 +138,16 @@ documentation: |-
         RX Calibration - Set the mode to manual or auto, if manual the block needs 
         to set run_cal to 1.
 
-        Configuration messages - The block also can receive the "rx_freq", "rx_rate" 
+        Configuration messages - The block also can receive the "freq", "rate", "bandwidth", and "gain" 
         messages to modify the LO frequency and sample rate.
+
+        Transceive - The block can be used with the TX block to allow Transceive mode.  
+        There will be a warning when the second block initializes.
 
     Parameters:
          Card: The card number of the Sidekiq card.
 
-         Handle: The handle (port) to use.
+         Handle: The handle (port) to use. There are two variables if dual port is used.
 
          Sample_rate: The sample rate of the card.
 
@@ -155,12 +158,12 @@ documentation: |-
          Gain Mode: Auto or Manual, if Manual the gain_index must be set.
 
          Gain Index: This is the gain index for the specific card.  Each hardware 
-         platform has a valid range.
+         platform has a different valid range.
 
          Calibration Mode: Auto or Manual, if Manual the run_cal is used to manually 
          run the calibration.
 
-         run_cal: If in Manual Mode, the a 1 for this parameter will force calibration to run.
+         run_cal: If in Manual Calibration Mode, a 1 for this parameter will force calibration to run.
 
 
 
