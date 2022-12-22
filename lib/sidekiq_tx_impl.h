@@ -20,9 +20,6 @@
 #define BURSTING_ON             1
 #define NO_BURSTING_ENABLED     2
 
-#define TRANSCEIVE_ENABLED      1
-#define NO_TRANSCEIVE           0
-
 using pmt::pmt_t;
 
 namespace gr {
@@ -35,11 +32,13 @@ namespace sidekiq {
     /* message and tag keys */
     static const pmt_t CONTROL_MESSAGE_PORT{pmt::string_to_symbol("command")};
 
-    static const pmt_t TX_BURST_KEY{pmt::string_to_symbol("tx_burst")};
+    static const pmt_t LO_FREQ_KEY{pmt::string_to_symbol("lo_freq")};
 
-    static const pmt_t TX_FREQ_KEY{pmt::string_to_symbol("tx_freq")};
+    static const pmt_t RATE_KEY{pmt::string_to_symbol("rate")};
 
-    static const pmt_t TX_RATE_KEY{pmt::string_to_symbol("tx_rate")};
+    static const pmt_t BANDWIDTH_KEY{pmt::string_to_symbol("bandwidth")};
+
+    static const pmt_t ATTENUATION_KEY{pmt::string_to_symbol("attenuation")};
 
 class sidekiq_tx_impl : public sidekiq_tx
 {

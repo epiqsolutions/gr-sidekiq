@@ -11,7 +11,7 @@
 #include <volk/volk.h>
 #include <boost/asio.hpp>
 
-#define DEBUG_LEVEL "info" //Can be debug, info, warning, error, critical
+#define DEBUG_LEVEL "debug" //Can be debug, info, warning, error, critical
 
 using pmt::pmt_t;
 const pmt_t CONTROL_MESSAGE_PORT{pmt::string_to_symbol("command")};
@@ -104,7 +104,7 @@ sidekiq_rx_impl::sidekiq_rx_impl(
     else
     {
         libsidekiq_init = true;
-        printf("Info: libsidkiq initialized successfully\n");
+        d_logger->info("Info: libsidkiq initialized successfully");
     }
 
     set_rx_sample_rate(sample_rate);
@@ -114,11 +114,11 @@ sidekiq_rx_impl::sidekiq_rx_impl(
     status = skiq_read_rx_iq_resolution(card, &iq_resolution);
     if (status != 0)
     {
-        fprintf(stderr, "Error: unable to get iq resolution with status %d\n", status);
+        d_logger->error( "Error: unable to get iq resolution with status {}", status);
         throw std::runtime_error("Failure: skiq_read_tx_iq_resolution");
     }
     adc_scaling = (pow(2.0f, iq_resolution) / 2.0)-1;
-    printf("Info: adc scaling %f\n", adc_scaling);
+    d_logger->info("Info: adc scaling %f", adc_scaling);
 
 
     /* if A2 or B2 is used, we need to set the channel mode to dual */
@@ -128,7 +128,7 @@ sidekiq_rx_impl::sidekiq_rx_impl(
         status = skiq_write_chan_mode(card, skiq_chan_mode_dual);
         if (status != 0)
         {
-            fprintf(stderr, "Error: unable to configure TX channel mode with status %d\n", status);
+            d_logger->error( "Error: unable to configure TX channel mode with status {}", status);
             throw std::runtime_error("Failure: skiq_write_chan_mode");
         }
     }
@@ -136,7 +136,7 @@ sidekiq_rx_impl::sidekiq_rx_impl(
         status = skiq_write_chan_mode(card, skiq_chan_mode_single);
         if (status != 0)
         {
-            fprintf(stderr, "Error: unable to configure TX channel mode with status %d\n", status);
+            d_logger->error( "Error: unable to configure TX channel mode with status {}", status);
             throw std::runtime_error("Failure: skiq_write_chan_mode");
         }
     }
@@ -145,7 +145,7 @@ sidekiq_rx_impl::sidekiq_rx_impl(
     status = skiq_write_iq_pack_mode(card, SIDEKIQ_IQ_PACK_MODE_UNPACKED);
     if (status != 0)
     {
-        fprintf(stderr, "Error: unable to set iq pack mode to unpacked with status %d\n", status);
+        d_logger->error( "Error: unable to set iq pack mode to unpacked with status {}", status);
         throw std::runtime_error("Failure: skiq_write_iq_pack_mode");
     }
 
@@ -153,7 +153,7 @@ sidekiq_rx_impl::sidekiq_rx_impl(
     status = skiq_write_iq_order_mode(card, skiq_iq_order_iq) ;
     if (status != 0)
     {
-          fprintf(stderr, "Error: unable to set iq order mode to iq with status %d \n", status);
+          d_logger->error( "Error: unable to set iq order mode to iq with status {} ", status);
           throw std::runtime_error("Failure: skiq_write_iq_pack_mode");
     }
 
@@ -164,7 +164,12 @@ sidekiq_rx_impl::sidekiq_rx_impl(
     /* set the rest of the parameters */
     set_rx_frequency(frequency);
     set_rx_gain_mode(gain_mode);
-    set_rx_gain_index(gain_index);
+
+    if (gain_mode == skiq_rx_gain_manual)
+    {
+        set_rx_gain_index(gain_index);
+    }
+
     set_rx_cal_mode(cal_mode);
     set_rx_cal_type(cal_type);
 }
@@ -221,14 +226,24 @@ void sidekiq_rx_impl::handle_control_message(pmt_t msg)
          return;
      }
 
-    if (pmt::dict_has_key(msg, RX_FREQ_KEY)) 
+    if (pmt::dict_has_key(msg, LO_FREQ_KEY)) 
     {
-        set_rx_frequency(get_double_from_pmt_dict(msg, RX_FREQ_KEY));
+        set_rx_frequency(get_double_from_pmt_dict(msg, LO_FREQ_KEY));
     }
 
-    if (pmt::dict_has_key(msg, RX_RATE_KEY)) 
+    if (pmt::dict_has_key(msg, RATE_KEY)) 
     {
-        set_rx_sample_rate(get_double_from_pmt_dict(msg, RX_RATE_KEY));
+        set_rx_sample_rate(get_double_from_pmt_dict(msg, RATE_KEY));
+    }
+
+    if (pmt::dict_has_key(msg, BANDWIDTH_KEY)) 
+    {
+        set_rx_bandwidth(get_double_from_pmt_dict(msg, BANDWIDTH_KEY));
+    }
+
+    if (pmt::dict_has_key(msg, GAIN_KEY)) 
+    {
+        set_rx_gain_index(get_double_from_pmt_dict(msg, GAIN_KEY));
     }
 
 
@@ -237,7 +252,7 @@ void sidekiq_rx_impl::handle_control_message(pmt_t msg)
 /* 
  * start streaming
  * 
- * Called by generated python code
+ * Called by the generated python code
  */
 bool sidekiq_rx_impl::start() 
 {
@@ -248,7 +263,7 @@ bool sidekiq_rx_impl::start()
     status = skiq_start_rx_streaming(card, hdl1);
     if (status != 0)
     {
-        fprintf(stderr, "Error: could not start RX streaming on hdl1, status %d\n", status);
+        d_logger->error( "Error: could not start RX streaming on hdl1, status {}", status);
         throw std::runtime_error("Failure: skiq_start_rx_streaming");
     }
 
@@ -257,19 +272,23 @@ bool sidekiq_rx_impl::start()
         status = skiq_start_rx_streaming(card, hdl2);
         if (status != 0)
         {
-            fprintf(stderr, "Error: could not start RX streaming on hdl2, status %d\n", status);
+            d_logger->error( "Error: could not start RX streaming on hdl2, status {}", status);
             throw std::runtime_error("Failure: skiq_start_rx_streaming");
         }
     }
 
 
     rx_streaming = true;
-    printf("Info: RX streaming started\n");
+    d_logger->info("Info: RX streaming started");
 
     return block::start();
 }
 
-/* stop streaming */
+/* 
+ * stop streaming 
+ * 
+ * Called by the generated python code
+ */
 bool sidekiq_rx_impl::stop() 
 {
     int status = 0;
@@ -282,7 +301,7 @@ bool sidekiq_rx_impl::stop()
         status = skiq_stop_rx_streaming(card, hdl1);
         if (status != 0)
         {
-            fprintf(stderr, "Error: could not stop TX streaming on hdl1, status %d\n", status);
+            d_logger->error( "Error: could not stop TX streaming on hdl1, status {}", status);
             throw std::runtime_error("Failure: skiq_start_tx_streaming");
         }
         if (dual_port)
@@ -290,11 +309,11 @@ bool sidekiq_rx_impl::stop()
             status = skiq_stop_rx_streaming(card, hdl2);
             if (status != 0)
             {
-                fprintf(stderr, "Error: could not stop TX streaming on hdl2, status %d\n", status);
+                d_logger->error( "Error: could not stop TX streaming on hdl2, status {}", status);
                 throw std::runtime_error("Failure: skiq_start_tx_streaming");
             }
         }
-        printf("Info: RX streaming stopped\n");
+        d_logger->info("Info: RX streaming stopped");
     }
    
     rx_streaming = false; 
@@ -320,7 +339,7 @@ void sidekiq_rx_impl::set_rx_sample_rate(double value)
     status = skiq_write_rx_sample_rate_and_bandwidth(card, hdl1, rate, bw); 
     if (status != 0) 
     {
-        fprintf(stderr, "Error: could not set sample_rate on hdl1, status %d, %s\n", 
+        d_logger->error( "Error: could not set sample_rate on hdl1, status {}, %s", 
                 status, strerror(abs(status)) );
         throw std::runtime_error("Failure: set samplerate");
     }
@@ -330,12 +349,12 @@ void sidekiq_rx_impl::set_rx_sample_rate(double value)
         status = skiq_write_rx_sample_rate_and_bandwidth(card, hdl2, rate, bw); 
         if (status != 0) 
         {
-            fprintf(stderr, "Error: could not set sample_rate on hdl2, status %d, %s\n", 
+            d_logger->error( "Error: could not set sample_rate on hdl2, status {}, %s", 
                     status, strerror(abs(status)) );
             throw std::runtime_error("Failure: set samplerate");
         }
     }
-    printf("Info: sample_rate set to %d\n", rate);
+    d_logger->info("Info: sample_rate set to {}", rate);
 
     this->sample_rate = rate;
     this->bandwidth = bw;
@@ -359,7 +378,7 @@ void sidekiq_rx_impl::set_rx_bandwidth(double value)
     status = skiq_write_rx_sample_rate_and_bandwidth(card, hdl1, rate, bw); 
     if (status != 0) 
     {
-        fprintf(stderr,"Error: could not set bandwidth %d on hdl1, status %d, %s\n", 
+        d_logger->error("Error: could not set bandwidth {} on hdl1, status {}, %s", 
                 bw, status, strerror(abs(status)) );
         throw std::runtime_error("Failure: set bandwidth");
         return;
@@ -370,13 +389,13 @@ void sidekiq_rx_impl::set_rx_bandwidth(double value)
         status = skiq_write_rx_sample_rate_and_bandwidth(card, hdl2, rate, bw); 
         if (status != 0) 
         {
-            fprintf(stderr,"Error: could not set bandwidth %d on hdl2, status %d, %s\n", 
+            d_logger->error("Error: could not set bandwidth {} on hdl2, status {}, %s", 
                     bw, status, strerror(abs(status)) );
             throw std::runtime_error("Failure: set bandwidth");
             return;
         }
     }
-    printf("Info: bandwidth set to %d\n", bw);
+    d_logger->info("Info: bandwidth set to {}", bw);
 
     this->sample_rate = rate;
     this->bandwidth = bw;
@@ -399,7 +418,7 @@ void sidekiq_rx_impl::set_rx_frequency(double value)
     status = skiq_write_rx_LO_freq(card, hdl1, freq);
     if (status != 0) 
     {
-        fprintf(stderr,"Error: could not set frequency %ld on hdl1, status %d, %s\n", 
+        d_logger->error("Error: could not set frequency %ld on hdl1, status {}, %s", 
                 freq, status, strerror(abs(status)) );
         throw std::runtime_error("Failure: set frequency");
         return;
@@ -410,14 +429,14 @@ void sidekiq_rx_impl::set_rx_frequency(double value)
         status = skiq_write_rx_LO_freq(card, hdl2, freq);
         if (status != 0) 
         {
-            fprintf(stderr,"Error: could not set frequency %ld on hdl2, status %d, %s\n", 
+            d_logger->error("Error: could not set frequency %ld on hdl2, status {}, %s", 
                     freq, status, strerror(abs(status)) );
             throw std::runtime_error("Failure: set frequency");
             return;
         }
     }
 
-    printf("Info: frequency set to %ld\n", freq);
+    d_logger->info("Info: frequency set to %ld", freq);
 
     this->frequency = freq;
 }
@@ -439,7 +458,7 @@ void sidekiq_rx_impl::set_rx_gain_mode(double value)
     status = skiq_write_rx_gain_mode(card, hdl1, gain_mode);
     if (status != 0) 
     {
-        fprintf(stderr,"Error: write_rx_gain_mode failed on hdl1, status %d, %s\n", 
+        d_logger->error("Error: write_rx_gain_mode failed on hdl1, status {}, %s", 
                 status, strerror(abs(status)) );
         throw std::runtime_error("Failure: set write_rx_gain_mode");
         return;
@@ -450,14 +469,14 @@ void sidekiq_rx_impl::set_rx_gain_mode(double value)
         status = skiq_write_rx_gain_mode(card, hdl2, gain_mode);
         if (status != 0) 
         {
-            fprintf(stderr,"Error: write_rx_gain_mode failed on hdl2, status %d, %s\n", 
+            d_logger->error("Error: write_rx_gain_mode failed on hdl2, status {}, %s", 
                     status, strerror(abs(status)) );
             throw std::runtime_error("Failure: set write_rx_gain_mode");
             return;
         }
     }
 
-    printf("Info: gain_mode set to %d\n", gain_mode);
+    d_logger->info("Info: gain_mode set to {}", gain_mode);
 
     this->gain_mode = gain_mode;
     
@@ -484,16 +503,16 @@ void sidekiq_rx_impl::set_rx_gain_index(int value)
         status = skiq_read_rx_gain_index_range(card, hdl1, &min_range, &max_range);
         if (status != 0) 
         {
-            fprintf(stderr,"Error: read_rx_gain_index failed, status %d, %s\n", 
+            d_logger->error("Error: read_rx_gain_index failed, status {}, %s", 
                     status, strerror(abs(status)) );
             throw std::runtime_error("Failure: set read_rx_gain_index");
             return;
         }
-        printf("Info: gain range for current frequency is %d - %d\n", min_range, max_range);
+        d_logger->info("Info: gain range for current frequency is {} - {}", min_range, max_range);
 
         if (gain > max_range || gain < min_range)
         {
-            fprintf(stderr,"Error: gain_index %d is out of range\n", gain);
+            d_logger->error("Error: gain_index {} is out of range", gain);
             throw std::runtime_error("Failure: gain index is out of range");
             return;
         }
@@ -501,7 +520,7 @@ void sidekiq_rx_impl::set_rx_gain_index(int value)
         status = skiq_write_rx_gain(card, hdl1, gain);
         if (status != 0) 
         {
-            fprintf(stderr,"Error: write_rx_gain failed on hdl1, status %d, %s\n", 
+            d_logger->error("Error: write_rx_gain failed on hdl1, status {}, %s", 
                     status, strerror(abs(status)) );
             throw std::runtime_error("Failure: set read_rx_gain_index");
             return;
@@ -512,16 +531,20 @@ void sidekiq_rx_impl::set_rx_gain_index(int value)
             status = skiq_write_rx_gain(card, hdl2, gain);
             if (status != 0) 
             {
-                fprintf(stderr,"Error: write_rx_gain failed on hdl2, status %d, %s\n", 
+                d_logger->error("Error: write_rx_gain failed on hdl2, status {}, %s", 
                         status, strerror(abs(status)) );
                 throw std::runtime_error("Failure: set read_rx_gain_index");
                 return;
             }
         }
 
-        printf("Info: gain index %d\n", gain); 
+        d_logger->info("Info: gain index {}", gain); 
 
         this->gain_index = gain;
+    }
+    else
+    {
+        d_logger->warn("set_gain_index called but in Auto Gain Mode");
     }
 }
 
@@ -541,7 +564,7 @@ void sidekiq_rx_impl::set_rx_cal_mode(int value)
     if (value == CAL_OFF)
     {
         cal_enabled = false;
-        printf("Info: cal_mode set to off\n");
+        d_logger->info("Info: cal_mode set to off");
     }
     else
     {
@@ -554,12 +577,12 @@ void sidekiq_rx_impl::set_rx_cal_mode(int value)
         {
             if( status != -ENOTSUP )
             {
-                fprintf(stderr, "Error: failed to configure RX calibration mode with %" PRIi32 "\n", status);
+                d_logger->error( "Error: failed to configure RX calibration mode with %" PRIi32 "", status);
                 throw std::runtime_error("Failure: set rx_cal_mode");
             }
             else
             {
-                printf("Warning: calibration mode %d unsupported with product\n", cmode);
+                d_logger->warn("Warning: calibration mode {} unsupported with product", cmode);
             }
         }
 
@@ -570,18 +593,18 @@ void sidekiq_rx_impl::set_rx_cal_mode(int value)
             {
                 if( status != -ENOTSUP )
                 {
-                    fprintf(stderr, "Error: failed to configure RX calibration mode with %" PRIi32 "\n", status);
+                    d_logger->error( "Error: failed to configure RX calibration mode with %" PRIi32 "", status);
                     throw std::runtime_error("Failure: set rx_cal_mode");
                 }
                 else
                 {
-                    printf("Warning: calibration mode %d unsupported with product\n", cmode);
+                    d_logger->warn("Warning: calibration mode {} unsupported with product", cmode);
                 }
             }
         }
 
         this->cal_mode = cmode;
-        printf("Info: cal_mode set to %d\n", cmode);
+        d_logger->info("Info: cal_mode set to {}", cmode);
     }
 
 }
@@ -601,7 +624,8 @@ void sidekiq_rx_impl::set_rx_cal_type(int value)
     uint32_t cal_mask = (uint32_t)(skiq_rx_cal_type_none);
 
     d_logger->debug("in set_cal_type");
-    
+
+    /* The cal_mask is a bitmap of the types of calibration */    
     if (cal_enabled == true)
     {
         if (value == CAL_TYPE_BOTH)
@@ -617,27 +641,29 @@ void sidekiq_rx_impl::set_rx_cal_type(int value)
             cal_mask = skiq_rx_cal_type_quadrature;
         }
 
+        /* read in what this card can handle */
         uint32_t read_cal_mask = 0;
         if( (status = skiq_read_rx_cal_types_avail( card, hdl1, &read_cal_mask )) == 0 )
         {
             if( read_cal_mask != cal_mask )
             {
-                printf("Warning: RX calibration mask available for card is (0x%x)" 
-                       " does not match what is desired (0x%x)\n",
+                d_logger->warn("Warning: RX calibration mask available for card is (0x%x)" 
+                       " does not match what is desired (0x%x)",
                        read_cal_mask, cal_mask);
-                printf("Info: Setting cal_mask to 0x%x\n", read_cal_mask);
+                d_logger->info("Info: Setting cal_mask to 0x%x", read_cal_mask);
                 cal_mask = read_cal_mask;
             }
         }
         else
         {
-            printf("Error: unable to read calibration mask (status=%d)\n", status);
+            d_logger->error("Error: unable to read calibration mask (status={})", status);
         }
 
+        /* write the cal mask */
         status = skiq_write_rx_cal_type_mask( card, hdl1, cal_mask );
         if( status != 0 )
         {
-            fprintf(stderr, "Error: failed to configure RX calibration type with status %" PRIi32 "\n", status);
+            d_logger->error( "Error: failed to configure RX calibration type with status %" PRIi32 "", status);
             throw std::runtime_error("Failure: set rx_cal_type");
         }
 
@@ -646,12 +672,12 @@ void sidekiq_rx_impl::set_rx_cal_type(int value)
             status = skiq_write_rx_cal_type_mask( card, hdl2, cal_mask );
             if( status != 0 )
             {
-                fprintf(stderr, "Error: failed to configure RX calibration type with status %" PRIi32 "\n", status);
+                d_logger->error( "Error: failed to configure RX calibration type with status %" PRIi32 "", status);
                 throw std::runtime_error("Failure: set rx_cal_type");
             }
         }
 
-        printf("Info: rx cal_mask 0x%2X, written successfully\n", cal_mask);
+        d_logger->info("Info: rx cal_mask 0x%2X, written successfully", cal_mask);
 
     }
 
@@ -673,11 +699,11 @@ void sidekiq_rx_impl::run_rx_cal(int value)
      * and this call has the right parameter */
     if ((value == RUN_CAL) && (cal_enabled == true) && (cal_mode == skiq_rx_cal_mode_manual) )
     {    
-        printf("in run_rx_cal() \n");
+        d_logger->debug("in run_rx_cal() ");
         status = skiq_run_rx_cal( card, hdl1);
         if( status != 0 )
         {
-            fprintf(stderr, "Error: run_rx_cal failed with status %" PRIi32 "\n", status);
+            d_logger->error( "Error: run_rx_cal failed with status %" PRIi32 "", status);
             throw std::runtime_error("Failure: set rx_cal_type");
         }
 
@@ -686,12 +712,12 @@ void sidekiq_rx_impl::run_rx_cal(int value)
             status = skiq_run_rx_cal( card, hdl1);
             if( status != 0 )
             {
-                fprintf(stderr, "Error: run_rx_cal failed with status %" PRIi32 "\n", status);
+                d_logger->error( "Error: run_rx_cal failed with status %" PRIi32 "", status);
                 throw std::runtime_error("Failure: set rx_cal_type");
             }
         }
 
-        printf("Info: run_rx_cal executed\n");
+        d_logger->info("Info: run_rx_cal executed");
     }
 }
 
@@ -727,7 +753,7 @@ uint32_t sidekiq_rx_impl::get_new_block(uint32_t portno)
             }
             else
             {
-              fprintf(stderr, "Error : invalid hdl received %d\n", tmp_hdl);
+              d_logger->error( "Error : invalid hdl received {}", tmp_hdl);
               throw std::runtime_error("Failure:  invalid handle");
             }
 
@@ -737,7 +763,7 @@ uint32_t sidekiq_rx_impl::get_new_block(uint32_t portno)
         } 
         else if (status != skiq_rx_status_no_data)
         {
-          fprintf(stderr, "Error : skiq_rcv failure, status %d\n", status);
+          d_logger->error( "Error : skiq_rcv failure, status {}", status);
           throw std::runtime_error("Failure: skiq_receive failure");
         }
     }
@@ -881,12 +907,6 @@ int sidekiq_rx_impl::work(int noutput_items,
                 curr_block_ptr[portno] = NULL;
             }
 
-            if (debug_ctr < 2)
-            {
-                d_logger->debug("portno {}, samples_to_write {}, curr_block_samples_left {}, samples_written {}", 
-                        portno, samples_to_write[portno], curr_block_samples_left[portno], 
-                        samples_written[portno]);
-            }
         }
 
         /* determine if we are done with this work() call */

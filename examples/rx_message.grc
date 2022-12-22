@@ -74,7 +74,7 @@ blocks:
     bus_structure: null
     coordinate: [784, 36.0]
     rotation: 0
-    state: true
+    state: enabled
 - name: run_rx_calibration
   id: variable_qtgui_push_button
   parameters:
@@ -134,8 +134,8 @@ blocks:
     gui_hint: ''
     is_pair: 'True'
     is_static: 'False'
-    key: rx_freq
-    label: ''
+    key: lo_freq
+    label: frequency_message
     maxoutbuf: '0'
     minoutbuf: '0'
     type: double
@@ -144,7 +144,7 @@ blocks:
     bus_sink: false
     bus_source: false
     bus_structure: null
-    coordinate: [152, 212.0]
+    coordinate: [336, 188.0]
     rotation: 0
     state: true
 - name: qtgui_edit_box_msg_1
@@ -156,8 +156,8 @@ blocks:
     gui_hint: ''
     is_pair: 'True'
     is_static: 'False'
-    key: rx_rate
-    label: ''
+    key: rate
+    label: sample_rate_message
     maxoutbuf: '0'
     minoutbuf: '0'
     type: double
@@ -166,7 +166,51 @@ blocks:
     bus_sink: false
     bus_source: false
     bus_structure: null
-    coordinate: [152, 348.0]
+    coordinate: [336, 508.0]
+    rotation: 0
+    state: true
+- name: qtgui_edit_box_msg_2
+  id: qtgui_edit_box_msg
+  parameters:
+    affinity: ''
+    alias: ''
+    comment: ''
+    gui_hint: ''
+    is_pair: 'True'
+    is_static: 'False'
+    key: bandwidth
+    label: bandwidth_message
+    maxoutbuf: '0'
+    minoutbuf: '0'
+    type: double
+    value: '8000000'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [56, 260.0]
+    rotation: 0
+    state: true
+- name: qtgui_edit_box_msg_3
+  id: qtgui_edit_box_msg
+  parameters:
+    affinity: ''
+    alias: ''
+    comment: ''
+    gui_hint: ''
+    is_pair: 'True'
+    is_static: 'False'
+    key: gain
+    label: gain_message
+    maxoutbuf: '0'
+    minoutbuf: '0'
+    type: double
+    value: '10'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [56, 452.0]
     rotation: 0
     state: true
 - name: qtgui_freq_sink_x_0
@@ -247,7 +291,7 @@ blocks:
     bus_sink: false
     bus_source: false
     bus_structure: null
-    coordinate: [1048, 380.0]
+    coordinate: [1232, 364.0]
     rotation: 0
     state: true
 - name: qtgui_time_sink_x_0
@@ -344,7 +388,7 @@ blocks:
     bus_sink: false
     bus_source: false
     bus_structure: null
-    coordinate: [1048, 252.0]
+    coordinate: [1232, 236.0]
     rotation: 0
     state: true
 - name: sidekiq_sidekiq_rx_0
@@ -370,13 +414,15 @@ blocks:
     bus_sink: false
     bus_source: false
     bus_structure: null
-    coordinate: [608, 260.0]
+    coordinate: [792, 244.0]
     rotation: 0
     state: true
 
 connections:
 - [qtgui_edit_box_msg_0, msg, sidekiq_sidekiq_rx_0, command]
 - [qtgui_edit_box_msg_1, msg, sidekiq_sidekiq_rx_0, command]
+- [qtgui_edit_box_msg_2, msg, sidekiq_sidekiq_rx_0, command]
+- [qtgui_edit_box_msg_3, msg, sidekiq_sidekiq_rx_0, command]
 - [sidekiq_sidekiq_rx_0, '0', qtgui_freq_sink_x_0, '0']
 - [sidekiq_sidekiq_rx_0, '0', qtgui_time_sink_x_0, '0']
 

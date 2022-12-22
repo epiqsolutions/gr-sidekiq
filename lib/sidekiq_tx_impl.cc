@@ -350,16 +350,25 @@ void sidekiq_tx_impl::handle_control_message(pmt_t msg)
          return;
      }
 
-    if (pmt::dict_has_key(msg, TX_FREQ_KEY)) 
+    if (pmt::dict_has_key(msg, LO_FREQ_KEY)) 
     {
-        set_tx_frequency(get_double_from_pmt_dict(msg, TX_FREQ_KEY));
+        set_tx_frequency(get_double_from_pmt_dict(msg, LO_FREQ_KEY));
     }
 
-    if (pmt::dict_has_key(msg, TX_RATE_KEY)) 
+    if (pmt::dict_has_key(msg, RATE_KEY)) 
     {
-        set_tx_sample_rate(get_double_from_pmt_dict(msg, TX_RATE_KEY));
+        set_tx_sample_rate(get_double_from_pmt_dict(msg, RATE_KEY));
     }
 
+    if (pmt::dict_has_key(msg, BANDWIDTH_KEY)) 
+    {
+        set_tx_bandwidth(get_double_from_pmt_dict(msg, BANDWIDTH_KEY));
+    }
+
+    if (pmt::dict_has_key(msg, ATTENUATION_KEY)) 
+    {
+        set_tx_attenuation(get_double_from_pmt_dict(msg, ATTENUATION_KEY));
+    }
 }
 
 

@@ -79,7 +79,7 @@ class fm_radio(gr.top_block, Qt.QWidget):
         ##################################################
         self.volume = volume = .2
         self.sample_rate = sample_rate = 240000
-        self.frequency = frequency = 88.1e6
+        self.frequency = frequency = 91.5e6
         self.bandwidth = bandwidth = 200000
 
         ##################################################
@@ -89,9 +89,9 @@ class fm_radio(gr.top_block, Qt.QWidget):
         self._volume_win = RangeWidget(self._volume_range, self.set_volume, "'volume'", "counter", float, QtCore.Qt.Horizontal)
         self.top_layout.addWidget(self._volume_win)
         # Create the options list
-        self._frequency_options = [88100000.0, 90100000.0, 90900000.0, 107900000.0]
+        self._frequency_options = [91500000.0, 94700000.0, 96300000.0, 97900000.0]
         # Create the labels list
-        self._frequency_labels = ['ch 88.1', 'ch 90.1', 'ch 90.9', '107.9']
+        self._frequency_labels = ['Public Radio', 'Classic Hits', 'Hip Hop', 'Christian']
         # Create the combo box
         # Create the radio buttons
         self._frequency_group_box = Qt.QGroupBox("'frequency'" + ": ")
@@ -113,7 +113,7 @@ class fm_radio(gr.top_block, Qt.QWidget):
         self._frequency_button_group.buttonClicked[int].connect(
             lambda i: self.set_frequency(self._frequency_options[i]))
         self.top_layout.addWidget(self._frequency_group_box)
-        self.sidekiq_sidekiq_rx_0 = sidekiq.sidekiq_rx(0, 0, 100, sample_rate, bandwidth, frequency, 1, 1, 1, 0)
+        self.sidekiq_sidekiq_rx_0 = sidekiq.sidekiq_rx(1, 0, 100, sample_rate, bandwidth, frequency, 1, 1, 1, 0)
         self.sidekiq_sidekiq_rx_0.set_max_output_buffer(16000)
         self.blocks_multiply_const_vxx_0 = blocks.multiply_const_ff(volume)
         self.audio_sink_0 = audio.sink(48000, '', True)

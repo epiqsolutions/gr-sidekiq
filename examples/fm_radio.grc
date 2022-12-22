@@ -51,30 +51,51 @@ blocks:
     comment: ''
     gui_hint: ''
     label: ''
-    label0: ch 88.1
-    label1: ch 90.1
-    label2: ch 90.9
-    label3: '107.9'
+    label0: Public Radio
+    label1: Classic Hits
+    label2: Hip Hop
+    label3: Christian
     label4: ''
     labels: '[]'
     num_opts: '4'
-    option0: 88.1e6
-    option1: 90.1e6
-    option2: 90.9e6
-    option3: 107.9e6
+    option0: 91.5e6
+    option1: 94.7e6
+    option2: 96.3e6
+    option3: 97.9e6
     option4: '4'
     options: '[0, 1, 2]'
     orient: Qt.QVBoxLayout
     type: real
-    value: 88.1e6
+    value: 91.5e6
     widget: radio_buttons
   states:
     bus_sink: false
     bus_source: false
     bus_structure: null
-    coordinate: [784, 12.0]
+    coordinate: [784, 20.0]
     rotation: 0
-    state: true
+    state: enabled
+- name: frequency
+  id: variable_qtgui_range
+  parameters:
+    comment: ''
+    gui_hint: ''
+    label: frequency
+    min_len: '200'
+    orient: QtCore.Qt.Horizontal
+    rangeType: float
+    start: 88e6
+    step: 2e5
+    stop: 108e6
+    value: 91.5e6
+    widget: counter_slider
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [1112, 36.0]
+    rotation: 0
+    state: disabled
 - name: sample_rate
   id: variable
   parameters:
@@ -173,7 +194,7 @@ blocks:
     bandwidth: bandwidth
     cal_mode: '1'
     cal_type: '0'
-    card: '0'
+    card: '1'
     comment: ''
     frequency: frequency
     gain_index: '1'

@@ -93,7 +93,7 @@ blocks:
     bus_sink: false
     bus_source: false
     bus_structure: null
-    coordinate: [696, 60.0]
+    coordinate: [688, 60.0]
     rotation: 0
     state: true
 - name: min_output_buffer
@@ -186,7 +186,7 @@ blocks:
     bus_sink: false
     bus_source: false
     bus_structure: null
-    coordinate: [240, 516.0]
+    coordinate: [488, 508.0]
     rotation: 0
     state: true
 - name: qtgui_edit_box_msg_0
@@ -198,17 +198,17 @@ blocks:
     gui_hint: ''
     is_pair: 'True'
     is_static: 'False'
-    key: tx_freq
-    label: ''
+    key: lo_freq
+    label: frequency_message
     maxoutbuf: '0'
     minoutbuf: '0'
     type: double
-    value: '1000000000'
+    value: 1e9
   states:
     bus_sink: false
     bus_source: false
     bus_structure: null
-    coordinate: [240, 188.0]
+    coordinate: [488, 212.0]
     rotation: 0
     state: true
 - name: qtgui_edit_box_msg_1
@@ -220,17 +220,61 @@ blocks:
     gui_hint: ''
     is_pair: 'True'
     is_static: 'False'
-    key: tx_rate
-    label: ''
+    key: rate
+    label: sample_rate_message
     maxoutbuf: '0'
     minoutbuf: '0'
     type: double
-    value: '10000000'
+    value: 10e6
   states:
     bus_sink: false
     bus_source: false
     bus_structure: null
-    coordinate: [240, 332.0]
+    coordinate: [488, 356.0]
+    rotation: 0
+    state: true
+- name: qtgui_edit_box_msg_2
+  id: qtgui_edit_box_msg
+  parameters:
+    affinity: ''
+    alias: ''
+    comment: ''
+    gui_hint: ''
+    is_pair: 'True'
+    is_static: 'False'
+    key: bandwidth
+    label: bandwidth_message
+    maxoutbuf: '0'
+    minoutbuf: '0'
+    type: double
+    value: '8000000'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [48, 284.0]
+    rotation: 0
+    state: true
+- name: qtgui_edit_box_msg_3
+  id: qtgui_edit_box_msg
+  parameters:
+    affinity: ''
+    alias: ''
+    comment: ''
+    gui_hint: ''
+    is_pair: 'True'
+    is_static: 'False'
+    key: attenuation
+    label: attenuation_message
+    maxoutbuf: '0'
+    minoutbuf: '0'
+    type: double
+    value: '125'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [48, 436.0]
     rotation: 0
     state: true
 - name: sidekiq_sidekiq_tx_0
@@ -241,6 +285,7 @@ blocks:
     attenuation: attenuation
     bandwidth: bandwidth
     buffer_size: '1020'
+    burst_tag: ''
     cal_mode: '1'
     card: '0'
     comment: ''
@@ -253,7 +298,7 @@ blocks:
     bus_sink: false
     bus_source: false
     bus_structure: null
-    coordinate: [1016, 476.0]
+    coordinate: [1080, 276.0]
     rotation: 0
     state: true
 
@@ -261,6 +306,8 @@ connections:
 - [analog_sig_source_x_0, '0', sidekiq_sidekiq_tx_0, '0']
 - [qtgui_edit_box_msg_0, msg, sidekiq_sidekiq_tx_0, command]
 - [qtgui_edit_box_msg_1, msg, sidekiq_sidekiq_tx_0, command]
+- [qtgui_edit_box_msg_2, msg, sidekiq_sidekiq_tx_0, command]
+- [qtgui_edit_box_msg_3, msg, sidekiq_sidekiq_tx_0, command]
 
 metadata:
   file_format: 1

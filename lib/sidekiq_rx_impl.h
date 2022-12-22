@@ -38,9 +38,13 @@ namespace sidekiq {
 
     const pmt_t CONTROL_MESSAGE_PORT{pmt::string_to_symbol("command")};
 
-    static const pmt_t RX_FREQ_KEY{pmt::string_to_symbol("rx_freq")};
+    static const pmt_t LO_FREQ_KEY{pmt::string_to_symbol("lo_freq")};
 
-    static const pmt_t RX_RATE_KEY{pmt::string_to_symbol("rx_rate")};
+    static const pmt_t RATE_KEY{pmt::string_to_symbol("rate")};
+
+    static const pmt_t BANDWIDTH_KEY{pmt::string_to_symbol("bandwidth")};
+
+    static const pmt_t GAIN_KEY{pmt::string_to_symbol("gain")};
 
 class sidekiq_rx_impl : public sidekiq_rx {
 public:
