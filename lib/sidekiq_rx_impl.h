@@ -26,6 +26,7 @@
 #define NO_TRANSCEIVE           0
 #define TRANSCEIVE_ENABLED      1
 
+#define PKT_TIMEOUT             1000000 // 1ms
 
 using pmt::pmt_t;
 

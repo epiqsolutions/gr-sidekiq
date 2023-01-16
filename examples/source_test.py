@@ -78,6 +78,7 @@ class source_test(gr.top_block, Qt.QWidget):
         self.sample_rate = sample_rate = 10e6
         self.samp_rate = samp_rate = 32000
         self.run_rx_calibration = run_rx_calibration = 0
+        self.gain_index = gain_index = 10
         self.frequency = frequency = 1000e6
         self.bandwidth = bandwidth = sample_rate * .8
 
@@ -87,14 +88,17 @@ class source_test(gr.top_block, Qt.QWidget):
         self._sample_rate_range = Range(1e6, 250e6, 1e6, 10e6, 200)
         self._sample_rate_win = RangeWidget(self._sample_rate_range, self.set_sample_rate, "'sample_rate'", "counter_slider", float, QtCore.Qt.Horizontal)
         self.top_layout.addWidget(self._sample_rate_win)
+        self._gain_index_range = Range(0, 255, 1, 10, 200)
+        self._gain_index_win = RangeWidget(self._gain_index_range, self.set_gain_index, "Gain Index", "counter_slider", int, QtCore.Qt.Horizontal)
+        self.top_layout.addWidget(self._gain_index_win)
         self._frequency_range = Range(250e6, 6000e6, 1e6, 1000e6, 200)
         self._frequency_win = RangeWidget(self._frequency_range, self.set_frequency, "'frequency'", "counter_slider", float, QtCore.Qt.Horizontal)
         self.top_layout.addWidget(self._frequency_win)
         self._bandwidth_range = Range(1e6, 250e6, 1e6, sample_rate * .8, 200)
         self._bandwidth_win = RangeWidget(self._bandwidth_range, self.set_bandwidth, "'bandwidth'", "counter_slider", float, QtCore.Qt.Horizontal)
         self.top_layout.addWidget(self._bandwidth_win)
-        self.sidekiq_sidekiq_rx_0 = sidekiq.sidekiq_rx(0, 0, 100, sample_rate, bandwidth, frequency, 1, 1, 0, 0)
-        self.sidekiq_sidekiq_rx_0.set_max_output_buffer(16000)
+        self.sidekiq_sidekiq_rx_0 = sidekiq.sidekiq_rx(1, 0, 100, sample_rate, bandwidth, frequency, 1, gain_index, 0, 0)
+        self.sidekiq_sidekiq_rx_0.set_max_output_buffer(32000)
         _run_rx_calibration_push_button = Qt.QPushButton('Run RX Calibration')
         _run_rx_calibration_push_button = Qt.QPushButton('Run RX Calibration')
         self._run_rx_calibration_choices = {'Pressed': 1, 'Released': 0}
@@ -194,27 +198,11 @@ class source_test(gr.top_block, Qt.QWidget):
 
         self._qtgui_freq_sink_x_0_win = sip.wrapinstance(self.qtgui_freq_sink_x_0.qwidget(), Qt.QWidget)
         self.top_layout.addWidget(self._qtgui_freq_sink_x_0_win)
-        self.qtgui_edit_box_msg_3 = qtgui.edit_box_msg(qtgui.DOUBLE, '10', 'gain_message', True, False, 'gain', None)
-        self._qtgui_edit_box_msg_3_win = sip.wrapinstance(self.qtgui_edit_box_msg_3.qwidget(), Qt.QWidget)
-        self.top_layout.addWidget(self._qtgui_edit_box_msg_3_win)
-        self.qtgui_edit_box_msg_2 = qtgui.edit_box_msg(qtgui.DOUBLE, '8000000', 'bandwidth_message', True, False, 'bandwidth', None)
-        self._qtgui_edit_box_msg_2_win = sip.wrapinstance(self.qtgui_edit_box_msg_2.qwidget(), Qt.QWidget)
-        self.top_layout.addWidget(self._qtgui_edit_box_msg_2_win)
-        self.qtgui_edit_box_msg_1 = qtgui.edit_box_msg(qtgui.DOUBLE, '10000000', 'sample_rate_message', True, False, 'rate', None)
-        self._qtgui_edit_box_msg_1_win = sip.wrapinstance(self.qtgui_edit_box_msg_1.qwidget(), Qt.QWidget)
-        self.top_layout.addWidget(self._qtgui_edit_box_msg_1_win)
-        self.qtgui_edit_box_msg_0 = qtgui.edit_box_msg(qtgui.DOUBLE, '1000000000', 'frequency_message', True, False, 'lo_freq', None)
-        self._qtgui_edit_box_msg_0_win = sip.wrapinstance(self.qtgui_edit_box_msg_0.qwidget(), Qt.QWidget)
-        self.top_layout.addWidget(self._qtgui_edit_box_msg_0_win)
 
 
         ##################################################
         # Connections
         ##################################################
-        self.msg_connect((self.qtgui_edit_box_msg_0, 'msg'), (self.sidekiq_sidekiq_rx_0, 'command'))
-        self.msg_connect((self.qtgui_edit_box_msg_1, 'msg'), (self.sidekiq_sidekiq_rx_0, 'command'))
-        self.msg_connect((self.qtgui_edit_box_msg_2, 'msg'), (self.sidekiq_sidekiq_rx_0, 'command'))
-        self.msg_connect((self.qtgui_edit_box_msg_3, 'msg'), (self.sidekiq_sidekiq_rx_0, 'command'))
         self.connect((self.sidekiq_sidekiq_rx_0, 0), (self.qtgui_freq_sink_x_0, 0))
         self.connect((self.sidekiq_sidekiq_rx_0, 0), (self.qtgui_time_sink_x_0, 0))
 
@@ -249,6 +237,13 @@ class source_test(gr.top_block, Qt.QWidget):
     def set_run_rx_calibration(self, run_rx_calibration):
         self.run_rx_calibration = run_rx_calibration
         self.sidekiq_sidekiq_rx_0.run_rx_cal(self.run_rx_calibration)
+
+    def get_gain_index(self):
+        return self.gain_index
+
+    def set_gain_index(self, gain_index):
+        self.gain_index = gain_index
+        self.sidekiq_sidekiq_rx_0.set_rx_gain_index(self.gain_index)
 
     def get_frequency(self):
         return self.frequency

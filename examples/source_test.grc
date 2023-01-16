@@ -75,6 +75,27 @@ blocks:
     coordinate: [784, 36.0]
     rotation: 0
     state: true
+- name: gain_index
+  id: variable_qtgui_range
+  parameters:
+    comment: ''
+    gui_hint: ''
+    label: Gain Index
+    min_len: '200'
+    orient: QtCore.Qt.Horizontal
+    rangeType: int
+    start: '0'
+    step: '1'
+    stop: '255'
+    value: '10'
+    widget: counter_slider
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [1144, 52.0]
+    rotation: 0
+    state: true
 - name: run_rx_calibration
   id: variable_qtgui_push_button
   parameters:
@@ -309,16 +330,16 @@ blocks:
     affinity: ''
     alias: ''
     bandwidth: bandwidth
-    cal_mode: '1'
+    cal_mode: '0'
     cal_type: '0'
-    card: '0'
+    card: '1'
     comment: ''
     frequency: frequency
-    gain_index: '1'
+    gain_index: gain_index
     gain_mode: '1'
     handle1: '0'
     handle2: '100'
-    maxoutbuf: '16000'
+    maxoutbuf: '32000'
     minoutbuf: '0'
     run_cal: run_rx_calibration
     sample_rate: sample_rate

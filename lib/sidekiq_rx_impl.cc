@@ -157,6 +157,13 @@ sidekiq_rx_impl::sidekiq_rx_impl(
           throw std::runtime_error("Failure: skiq_write_iq_pack_mode");
     }
 
+    status = skiq_set_rx_transfer_timeout(card, PKT_TIMEOUT) ;
+    if (status != 0)
+    {
+          d_logger->error( "Error: unable to set transfer timeout with status {} ", status);
+          throw std::runtime_error("Failure: skiq_write_iq_pack_mode");
+    }
+
     /* support two messages */
     message_port_register_in(CONTROL_MESSAGE_PORT);
     set_msg_handler(CONTROL_MESSAGE_PORT, [this](pmt::pmt_t msg) { this->handle_control_message(msg); });
@@ -736,37 +743,34 @@ uint32_t sidekiq_rx_impl::get_new_block(uint32_t portno)
     skiq_rx_block_t *p_rx_block{};
     uint32_t new_portno = portno;
 
-    /* since skiq_receive is non-blocking, we need to loop till we get a new packet */
-    while (curr_block_samples_left[new_portno] <= 0)
+    status = skiq_receive(card, &tmp_hdl, &p_rx_block, &data_length_bytes);
+    if (status  == skiq_rx_status_success) 
     {
-        status = skiq_receive(card, &tmp_hdl, &p_rx_block, &data_length_bytes);
-        if (status  == skiq_rx_status_success) 
+        /* determine which port the received block is from */
+        if (tmp_hdl == hdl1)
         {
-            /* determine which port the received block is from */
-            if (tmp_hdl == hdl1)
-            {
-                new_portno = 0;
-            }
-            else if (tmp_hdl == hdl2)
-            {
-                new_portno = 1;
-            }
-            else
-            {
-              d_logger->error( "Error : invalid hdl received {}", tmp_hdl);
-              throw std::runtime_error("Failure:  invalid handle");
-            }
-
-            /* update the data with the new block */
-            curr_block_ptr[new_portno] = (int16_t *)p_rx_block->data;
-            curr_block_samples_left[new_portno] = DATA_MAX_BUFFER_SIZE;
-        } 
-        else if (status != skiq_rx_status_no_data)
-        {
-          d_logger->error( "Error : skiq_rcv failure, status {}", status);
-          throw std::runtime_error("Failure: skiq_receive failure");
+            new_portno = 0;
         }
+        else if (tmp_hdl == hdl2)
+        {
+            new_portno = 1;
+        }
+        else
+        {
+          d_logger->error( "Error : invalid hdl received {}", tmp_hdl);
+          throw std::runtime_error("Failure:  invalid handle");
+        }
+
+        /* update the data with the new block */
+        curr_block_ptr[new_portno] = (int16_t *)p_rx_block->data;
+        curr_block_samples_left[new_portno] = DATA_MAX_BUFFER_SIZE;
+    } 
+    else 
+    {
+      d_logger->error( "Error : skiq_rcv failure, status {}", status);
+      throw std::runtime_error("Failure: skiq_receive failure");
     }
+
 
     /* we need to work on this new port so pass it back */
     return new_portno;
