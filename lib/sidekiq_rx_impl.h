@@ -28,6 +28,7 @@
 
 #define PKT_TIMEOUT             1000000 // 1ms
 
+#define NON_BLOCKING_TIMEOUT    10 // us
 using pmt::pmt_t;
 
 namespace gr {

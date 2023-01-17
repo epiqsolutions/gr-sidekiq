@@ -97,7 +97,7 @@ class source_test(gr.top_block, Qt.QWidget):
         self._bandwidth_range = Range(1e6, 250e6, 1e6, sample_rate * .8, 200)
         self._bandwidth_win = RangeWidget(self._bandwidth_range, self.set_bandwidth, "'bandwidth'", "counter_slider", float, QtCore.Qt.Horizontal)
         self.top_layout.addWidget(self._bandwidth_win)
-        self.sidekiq_sidekiq_rx_0 = sidekiq.sidekiq_rx(0, 0, 100, sample_rate, bandwidth, frequency, 1, gain_index, 0, 0)
+        self.sidekiq_sidekiq_rx_0 = sidekiq.sidekiq_rx(0, 0, 100, sample_rate, bandwidth, frequency, 1, gain_index, 1, 2)
         self.sidekiq_sidekiq_rx_0.set_max_output_buffer(32000)
         _run_rx_calibration_push_button = Qt.QPushButton('Run RX Calibration')
         _run_rx_calibration_push_button = Qt.QPushButton('Run RX Calibration')

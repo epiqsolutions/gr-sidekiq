@@ -330,8 +330,8 @@ blocks:
     affinity: ''
     alias: ''
     bandwidth: bandwidth
-    cal_mode: '0'
-    cal_type: '0'
+    cal_mode: '1'
+    cal_type: '2'
     card: '0'
     comment: ''
     frequency: frequency
