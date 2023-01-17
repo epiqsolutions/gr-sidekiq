@@ -118,7 +118,7 @@ sidekiq_rx_impl::sidekiq_rx_impl(
         throw std::runtime_error("Failure: skiq_read_tx_iq_resolution");
     }
     adc_scaling = (pow(2.0f, iq_resolution) / 2.0)-1;
-    d_logger->info("Info: adc scaling %f", adc_scaling);
+    d_logger->info("Info: ADC scaling {}", adc_scaling);
 
 
     /* if A2 or B2 is used, we need to set the channel mode to dual */
@@ -443,7 +443,7 @@ void sidekiq_rx_impl::set_rx_frequency(double value)
         }
     }
 
-    d_logger->info("Info: frequency set to %ld", freq);
+    d_logger->info("Info: frequency set to {}", freq);
 
     this->frequency = freq;
 }
@@ -684,7 +684,7 @@ void sidekiq_rx_impl::set_rx_cal_type(int value)
             }
         }
 
-        d_logger->info("Info: rx cal_mask 0x%2X, written successfully", cal_mask);
+        d_logger->info("Info: rx cal_mask 0x{:2X}, written successfully", cal_mask);
 
     }
 
@@ -760,6 +760,17 @@ uint32_t sidekiq_rx_impl::get_new_block(uint32_t portno)
           d_logger->error( "Error : invalid hdl received {}", tmp_hdl);
           throw std::runtime_error("Failure:  invalid handle");
         }
+
+        /* check timestamp for overrun */
+        if (first_block == false)
+        {
+            if (last_timestamp + DATA_MAX_BUFFER_SIZE != p_rx_block->rf_timestamp)
+            {
+                d_logger->warn("Warning: Overrun detected, expected timestamp {}, actual_timestamp {}");
+            }
+        }
+        last_timestamp = p_rx_block->rf_timestamp;
+        first_block = false;
 
         /* update the data with the new block */
         curr_block_ptr[new_portno] = (int16_t *)p_rx_block->data;
@@ -851,6 +862,8 @@ int sidekiq_rx_impl::work(int noutput_items,
     gr_complex *out[MAX_PORT] = {NULL, NULL};
     gr_complex *curr_out_ptr[MAX_PORT] = {NULL, NULL} ;
 
+
+    first_block = true;
 
     /* initialize the one-port output variables */    
     out[0] = static_cast<gr_complex *>(output_items[0]);

@@ -75,7 +75,7 @@ class source_test(gr.top_block, Qt.QWidget):
         ##################################################
         # Variables
         ##################################################
-        self.sample_rate = sample_rate = 10e6
+        self.sample_rate = sample_rate = 60e6
         self.samp_rate = samp_rate = 32000
         self.run_rx_calibration = run_rx_calibration = 0
         self.gain_index = gain_index = 10
@@ -85,7 +85,7 @@ class source_test(gr.top_block, Qt.QWidget):
         ##################################################
         # Blocks
         ##################################################
-        self._sample_rate_range = Range(1e6, 250e6, 1e6, 10e6, 200)
+        self._sample_rate_range = Range(1e6, 250e6, 1e6, 60e6, 200)
         self._sample_rate_win = RangeWidget(self._sample_rate_range, self.set_sample_rate, "'sample_rate'", "counter_slider", float, QtCore.Qt.Horizontal)
         self.top_layout.addWidget(self._sample_rate_win)
         self._gain_index_range = Range(0, 255, 1, 10, 200)

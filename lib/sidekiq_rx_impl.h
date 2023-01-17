@@ -114,6 +114,8 @@ private:
     bool dual_port{};
 
     /* work parameters */
+    bool first_block{};
+    uint64_t last_timestamp{};
     double adc_scaling{};
     int16_t *curr_block_ptr[MAX_PORT]{};
     int32_t curr_block_samples_left[MAX_PORT]{};
