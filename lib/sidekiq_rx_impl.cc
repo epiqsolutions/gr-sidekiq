@@ -366,6 +366,7 @@ void sidekiq_rx_impl::set_rx_sample_rate(double value)
     this->sample_rate = rate;
     this->bandwidth = bw;
 
+    status_update_rate_in_samples = static_cast<size_t >(sample_rate * STATUS_UPDATE_RATE_SECONDS);
 }
   
 /* 
@@ -764,11 +765,15 @@ uint32_t sidekiq_rx_impl::get_new_block(uint32_t portno)
         /* check timestamp for overrun */
         if (first_block == false)
         {
-            if (last_timestamp + DATA_MAX_BUFFER_SIZE != p_rx_block->rf_timestamp)
+            uint64_t actual_tx = p_rx_block->rf_timestamp;
+            uint64_t expected_ts = last_timestamp + DATA_MAX_BUFFER_SIZE;
+
+            if (expected_ts != actual_tx)
             {
-                d_logger->warn("Warning: Overrun detected, expected timestamp {}, actual_timestamp {}");
+                overrun_counter++;
             }
         }
+
         last_timestamp = p_rx_block->rf_timestamp;
         first_block = false;
 
@@ -876,11 +881,22 @@ int sidekiq_rx_impl::work(int noutput_items,
         curr_out_ptr[1] = out[1];
     }
 
-    if (debug_ctr < 2)
+
+    /* Determine if the time has elapsed and display any underruns we have received */
+    if (nitems_written(0) - last_status_update_sample > status_update_rate_in_samples)
     {
+        last_status_update_sample = nitems_written(0);
+
+        if (overrun_counter > 0)
+        {
+            d_logger->info("Overruns detected: {}", overrun_counter);
+        }
+
         d_logger->debug("noutput_items {}, dual_port {}, buffer_size {}", 
                noutput_items, dual_port, DATA_MAX_BUFFER_SIZE);
+
     }
+
 
     /* loop until we have filled up these "out" packet(s) */
     while (looping == true)
