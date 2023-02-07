@@ -341,8 +341,10 @@ blocks:
     handle2: '100'
     maxoutbuf: '32000'
     minoutbuf: '0'
+    pps_source: '0'
     run_cal: run_rx_calibration
     sample_rate: sample_rate
+    trigger_src: '0'
   states:
     bus_sink: false
     bus_source: false

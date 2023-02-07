@@ -58,6 +58,8 @@ public:
           double frequency,
           uint8_t gain_mode,
           int gain_index,
+          int trigger_src,
+          int pps_source,
           int cal_mode,
           int cal_type
           );
@@ -106,6 +108,9 @@ private:
     uint8_t gain_index{};
     skiq_rx_cal_mode_t cal_mode{};
     skiq_rx_cal_type_t cal_type{};
+
+    skiq_trigger_src_t trigger_src = skiq_trigger_src_immediate;
+    skiq_1pps_source_t pps_source{}; 
 
     /* flags */    
     bool libsidekiq_init{};
