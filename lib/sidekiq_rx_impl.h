@@ -28,10 +28,13 @@
 
 #define PKT_TIMEOUT             1000000 // 1ms
 
+#define NON_BLOCKING_TIMEOUT    10 // us
 using pmt::pmt_t;
 
 namespace gr {
 namespace sidekiq {
+
+    static const double STATUS_UPDATE_RATE_SECONDS{2.0};
 
     const bool SIDEKIQ_IQ_PACK_MODE_UNPACKED{false}; 
 
@@ -119,6 +122,11 @@ private:
     bool dual_port{};
 
     /* work parameters */
+    uint64_t last_status_update_sample{};
+    uint64_t status_update_rate_in_samples{};
+    uint64_t overrun_counter{};
+    bool first_block{};
+    uint64_t last_timestamp{};
     double adc_scaling{};
     int16_t *curr_block_ptr[MAX_PORT]{};
     int32_t curr_block_samples_left[MAX_PORT]{};
