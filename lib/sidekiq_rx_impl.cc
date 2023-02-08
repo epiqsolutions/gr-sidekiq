@@ -11,7 +11,7 @@
 #include <volk/volk.h>
 #include <boost/asio.hpp>
 
-#define DEBUG_LEVEL "error" //Can be debug, info, warning, error, critical
+#define DEBUG_LEVEL "debug" //Can be debug, info, warning, error, critical
 
 using pmt::pmt_t;
 const pmt_t CONTROL_MESSAGE_PORT{pmt::string_to_symbol("command")};
@@ -769,6 +769,19 @@ uint32_t sidekiq_rx_impl::get_new_block(uint32_t portno)
                     overrun_counter++;
                 }
             }
+            else
+            {
+//                d_logger->debug("rf {}", (uint64_t)p_rx_block->rf_timestamp);
+
+                curr_sys_block_tag.key = pmt::intern("sys_timestamp");
+                curr_sys_block_tag.value = pmt::from_uint64(p_rx_block->sys_timestamp);
+
+                curr_rf_block_tag.key = pmt::intern("rf_timestamp");
+                curr_rf_block_tag.value = pmt::from_uint64(p_rx_block->rf_timestamp);
+
+                add_item_tag(portno, 0, curr_sys_block_tag.key, curr_sys_block_tag.value);
+                add_item_tag(portno, 0, curr_rf_block_tag.key, curr_rf_block_tag.value);
+            }
 
             last_timestamp = p_rx_block->rf_timestamp;
             first_block = false;
@@ -942,7 +955,6 @@ int sidekiq_rx_impl::work(int noutput_items,
             {
                 curr_block_ptr[portno] = NULL;
             }
-
         }
 
         /* determine if we are done with this work() call */

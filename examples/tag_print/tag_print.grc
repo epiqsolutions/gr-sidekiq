@@ -1,0 +1,409 @@
+options:
+  parameters:
+    author: ''
+    catch_exceptions: 'True'
+    category: '[GRC Hier Blocks]'
+    cmake_opt: ''
+    comment: ''
+    copyright: ''
+    description: ''
+    gen_cmake: 'On'
+    gen_linking: dynamic
+    generate_options: qt_gui
+    hier_block_src_path: '.:'
+    id: tag_print
+    max_nouts: '0'
+    output_language: python
+    placement: (0,0)
+    qt_qss_theme: ''
+    realtime_scheduling: ''
+    run: 'True'
+    run_command: '{python} -u {filename}'
+    run_options: prompt
+    sizing_mode: fixed
+    thread_safe_setters: ''
+    title: tag_print
+    window_size: (1000,1000)
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [8, 8]
+    rotation: 0
+    state: enabled
+
+blocks:
+- name: attenuation
+  id: variable_qtgui_range
+  parameters:
+    comment: ''
+    gui_hint: ''
+    label: ''
+    min_len: '100'
+    orient: QtCore.Qt.Horizontal
+    rangeType: float
+    start: '0'
+    step: '10'
+    stop: '255'
+    value: '125'
+    widget: counter_slider
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [848, 60.0]
+    rotation: 0
+    state: true
+- name: bandwidth
+  id: variable_qtgui_range
+  parameters:
+    comment: ''
+    gui_hint: ''
+    label: ''
+    min_len: '200'
+    orient: QtCore.Qt.Horizontal
+    rangeType: float
+    start: '1000'
+    step: 1e6
+    stop: 250e6
+    value: sample_rate * 0.8
+    widget: counter_slider
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [552, 60.0]
+    rotation: 0
+    state: true
+- name: frequency
+  id: variable_qtgui_range
+  parameters:
+    comment: ''
+    gui_hint: ''
+    label: Frequency
+    min_len: '100'
+    orient: QtCore.Qt.Horizontal
+    rangeType: float
+    start: 500e6
+    step: 1e6
+    stop: 6000e6
+    value: 1000e6
+    widget: counter_slider
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [704, 60.0]
+    rotation: 0
+    state: true
+- name: min_output_buffer
+  id: variable
+  parameters:
+    comment: ''
+    value: 32764 *2*2
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [240, 60.0]
+    rotation: 0
+    state: true
+- name: run_tx_calibration
+  id: variable_qtgui_push_button
+  parameters:
+    comment: ''
+    gui_hint: ''
+    label: ''
+    pressed: '1'
+    released: '0'
+    type: int
+    value: '0'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [1216, 60.0]
+    rotation: 0
+    state: true
+- name: sample_rate
+  id: variable_qtgui_range
+  parameters:
+    comment: ''
+    gui_hint: ''
+    label: ''
+    min_len: '200'
+    orient: QtCore.Qt.Horizontal
+    rangeType: float
+    start: '0'
+    step: 1e6
+    stop: 250e6
+    value: 10e6
+    widget: counter_slider
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [392, 60.0]
+    rotation: 0
+    state: true
+- name: tone_freq
+  id: variable_qtgui_range
+  parameters:
+    comment: ''
+    gui_hint: ''
+    label: ''
+    min_len: '200'
+    orient: QtCore.Qt.Horizontal
+    rangeType: float
+    start: 1e6
+    step: 1e6
+    stop: 25e6
+    value: 2e6
+    widget: counter_slider
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [1000, 60.0]
+    rotation: 0
+    state: true
+- name: analog_sig_source_x_0
+  id: analog_sig_source_x
+  parameters:
+    affinity: ''
+    alias: ''
+    amp: '1'
+    comment: ''
+    freq: tone_freq
+    maxoutbuf: '0'
+    minoutbuf: min_output_buffer
+    offset: '0'
+    phase: '0'
+    samp_rate: sample_rate
+    type: complex
+    waveform: analog.GR_COS_WAVE
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [304, 220.0]
+    rotation: 0
+    state: true
+- name: blocks_add_xx_0
+  id: blocks_add_xx
+  parameters:
+    affinity: ''
+    alias: ''
+    comment: ''
+    maxoutbuf: '0'
+    minoutbuf: min_output_buffer
+    num_inputs: '2'
+    type: complex
+    vlen: '1'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [656, 264.0]
+    rotation: 0
+    state: true
+- name: blocks_tags_strobe_0
+  id: blocks_tags_strobe
+  parameters:
+    affinity: ''
+    alias: ''
+    comment: ''
+    key: pmt.intern("rf_timestamp")
+    maxoutbuf: '0'
+    minoutbuf: '0'
+    nsamps: int(sample_rate * 4)
+    type: complex
+    value: pmt.to_pmt(5000000)
+    vlen: '1'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [304, 356.0]
+    rotation: 0
+    state: true
+- name: blocks_throttle_0
+  id: blocks_throttle
+  parameters:
+    affinity: ''
+    alias: ''
+    comment: ''
+    ignoretag: 'True'
+    maxoutbuf: '0'
+    minoutbuf: '0'
+    samples_per_second: sample_rate
+    type: complex
+    vlen: '1'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [776, 276.0]
+    rotation: 0
+    state: true
+- name: epy_block_0
+  id: epy_block
+  parameters:
+    _source_code: "\"\"\"\nEmbedded Python Blocks:\n\nEach time this file is saved,\
+      \ GRC will instantiate the first class it finds\nto get ports and parameters\
+      \ of your block. The arguments to __init__  will\nbe the parameters. All of\
+      \ them are required to have default values!\n\"\"\"\n\nimport numpy as np\n\
+      from gnuradio import gr\nimport pmt\n\n\nclass blk(gr.sync_block):  # other\
+      \ base classes are basic_block, decim_block, interp_block\n    \"\"\"Embedded\
+      \ Python Block example - a simple multiply const\"\"\"\n\n    ctr = 0\n    last_sys\
+      \ = 0\n    last_rf = 0\n\n    def __init__(self,  sample_rate = 0):  # only\
+      \ default arguments here\n        \"\"\"arguments to this function show up as\
+      \ parameters in GRC\"\"\"\n        gr.sync_block.__init__(\n            self,\n\
+      \            name='Print Tags',   # will show up in GRC\n            in_sig=[np.complex64],\n\
+      \            out_sig=[np.complex64]\n       \n        )\n        print(\"init\
+      \ print tags\")\n                  \n        # a callback is registered (properties\
+      \ work, too).\n        self.sample_rate = sample_rate\n        \n        \n\
+      \    \n    def work(self, input_items, output_items):\n    \n        output_items[0][:]\
+      \ = input_items[0] * 1\n        \n        #print(\"ts\", len(input_items[0]))\n\
+      \        tags = self.get_tags_in_window(0, 0, len(input_items[0]))\n       \
+      \ \n        blk.ctr += 1\n\n        if len(tags) > 0:\n            print(\"\
+      ctr\", blk.ctr, \"sample_rate\", self.sample_rate, \"tags\", len(tags), \"input_items\"\
+      , len(input_items[0]), \"\\n\")\n            \n            for tag in tags:\n\
+      \                key = pmt.to_python(tag.key) # convert from PMT to python string\n\
+      \                value = pmt.to_python(tag.value) # Note that the type(value)\
+      \ can be several things, it depends what PMT type it was\n                print('key:',\
+      \ key)\n                print('value:', value, type(value))\n              \
+      \  \n                \n                if key == 'sys_timestamp':\n        \
+      \            delta = value - blk.last_sys\n                    time = delta\
+      \ / 40000000\n                    \n                    print(\"delta: \", delta,\
+      \ \"time: \", time)\n                    blk.last_sys = value\n            \
+      \    \n                if key == 'rf_timestamp':\n                    delta\
+      \ = value - blk.last_rf\n                    time = delta / self.sample_rate\n\
+      \                    \n                    print(\"delta: \", delta, \"time:\
+      \ \", time)\n                    blk.last_rf = value\n                    \n\
+      \                    \n                print(\" \")\n            \n        \n\
+      \        return len(input_items[0])\n"
+    affinity: ''
+    alias: ''
+    comment: ''
+    maxoutbuf: '0'
+    minoutbuf: '0'
+    sample_rate: sample_rate
+  states:
+    _io_cache: ('Print Tags', 'blk', [('sample_rate', '0')], [('0', 'complex', 1)],
+      [('0', 'complex', 1)], 'Embedded Python Block example - a simple multiply const',
+      ['sample_rate'])
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [1000, 268.0]
+    rotation: 0
+    state: true
+- name: qtgui_time_sink_x_0
+  id: qtgui_time_sink_x
+  parameters:
+    affinity: ''
+    alias: ''
+    alpha1: '1.0'
+    alpha10: '1.0'
+    alpha2: '1.0'
+    alpha3: '1.0'
+    alpha4: '1.0'
+    alpha5: '1.0'
+    alpha6: '1.0'
+    alpha7: '1.0'
+    alpha8: '1.0'
+    alpha9: '1.0'
+    autoscale: 'False'
+    axislabels: 'True'
+    color1: blue
+    color10: dark blue
+    color2: red
+    color3: green
+    color4: black
+    color5: cyan
+    color6: magenta
+    color7: yellow
+    color8: dark red
+    color9: dark green
+    comment: ''
+    ctrlpanel: 'False'
+    entags: 'True'
+    grid: 'False'
+    gui_hint: ''
+    label1: Signal 1
+    label10: Signal 10
+    label2: Signal 2
+    label3: Signal 3
+    label4: Signal 4
+    label5: Signal 5
+    label6: Signal 6
+    label7: Signal 7
+    label8: Signal 8
+    label9: Signal 9
+    legend: 'True'
+    marker1: '-1'
+    marker10: '-1'
+    marker2: '-1'
+    marker3: '-1'
+    marker4: '-1'
+    marker5: '-1'
+    marker6: '-1'
+    marker7: '-1'
+    marker8: '-1'
+    marker9: '-1'
+    name: '""'
+    nconnections: '1'
+    size: '1024'
+    srate: sample_rate
+    stemplot: 'False'
+    style1: '1'
+    style10: '1'
+    style2: '1'
+    style3: '1'
+    style4: '1'
+    style5: '1'
+    style6: '1'
+    style7: '1'
+    style8: '1'
+    style9: '1'
+    tr_chan: '0'
+    tr_delay: '0'
+    tr_level: '0.0'
+    tr_mode: qtgui.TRIG_MODE_FREE
+    tr_slope: qtgui.TRIG_SLOPE_POS
+    tr_tag: '""'
+    type: complex
+    update_time: '0.10'
+    width1: '1'
+    width10: '1'
+    width2: '1'
+    width3: '1'
+    width4: '1'
+    width5: '1'
+    width6: '1'
+    width7: '1'
+    width8: '1'
+    width9: '1'
+    ylabel: Amplitude
+    ymax: '1'
+    ymin: '-1'
+    yunit: '""'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [1304, 244.0]
+    rotation: 0
+    state: true
+
+connections:
+- [analog_sig_source_x_0, '0', blocks_add_xx_0, '0']
+- [blocks_add_xx_0, '0', blocks_throttle_0, '0']
+- [blocks_tags_strobe_0, '0', blocks_add_xx_0, '1']
+- [blocks_throttle_0, '0', epy_block_0, '0']
+- [epy_block_0, '0', qtgui_time_sink_x_0, '0']
+
+metadata:
+  file_format: 1
+  grc_version: 3.10.3.0

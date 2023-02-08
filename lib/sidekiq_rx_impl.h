@@ -126,6 +126,9 @@ private:
     int16_t *curr_block_ptr[MAX_PORT]{};
     int32_t curr_block_samples_left[MAX_PORT]{};
 
+    gr::tag_t curr_sys_block_tag{};
+    gr::tag_t curr_rf_block_tag{};
+
     /* used to debug the work function */
     uint32_t debug_ctr{};
 };
