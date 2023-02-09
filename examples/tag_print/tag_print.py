@@ -157,7 +157,7 @@ class tag_print(gr.top_block, Qt.QWidget):
         self.top_layout.addWidget(self._frequency_win)
         self.epy_block_0 = epy_block_0.blk(sample_rate=sample_rate)
         self.blocks_throttle_0 = blocks.throttle(gr.sizeof_gr_complex*1, sample_rate,True)
-        self.blocks_tags_strobe_0 = blocks.tags_strobe(gr.sizeof_gr_complex*1, pmt.to_pmt(5000000), (int(sample_rate * 4)), pmt.intern("rf_timestamp"))
+        self.blocks_tags_strobe_0 = blocks.tags_strobe(gr.sizeof_gr_complex*1, pmt.to_pmt(5000000), (int(sample_rate * 4)), pmt.intern("test"))
         self.blocks_add_xx_0 = blocks.add_vcc(1)
         self.blocks_add_xx_0.set_min_output_buffer(min_output_buffer)
         self._bandwidth_range = Range(1000, 250e6, 1e6, sample_rate * 0.8, 200)

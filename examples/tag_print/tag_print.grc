@@ -213,7 +213,7 @@ blocks:
     affinity: ''
     alias: ''
     comment: ''
-    key: pmt.intern("rf_timestamp")
+    key: pmt.intern("test")
     maxoutbuf: '0'
     minoutbuf: '0'
     nsamps: int(sample_rate * 4)

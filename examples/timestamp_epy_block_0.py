@@ -17,8 +17,9 @@ class blk(gr.sync_block):  # other base classes are basic_block, decim_block, in
     ctr = 0
     last_sys = 0
     last_rf = 0
+    tags_displayed = 0
 
-    def __init__(self,  sample_rate = 0):  # only default arguments here
+    def __init__(self,  num_tags_display = 1, sample_rate = 0):  # only default arguments here
         """arguments to this function show up as parameters in GRC"""
         gr.sync_block.__init__(
             self,
@@ -30,6 +31,7 @@ class blk(gr.sync_block):  # other base classes are basic_block, decim_block, in
         print("init print tags")
                   
         # a callback is registered (properties work, too).
+        self.num_tags_display = num_tags_display
         self.sample_rate = sample_rate
         
         
@@ -40,35 +42,34 @@ class blk(gr.sync_block):  # other base classes are basic_block, decim_block, in
         
         #print("ts", len(input_items[0]))
         tags = self.get_tags_in_window(0, 0, len(input_items[0]))
-        
         blk.ctr += 1
-
-        if len(tags) > 0:
-            print("ctr", blk.ctr, "sample_rate", self.sample_rate, "tags", len(tags), "input_items", len(input_items[0]), "\n")
-            
-            for tag in tags:
-                key = pmt.to_python(tag.key) # convert from PMT to python string
-                value = pmt.to_python(tag.value) # Note that the type(value) can be several things, it depends what PMT type it was
-                print('key:', key)
-                print('value:', value, type(value))
+        if blk.tags_displayed < self.num_tags_display:
+            if len(tags) > 0:
+                print("ctr", blk.tags_displayed, "sample_rate", self.sample_rate, "tags", len(tags), "input_items", len(input_items[0]), "\n")
                 
-                
-                if key == 'sys_timestamp':
-                    delta = value - blk.last_sys
-                    time = delta / 40000000
-                    
-                    print("delta: ", delta, "time: ", time)
-                    blk.last_sys = value
-                
-                if key == 'rf_timestamp':
-                    delta = value - blk.last_rf
-                    time = delta / self.sample_rate
-                    
-                    print("delta: ", delta, "time: ", time)
-                    blk.last_rf = value
+                for tag in tags:
+                    key = pmt.to_python(tag.key) # convert from PMT to python string
+                    value = pmt.to_python(tag.value) # Note that the type(value) can be several things, it depends what PMT type it was
+                    print('key:', key)
+                    print('value:', value, type(value))
                     
                     
-                print(" ")
-            
+                    if key == 'sys_timestamp':
+                        delta = value - blk.last_sys
+                        time = delta / 40000000
+                        
+                        print("delta: ", delta, "time: ", time)
+                        blk.last_sys = value
+                    
+                    if key == 'rf_timestamp':
+                        delta = value - blk.last_rf
+                        time = delta / self.sample_rate
+                        
+                        print("delta: ", delta, "time: ", time)
+                        blk.last_rf = value
+                        
+                        
+                    print(" ")
+            blk.tags_displayed += len(tags)    
         
         return len(output_items[0])

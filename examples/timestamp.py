@@ -78,7 +78,7 @@ class timestamp(gr.top_block, Qt.QWidget):
         ##################################################
         # Variables
         ##################################################
-        self.sample_rate = sample_rate = 1e6
+        self.sample_rate = sample_rate = 10e6
         self.samp_rate = samp_rate = 32000
         self.run_rx_calibration = run_rx_calibration = 0
         self.gain_index = gain_index = 10
@@ -88,7 +88,7 @@ class timestamp(gr.top_block, Qt.QWidget):
         ##################################################
         # Blocks
         ##################################################
-        self._sample_rate_range = Range(1e6, 250e6, 1e6, 1e6, 200)
+        self._sample_rate_range = Range(1e6, 250e6, 1e6, 10e6, 200)
         self._sample_rate_win = RangeWidget(self._sample_rate_range, self.set_sample_rate, "'sample_rate'", "counter_slider", float, QtCore.Qt.Horizontal)
         self.top_layout.addWidget(self._sample_rate_win)
         self._gain_index_range = Range(0, 255, 1, 10, 200)
@@ -202,10 +202,10 @@ class timestamp(gr.top_block, Qt.QWidget):
 
         self._qtgui_freq_sink_x_0_win = sip.wrapinstance(self.qtgui_freq_sink_x_0.qwidget(), Qt.QWidget)
         self.top_layout.addWidget(self._qtgui_freq_sink_x_0_win)
-        self.epy_block_0 = epy_block_0.blk(sample_rate=sample_rate)
+        self.epy_block_0 = epy_block_0.blk(num_tags_display=50, sample_rate=sample_rate)
         self.epy_block_0.set_min_output_buffer(8000)
         self.epy_block_0.set_max_output_buffer(32000)
-        self.blocks_tags_strobe_0 = blocks.tags_strobe(gr.sizeof_gr_complex*1, pmt.intern("TEST"), 1000000, pmt.intern("strobe"))
+        self.blocks_tags_strobe_0 = blocks.tags_strobe(gr.sizeof_gr_complex*1, pmt.intern("TEST"), 5000000, pmt.intern("strobe"))
         self.blocks_add_xx_0 = blocks.add_vcc(1)
 
 

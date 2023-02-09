@@ -137,7 +137,7 @@ blocks:
     start: 1e6
     step: 1e6
     stop: 250e6
-    value: 1e6
+    value: 10e6
     widget: counter_slider
   states:
     bus_sink: false
@@ -161,7 +161,7 @@ blocks:
     bus_sink: false
     bus_source: false
     bus_structure: null
-    coordinate: [416, 400.0]
+    coordinate: [480, 312.0]
     rotation: 0
     state: true
 - name: blocks_tags_strobe_0
@@ -173,7 +173,7 @@ blocks:
     key: pmt.intern("strobe")
     maxoutbuf: '0'
     minoutbuf: '0'
-    nsamps: '1000000'
+    nsamps: '5000000'
     type: complex
     value: pmt.intern("TEST")
     vlen: '1'
@@ -194,47 +194,51 @@ blocks:
       from gnuradio import gr\nimport pmt\n\n\nclass blk(gr.sync_block):  # other\
       \ base classes are basic_block, decim_block, interp_block\n    \"\"\"Embedded\
       \ Python Block example - a simple multiply const\"\"\"\n\n    ctr = 0\n    last_sys\
-      \ = 0\n    last_rf = 0\n\n    def __init__(self,  sample_rate = 0):  # only\
-      \ default arguments here\n        \"\"\"arguments to this function show up as\
-      \ parameters in GRC\"\"\"\n        gr.sync_block.__init__(\n            self,\n\
-      \            name='Print Tags',   # will show up in GRC\n            in_sig=[np.complex64],\n\
-      \            out_sig=[np.complex64]\n       \n        )\n        print(\"init\
-      \ print tags\")\n                  \n        # a callback is registered (properties\
-      \ work, too).\n        self.sample_rate = sample_rate\n        \n        \n\
-      \    \n    def work(self, input_items, output_items):\n   \n        output_items[0][:]\
+      \ = 0\n    last_rf = 0\n    tags_displayed = 0\n\n    def __init__(self,  num_tags_display\
+      \ = 1, sample_rate = 0):  # only default arguments here\n        \"\"\"arguments\
+      \ to this function show up as parameters in GRC\"\"\"\n        gr.sync_block.__init__(\n\
+      \            self,\n            name='Print Tags',   # will show up in GRC\n\
+      \            in_sig=[np.complex64],\n            out_sig=[np.complex64]\n  \
+      \     \n        )\n        print(\"init print tags\")\n                  \n\
+      \        # a callback is registered (properties work, too).\n        self.num_tags_display\
+      \ = num_tags_display\n        self.sample_rate = sample_rate\n        \n   \
+      \     \n    \n    def work(self, input_items, output_items):\n   \n        output_items[0][:]\
       \ = input_items[0] * 1\n        \n        #print(\"ts\", len(input_items[0]))\n\
       \        tags = self.get_tags_in_window(0, 0, len(input_items[0]))\n       \
-      \ \n        blk.ctr += 1\n\n        if len(tags) > 0:\n            print(\"\
-      ctr\", blk.ctr, \"sample_rate\", self.sample_rate, \"tags\", len(tags), \"input_items\"\
-      , len(input_items[0]), \"\\n\")\n            \n            for tag in tags:\n\
-      \                key = pmt.to_python(tag.key) # convert from PMT to python string\n\
-      \                value = pmt.to_python(tag.value) # Note that the type(value)\
-      \ can be several things, it depends what PMT type it was\n                print('key:',\
-      \ key)\n                print('value:', value, type(value))\n              \
-      \  \n                \n                if key == 'sys_timestamp':\n        \
-      \            delta = value - blk.last_sys\n                    time = delta\
-      \ / 40000000\n                    \n                    print(\"delta: \", delta,\
-      \ \"time: \", time)\n                    blk.last_sys = value\n            \
-      \    \n                if key == 'rf_timestamp':\n                    delta\
-      \ = value - blk.last_rf\n                    time = delta / self.sample_rate\n\
-      \                    \n                    print(\"delta: \", delta, \"time:\
-      \ \", time)\n                    blk.last_rf = value\n                    \n\
-      \                    \n                print(\" \")\n            \n        \n\
-      \        return len(output_items[0])\n"
+      \ blk.ctr += 1\n        if blk.tags_displayed < self.num_tags_display:\n   \
+      \         if len(tags) > 0:\n                print(\"ctr\", blk.tags_displayed,\
+      \ \"sample_rate\", self.sample_rate, \"tags\", len(tags), \"input_items\", len(input_items[0]),\
+      \ \"\\n\")\n                \n                for tag in tags:\n           \
+      \         key = pmt.to_python(tag.key) # convert from PMT to python string\n\
+      \                    value = pmt.to_python(tag.value) # Note that the type(value)\
+      \ can be several things, it depends what PMT type it was\n                 \
+      \   print('key:', key)\n                    print('value:', value, type(value))\n\
+      \                    \n                    \n                    if key == 'sys_timestamp':\n\
+      \                        delta = value - blk.last_sys\n                    \
+      \    time = delta / 40000000\n                        \n                   \
+      \     print(\"delta: \", delta, \"time: \", time)\n                        blk.last_sys\
+      \ = value\n                    \n                    if key == 'rf_timestamp':\n\
+      \                        delta = value - blk.last_rf\n                     \
+      \   time = delta / self.sample_rate\n                        \n            \
+      \            print(\"delta: \", delta, \"time: \", time)\n                 \
+      \       blk.last_rf = value\n                        \n                    \
+      \    \n                    print(\" \")\n            blk.tags_displayed += len(tags)\
+      \    \n        \n        return len(output_items[0])\n"
     affinity: ''
     alias: ''
     comment: ''
     maxoutbuf: '32000'
     minoutbuf: '8000'
+    num_tags_display: '50'
     sample_rate: sample_rate
   states:
-    _io_cache: ('Print Tags', 'blk', [('sample_rate', '0')], [('0', 'complex', 1)],
-      [('0', 'complex', 1)], 'Embedded Python Block example - a simple multiply const',
-      ['sample_rate'])
+    _io_cache: ('Print Tags', 'blk', [('num_tags_display', '1'), ('sample_rate', '0')],
+      [('0', 'complex', 1)], [('0', 'complex', 1)], 'Embedded Python Block example
+      - a simple multiply const', ['num_tags_display', 'sample_rate'])
     bus_sink: false
     bus_source: false
     bus_structure: null
-    coordinate: [536, 300.0]
+    coordinate: [672, 324.0]
     rotation: 0
     state: true
 - name: qtgui_freq_sink_x_0
@@ -315,7 +319,7 @@ blocks:
     bus_sink: false
     bus_source: false
     bus_structure: null
-    coordinate: [832, 372.0]
+    coordinate: [1088, 364.0]
     rotation: 0
     state: true
 - name: qtgui_time_sink_x_0
@@ -412,7 +416,7 @@ blocks:
     bus_sink: false
     bus_source: false
     bus_structure: null
-    coordinate: [832, 244.0]
+    coordinate: [1088, 236.0]
     rotation: 0
     state: true
 - name: sidekiq_sidekiq_rx_0
