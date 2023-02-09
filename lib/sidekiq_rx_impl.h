@@ -61,6 +61,7 @@ public:
           double frequency,
           uint8_t gain_mode,
           int gain_index,
+          int timestamp_tags,
           int cal_mode,
           int cal_type
           );
@@ -107,6 +108,7 @@ private:
     uint64_t frequency{};
     skiq_rx_gain_t gain_mode{};
     uint8_t gain_index{};
+    bool timestamp_tags{};
     skiq_rx_cal_mode_t cal_mode{};
     skiq_rx_cal_type_t cal_type{};
 

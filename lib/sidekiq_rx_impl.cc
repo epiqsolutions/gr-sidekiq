@@ -11,7 +11,7 @@
 #include <volk/volk.h>
 #include <boost/asio.hpp>
 
-#define DEBUG_LEVEL "debug" //Can be debug, info, warning, error, critical
+#define DEBUG_LEVEL "info" //Can be debug, info, warning, error, critical
 
 using pmt::pmt_t;
 const pmt_t CONTROL_MESSAGE_PORT{pmt::string_to_symbol("command")};
@@ -29,6 +29,7 @@ sidekiq_rx::sptr sidekiq_rx::make(
         double frequency,
         uint8_t gain_mode,
         int gain_index,
+        int timestamp_tags,
         int cal_mode,
         int cal_type) 
 {
@@ -41,6 +42,7 @@ sidekiq_rx::sptr sidekiq_rx::make(
           frequency,
           gain_mode,
           gain_index,
+          timestamp_tags,
           cal_mode,
           cal_type);
 }
@@ -54,6 +56,7 @@ sidekiq_rx_impl::sidekiq_rx_impl(
         double frequency,
         uint8_t gain_mode,
         int gain_index,
+        int timestamp_tags,
         int cal_mode,
         int cal_type) 
     : gr::sync_block("sidekiq_rx", gr::io_signature::make(0, 0, 0),
@@ -75,6 +78,7 @@ sidekiq_rx_impl::sidekiq_rx_impl(
     curr_rf_block_tag.key = pmt::intern("rf_timestamp");
     curr_rf_block_tag.value = pmt::from_uint64(0);
 
+    this->timestamp_tags = timestamp_tags;
     card = input_card;
     hdl1 = (skiq_rx_hdl_t) port1_handle;
 
@@ -788,15 +792,12 @@ uint32_t sidekiq_rx_impl::get_new_block(uint32_t portno)
                 }
             }
 
-            curr_rf_block_tag.key = pmt::intern("rf_timestamp");
-            curr_rf_block_tag.value = pmt::from_uint64(p_rx_block->rf_timestamp);
-#ifdef poo
-            if (debug_ctr < 10)
+            /* if enabled for stream tags, set the tag value */
+            if (timestamp_tags == true)
             {
-                d_logger->debug("new block: key {}, value {}", 
-                        curr_rf_block_tag.key, curr_rf_block_tag.value);
+                curr_rf_block_tag.key = pmt::intern("rf_timestamp");
+                curr_rf_block_tag.value = pmt::from_uint64(p_rx_block->rf_timestamp);
             }
-#endif
 
             last_timestamp = p_rx_block->rf_timestamp;
             first_block = false;
@@ -966,21 +967,26 @@ int sidekiq_rx_impl::work(int noutput_items,
             curr_block_ptr[portno] += (samples_to_write[portno] * IQ_SHORT_COUNT);
             curr_block_samples_left[portno] -= samples_to_write[portno];
 
-            add_item_tag(portno, last_tag_index[portno] + samples_written[portno], curr_rf_block_tag.key, curr_rf_block_tag.value);
-
-#ifdef poo
-            if (debug_ctr < 30)
+            if (timestamp_tags == true)
             {
-                d_logger->debug("add item: ctr {}, portno {}, samples_written {}, noutput_items {}, buffer_size {}", 
-                        debug_ctr, portno, samples_written[portno], noutput_items, DATA_MAX_BUFFER_SIZE);
-                d_logger->debug("key {}, value {}, abs_tag_index {}",
-                        last_tag_index[portno], curr_rf_block_tag.key, curr_rf_block_tag.value);
+                add_item_tag(portno, last_tag_index[portno] + samples_written[portno], 
+                                curr_rf_block_tag.key, curr_rf_block_tag.value);
+
+                if (debug_ctr < 10)
+                {
+                    d_logger->debug("add item: ctr {}, portno {}, samples_written {}, noutput_items {}, buffer_size {}", 
+                            debug_ctr, portno, samples_written[portno], noutput_items, DATA_MAX_BUFFER_SIZE);
+                    d_logger->debug("key {}, value {}, abs_tag_index {}",
+                            last_tag_index[portno], curr_rf_block_tag.key, curr_rf_block_tag.value);
+                }
             }
-#endif
         }
+
+        /* update the absolute index into the stream */
+        last_tag_index[portno] = last_tag_index[portno] + samples_written[portno];
+
         /* determine if we are done with this work() call */
         looping = determine_if_done(samples_written, noutput_items, &portno);
-        last_tag_index[portno] = last_tag_index[portno] + samples_written[portno];
 
     }
 
