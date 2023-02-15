@@ -13,7 +13,7 @@
 #include "sidekiq_tx_impl.h"
 
 
-#define DEBUG_LEVEL "error"  //Can be debug, info, warning, error, critical
+#define DEBUG_LEVEL "debug"  //Can be debug, info, warning, error, critical
 
 /* The tx_complete function needs to be outside the object so it can be registered with libsidekiq 
  * mutex to protect updates to the tx buffer
@@ -549,7 +549,7 @@ void sidekiq_tx_impl::run_tx_cal(int value)
     {
         if (calibration_mode == skiq_tx_quadcal_mode_manual)
         {
-            d_logger->info("Info: forcing calibration to run");
+            d_logger->info("Info: forcing calibration to run, card {}, hdl {}", card, hdl);
             status = skiq_run_tx_quadcal( card, hdl );
             if( status != 0 )
             {

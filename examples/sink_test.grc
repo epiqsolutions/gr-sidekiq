@@ -45,7 +45,7 @@ blocks:
     start: '0'
     step: '10'
     stop: '255'
-    value: '125'
+    value: '200'
     widget: counter_slider
   states:
     bus_sink: false
@@ -199,7 +199,7 @@ blocks:
     buffer_size: '32764'
     burst_tag: ''
     cal_mode: '1'
-    card: '0'
+    card: '1'
     comment: ''
     frequency: frequency
     handle: '0'
@@ -219,4 +219,4 @@ connections:
 
 metadata:
   file_format: 1
-  grc_version: 3.10.3.0
+  grc_version: 3.10.5.1

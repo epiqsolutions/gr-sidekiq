@@ -6,7 +6,7 @@
 #
 # GNU Radio Python Flow Graph
 # Title: Sink Test
-# GNU Radio version: 3.10.3.0
+# GNU Radio version: 3.10.5.1
 
 from packaging.version import Version as StrictVersion
 
@@ -80,11 +80,12 @@ class sink_test(gr.top_block, Qt.QWidget):
         self.min_output_buffer = min_output_buffer = 32764 *2*2
         self.frequency = frequency = 1000e6
         self.bandwidth = bandwidth = sample_rate * 0.8
-        self.attenuation = attenuation = 125
+        self.attenuation = attenuation = 200
 
         ##################################################
         # Blocks
         ##################################################
+
         self._sample_rate_range = Range(1e6, 250e6, 1e6, 10e6, 200)
         self._sample_rate_win = RangeWidget(self._sample_rate_range, self.set_sample_rate, "'sample_rate'", "counter_slider", float, QtCore.Qt.Horizontal)
         self.top_layout.addWidget(self._sample_rate_win)
@@ -97,10 +98,10 @@ class sink_test(gr.top_block, Qt.QWidget):
         self._bandwidth_range = Range(1000, 250e6, 1e6, sample_rate * 0.8, 200)
         self._bandwidth_win = RangeWidget(self._bandwidth_range, self.set_bandwidth, "'bandwidth'", "counter_slider", float, QtCore.Qt.Horizontal)
         self.top_layout.addWidget(self._bandwidth_win)
-        self._attenuation_range = Range(0, 255, 10, 125, 100)
+        self._attenuation_range = Range(0, 255, 10, 200, 100)
         self._attenuation_win = RangeWidget(self._attenuation_range, self.set_attenuation, "'attenuation'", "counter_slider", float, QtCore.Qt.Horizontal)
         self.top_layout.addWidget(self._attenuation_win)
-        self.sidekiq_sidekiq_tx_0 = sidekiq.sidekiq_tx(0, 0, sample_rate, bandwidth, frequency, attenuation, '', 4, 32764, 1)
+        self.sidekiq_sidekiq_tx_0 = sidekiq.sidekiq_tx(1, 0, sample_rate, bandwidth, frequency, attenuation, '', 4, 32764, 1)
         _run_tx_calibration_push_button = Qt.QPushButton('')
         _run_tx_calibration_push_button = Qt.QPushButton('run_tx_calibration')
         self._run_tx_calibration_choices = {'Pressed': 1, 'Released': 0}
