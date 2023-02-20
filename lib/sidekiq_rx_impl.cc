@@ -11,7 +11,9 @@
 #include <volk/volk.h>
 #include <boost/asio.hpp>
 
-#define DEBUG_LEVEL "error" //Can be debug, info, warning, error, critical
+#define DEBUG_LEVEL "debug" //Can be debug, info, warning, error, critical
+
+#define COUNTER
 
 using pmt::pmt_t;
 const pmt_t CONTROL_MESSAGE_PORT{pmt::string_to_symbol("command")};
@@ -71,6 +73,7 @@ sidekiq_rx_impl::sidekiq_rx_impl(
 
     int status = 0;
     uint8_t iq_resolution = 0;
+    status_update_rate_in_samples = static_cast<size_t >(sample_rate * STATUS_UPDATE_RATE_SECONDS);
 
     card = input_card;
     hdl1 = (skiq_rx_hdl_t) port1_handle;
@@ -99,6 +102,7 @@ sidekiq_rx_impl::sidekiq_rx_impl(
         else
         {
             d_logger->info("Info: If not running Transceive Mode, then this is an error");
+            rx_second = true;
         }
     }
     else
@@ -107,8 +111,15 @@ sidekiq_rx_impl::sidekiq_rx_impl(
         d_logger->info("Info: libsidkiq initialized successfully");
     }
 
-    set_rx_sample_rate(sample_rate);
-    set_rx_bandwidth(bandwidth);
+    if (rx_second == false)
+    {
+        set_rx_sample_rate(sample_rate);
+        set_rx_bandwidth(bandwidth);
+    }
+
+#ifdef COUNTER
+    skiq_write_rx_data_src(card, hdl1, skiq_data_src_counter);
+#endif
 
     /* calculate the adc scaling */
     status = skiq_read_rx_iq_resolution(card, &iq_resolution);
@@ -359,7 +370,6 @@ void sidekiq_rx_impl::set_rx_sample_rate(double value)
     this->sample_rate = rate;
     this->bandwidth = bw;
 
-    status_update_rate_in_samples = static_cast<size_t >(sample_rate * STATUS_UPDATE_RATE_SECONDS);
 }
   
 /* 
@@ -767,6 +777,7 @@ uint32_t sidekiq_rx_impl::get_new_block(uint32_t portno)
                 if (expected_ts != actual_tx)
                 {
                     overrun_counter++;
+                    d_logger->debug("ts overrun");
                 }
             }
 
@@ -840,7 +851,7 @@ bool sidekiq_rx_impl::determine_if_done(int32_t *samples_written, int32_t noutpu
     else
     {
         /* single port, always port number is 0 */
-        if (samples_written[0] < noutput_items )
+        if (samples_written[0]  < noutput_items )
         {
             *portno = 0;
             looping = true;
@@ -886,8 +897,14 @@ int sidekiq_rx_impl::work(int noutput_items,
         curr_out_ptr[1] = out[1];
     }
 
+    if (noutput_items < DATA_MAX_BUFFER_SIZE)
+    {
+        printf(". ");
+        return 0;
+    }
+
     /* Determine if the time has elapsed and display any underruns we have received */
-    if (nitems_written(0) - last_status_update_sample > status_update_rate_in_samples)
+    if ((nitems_written(0) - last_status_update_sample) > status_update_rate_in_samples)
     {
         last_status_update_sample = nitems_written(0);
 
@@ -896,8 +913,8 @@ int sidekiq_rx_impl::work(int noutput_items,
             d_logger->info("Overruns detected: {}", overrun_counter);
         }
 
-        d_logger->debug("noutput_items {}, dual_port {}, buffer_size {}", 
-               noutput_items, dual_port, DATA_MAX_BUFFER_SIZE);
+        d_logger->debug("noutput_items {}, nitems_written {}, last_update {}, rate {}",
+               noutput_items, nitems_written(0), last_status_update_sample, status_update_rate_in_samples);
 
     }
 
@@ -925,12 +942,39 @@ int sidekiq_rx_impl::work(int noutput_items,
                 samples_to_write[portno] = curr_block_samples_left[portno];
             }
 
+#ifdef DEBUG
+            if (debug_ctr < 1)
+            {
+                printf("overrun ctr %lu, samples_left %d, samples_written %d, samples_to_write %u, noutput_items %d\n",
+                        overrun_counter, curr_block_samples_left[portno], samples_written[portno], 
+                        samples_to_write[portno], noutput_items);
+
+                if (samples_written[portno] == 1018)
+                {
+                    printf("0x%08X ", (1143 * 4));
+                    for (int i=125; i < 141; i++)
+                    {
+                        printf("0x%04X ", curr_block_ptr[portno][i * IQ_SHORT_COUNT + 1]);
+                        printf("0x%04X ", curr_block_ptr[portno][i * IQ_SHORT_COUNT]);
+                        if (i%4 == 0)
+                        {
+                            printf("\n");
+                        }
+                    }
+                    printf("\n");
+                }
+                fflush(stdout);
+            }
+#endif
+
             /* convert and write the samples */
             volk_16i_s32f_convert_32f_u(
                   (float *) curr_out_ptr[portno],
                   (const int16_t *) curr_block_ptr[portno],
                   adc_scaling,
                   (samples_to_write[portno] * IQ_SHORT_COUNT ));
+
+
 
             /* increment all the pointers and counters */
             samples_written[portno] += samples_to_write[portno];

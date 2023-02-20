@@ -109,6 +109,7 @@ private:
     /* flags */
     bool libsidekiq_init{};
     bool tx_streaming{};
+    bool tx_second{};
 
     /* sync/async parameters */
     bool in_async_mode{};
