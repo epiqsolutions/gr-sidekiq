@@ -42,7 +42,7 @@ blocks:
     min_len: '200'
     orient: QtCore.Qt.Horizontal
     rangeType: float
-    start: 1e6
+    start: 1e5
     step: 1e6
     stop: 250e6
     value: sample_rate * .8
@@ -134,10 +134,10 @@ blocks:
     min_len: '200'
     orient: QtCore.Qt.Horizontal
     rangeType: float
-    start: 1e6
+    start: 1e5
     step: 1e6
     stop: 250e6
-    value: 8e6
+    value: 1e6
     widget: counter_slider
   states:
     bus_sink: false
@@ -152,8 +152,8 @@ blocks:
     affinity: ''
     alias: ''
     comment: ''
-    maxoutbuf: '0'
-    minoutbuf: '0'
+    maxoutbuf: '32000'
+    minoutbuf: '32000'
     scale_factor: '2047.0'
     vector_output: 'False'
   states:
@@ -163,6 +163,40 @@ blocks:
     coordinate: [248, 484.0]
     rotation: 0
     state: true
+- name: blocks_endian_swap_0
+  id: blocks_endian_swap
+  parameters:
+    affinity: ''
+    alias: ''
+    comment: ''
+    maxoutbuf: '0'
+    minoutbuf: '0'
+    type: s16
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [760, 616.0]
+    rotation: 0
+    state: disabled
+- name: blocks_file_sink_0
+  id: blocks_file_sink
+  parameters:
+    affinity: ''
+    alias: ''
+    append: 'False'
+    comment: ''
+    file: readable.bin
+    type: short
+    unbuffered: 'False'
+    vlen: '1'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [928, 700.0]
+    rotation: 0
+    state: disabled
 - name: blocks_file_sink_2
   id: blocks_file_sink
   parameters:
@@ -205,7 +239,7 @@ blocks:
     alias: ''
     comment: ''
     datatype: short
-    maxoutbuf: '0'
+    maxoutbuf: '32000'
     minoutbuf: '0'
   states:
     bus_sink: false
@@ -221,30 +255,33 @@ blocks:
       \ GRC will instantiate the first class it finds\nto get ports and parameters\
       \ of your block. The arguments to __init__  will\nbe the parameters. All of\
       \ them are required to have default values!\n\"\"\"\n\nimport numpy as np\n\
-      from gnuradio import gr\n\n\nclass blk(gr.sync_block):  # other base classes\
-      \ are basic_block, decim_block, interp_block\n    \"\"\"Embedded Python Block\
-      \ example - a simple multiply const\"\"\"\n\n    def __init__(self, example_param=1.0):\
-      \  # only default arguments here\n        \"\"\"arguments to this function show\
-      \ up as parameters in GRC\"\"\"\n        gr.sync_block.__init__(\n         \
-      \   self,\n            name='Embedded Python Block',   # will show up in GRC\n\
-      \            in_sig=[np.int16],\n            out_sig=[np.int16]\n        )\n\
-      \        # if an attribute with the same name as a parameter is found,\n   \
-      \     # a callback is registered (properties work, too).\n        self.example_param\
-      \ = example_param\n\n    def work(self, input_items, output_items):\n\n\n  \
-      \      expected = input_items[i]\n\n        #validate samples\n        for j\
-      \ in len(input_items): \n            this_value = input_items[j]\n\n       \
-      \     if (this_value != expected):\n                print(\"bad value\", j,\
-      \ \"expected\", expected, \"value\", this_value)\n\n                \"\"\"\n\
-      \                #error print the buffer around the error\n                for\
-      \ k in range(-5, 5):\n                    print((j + k), \" \", rx_buff[i][j+k])\n\
-      \                \"\"\"\n                break\n\n            expected = (this_value\
-      \ + 1)\n            if expected == (max_data + 1):\n                expected\
-      \ = -(max_data+1)\n\n        return len(output_items[0])\n"
+      from gnuradio import gr\nrx_resolution = 12\nmax_data = (1 << (rx_resolution\
+      \ -1))-1\nprint(max_data)\n\ndebug_ctr = 0\nbyte_num = 0\n\n\nclass blk(gr.sync_block):\
+      \  # other base classes are basic_block, decim_block, interp_block\n    \"\"\
+      \"Embedded Python Block example - a simple multiply const\"\"\"\n\n    def __init__(self,\
+      \ example_param=1.0):  # only default arguments here\n        \"\"\"arguments\
+      \ to this function show up as parameters in GRC\"\"\"\n        gr.sync_block.__init__(\n\
+      \            self,\n            name='Embedded Python Block',   # will show\
+      \ up in GRC\n            in_sig=[np.int16],\n            out_sig=[np.int16]\n\
+      \        )\n        # if an attribute with the same name as a parameter is found,\n\
+      \        # a callback is registered (properties work, too).j\n        self.example_param\
+      \ = example_param\n\n    def work(self, input_items, output_items):\n      \
+      \  global debug_ctr, byte_num\n        \n        \n        expected = input_items[0][0]\n\
+      \n        #validate samples\n        for j in range(len(input_items[0])): \n\
+      \            this_value = input_items[0][j]\n\n            if (this_value !=\
+      \ expected):\n                print(\"Fail: Byte # \", hex(byte_num + (j*2)),\
+      \ \"expected\", hex((0xffff & expected)), \"actual\", hex((0xffff & this_value)))\
+      \                \n\n            expected = (this_value + 1)\n            if\
+      \ expected == (max_data + 1):\n                expected = -(max_data+1)\n  \
+      \              \n                \n        debug_ctr += 1\n        if debug_ctr\
+      \ % 1000 == 0:\n            print(\"ninput_items\", len(input_items[0]))\n \
+      \           \n        byte_num = byte_num + (len(input_items[0]) * 2)\n    \
+      \    \n        return len(output_items[0])\n"
     affinity: ''
     alias: ''
     comment: ''
     example_param: '1.0'
-    maxoutbuf: '0'
+    maxoutbuf: '32000'
     minoutbuf: '0'
   states:
     _io_cache: ('Embedded Python Block', 'blk', [('example_param', '1.0')], [('0',
@@ -334,7 +371,7 @@ blocks:
     bus_sink: false
     bus_source: false
     bus_structure: null
-    coordinate: [832, 372.0]
+    coordinate: [848, 316.0]
     rotation: 0
     state: disabled
 - name: sidekiq_sidekiq_rx_0
@@ -360,12 +397,14 @@ blocks:
     bus_sink: false
     bus_source: false
     bus_structure: null
-    coordinate: [160, 220.0]
+    coordinate: [112, 228.0]
     rotation: 0
     state: true
 
 connections:
 - [blocks_complex_to_interleaved_short_0, '0', blocks_swapiq_0, '0']
+- [blocks_endian_swap_0, '0', blocks_file_sink_0, '0']
+- [blocks_swapiq_0, '0', blocks_endian_swap_0, '0']
 - [blocks_swapiq_0, '0', blocks_file_sink_2, '0']
 - [blocks_swapiq_0, '0', epy_block_0, '0']
 - [epy_block_0, '0', blocks_null_sink_0, '0']

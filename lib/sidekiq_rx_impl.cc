@@ -13,7 +13,7 @@
 
 #define DEBUG_LEVEL "debug" //Can be debug, info, warning, error, critical
 
-#define COUNTER
+//#define COUNTER
 
 using pmt::pmt_t;
 const pmt_t CONTROL_MESSAGE_PORT{pmt::string_to_symbol("command")};
@@ -777,7 +777,7 @@ uint32_t sidekiq_rx_impl::get_new_block(uint32_t portno)
                 if (expected_ts != actual_tx)
                 {
                     overrun_counter++;
-                    d_logger->debug("ts overrun");
+                    d_logger->info("Detected overrun, total overruns {}", overrun_counter);
                 }
             }
 
@@ -794,7 +794,11 @@ uint32_t sidekiq_rx_impl::get_new_block(uint32_t portno)
             /* we are non-blocking so we will get this status */
             done = false;
             usleep(NON_BLOCKING_TIMEOUT);
-        } 
+        }
+        else if (status == skiq_rx_status_error_overrun)
+        {
+            /* if we get an overrun, it will be detected in the next timestamp overrun test */
+        }
         else 
         {
           done = true;
@@ -851,7 +855,7 @@ bool sidekiq_rx_impl::determine_if_done(int32_t *samples_written, int32_t noutpu
     else
     {
         /* single port, always port number is 0 */
-        if (samples_written[0]  < noutput_items )
+        if ((samples_written[0] + DATA_MAX_BUFFER_SIZE)  < noutput_items )
         {
             *portno = 0;
             looping = true;
@@ -899,7 +903,6 @@ int sidekiq_rx_impl::work(int noutput_items,
 
     if (noutput_items < DATA_MAX_BUFFER_SIZE)
     {
-        printf(". ");
         return 0;
     }
 
@@ -913,8 +916,8 @@ int sidekiq_rx_impl::work(int noutput_items,
             d_logger->info("Overruns detected: {}", overrun_counter);
         }
 
-        d_logger->debug("noutput_items {}, nitems_written {}, last_update {}, rate {}",
-               noutput_items, nitems_written(0), last_status_update_sample, status_update_rate_in_samples);
+        d_logger->debug("noutput_items {}, nitems_written {}, last_update {}",
+               noutput_items, nitems_written(0), last_status_update_sample );
 
     }
 
@@ -996,7 +999,7 @@ int sidekiq_rx_impl::work(int noutput_items,
     debug_ctr++;
 
     // Tell runtime system how many output items we produced.
-    return noutput_items;
+    return samples_written[0];
 }
 
 } /* namespace sidekiq */
