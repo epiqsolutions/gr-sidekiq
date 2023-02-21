@@ -11,7 +11,7 @@
 #include <volk/volk.h>
 #include <boost/asio.hpp>
 
-#define DEBUG_LEVEL "error" //Can be debug, info, warning, error, critical
+#define DEBUG_LEVEL "debug" //Can be debug, info, warning, error, critical
 
 using pmt::pmt_t;
 const pmt_t CONTROL_MESSAGE_PORT{pmt::string_to_symbol("command")};
@@ -840,7 +840,7 @@ bool sidekiq_rx_impl::determine_if_done(int32_t *samples_written, int32_t noutpu
     else
     {
         /* single port, always port number is 0 */
-        if (samples_written[0] < noutput_items )
+        if ((samples_written[0] + DATA_MAX_BUFFER_SIZE) < noutput_items )
         {
             *portno = 0;
             looping = true;
@@ -885,6 +885,12 @@ int sidekiq_rx_impl::work(int noutput_items,
         out[1] = static_cast<gr_complex *>(output_items[1]);
         curr_out_ptr[1] = out[1];
     }
+
+    if (noutput_items < DATA_MAX_BUFFER_SIZE)
+    {
+        return 0;
+    }
+
 
     /* Determine if the time has elapsed and display any underruns we have received */
     if (nitems_written(0) - last_status_update_sample > status_update_rate_in_samples)
@@ -949,9 +955,16 @@ int sidekiq_rx_impl::work(int noutput_items,
         looping = determine_if_done(samples_written, noutput_items, &portno);
     }
 
+    if (debug_ctr < 30)
+    {
+        d_logger->debug("noutput_items {}, samples_written {}", noutput_items, samples_written[0]);
+    }
+
+
     debug_ctr++;
 
     // Tell runtime system how many output items we produced.
+//    return samples_written[0];
     return noutput_items;
 }
 
