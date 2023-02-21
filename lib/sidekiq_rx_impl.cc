@@ -13,6 +13,8 @@
 
 #define DEBUG_LEVEL "debug" //Can be debug, info, warning, error, critical
 
+//#define COUNTER             // used for data integrity testing
+
 using pmt::pmt_t;
 const pmt_t CONTROL_MESSAGE_PORT{pmt::string_to_symbol("command")};
 
@@ -107,6 +109,7 @@ sidekiq_rx_impl::sidekiq_rx_impl(
         d_logger->info("Info: libsidkiq initialized successfully");
     }
 
+
     set_rx_sample_rate(sample_rate);
     set_rx_bandwidth(bandwidth);
 
@@ -172,6 +175,15 @@ sidekiq_rx_impl::sidekiq_rx_impl(
 
     set_rx_cal_mode(cal_mode);
     set_rx_cal_type(cal_type);
+
+#ifdef COUNTER
+    skiq_write_rx_data_src(card, hdl1, skiq_data_src_counter);
+#endif
+
+    /* we need gnuradio to send in buffers of an integer multiple of our DMA block sizes */
+    gr::block::set_min_noutput_items(DATA_MAX_BUFFER_SIZE);
+    gr::block::set_output_multiple(DATA_MAX_BUFFER_SIZE);
+
 }
 
 
@@ -810,22 +822,26 @@ bool sidekiq_rx_impl::determine_if_done(int32_t *samples_written, int32_t noutpu
 {
     bool looping = true;
 
+
     /* handle single port different than dual port */
     if (dual_port)
     {
         /* neither port is done so just leave the port as it is */
-        if (samples_written[0] < noutput_items && samples_written[1] < noutput_items)
+        if (((samples_written[0] + DATA_MAX_BUFFER_SIZE) <= noutput_items) && 
+                ((samples_written[1] + DATA_MAX_BUFFER_SIZE)  < noutput_items))
         {
             looping = true;
         }
         /* port 0 is done, but port 1 is not, force port to 1 */
-        else if (samples_written[1] < noutput_items && samples_written[0] == noutput_items)
+        else if (((samples_written[1] + DATA_MAX_BUFFER_SIZE) < noutput_items) && 
+                (samples_written[0] + DATA_MAX_BUFFER_SIZE) > noutput_items)
         {
             *portno = 1;
             looping = true;
         }
         /* port 1 is done, but port 0 is not, force port to 0 */
-        else if (samples_written[0] < noutput_items && samples_written[1] == noutput_items)
+        else if (((samples_written[0] + DATA_MAX_BUFFER_SIZE) < noutput_items) && 
+                (samples_written[1] + DATA_MAX_BUFFER_SIZE) > noutput_items)
         {
             *portno = 0;
             looping = true;
@@ -840,7 +856,7 @@ bool sidekiq_rx_impl::determine_if_done(int32_t *samples_written, int32_t noutpu
     else
     {
         /* single port, always port number is 0 */
-        if ((samples_written[0] + DATA_MAX_BUFFER_SIZE) < noutput_items )
+        if ((samples_written[0] + DATA_MAX_BUFFER_SIZE) <= noutput_items )
         {
             *portno = 0;
             looping = true;
@@ -886,14 +902,16 @@ int sidekiq_rx_impl::work(int noutput_items,
         curr_out_ptr[1] = out[1];
     }
 
+    /* We told gnuradio to not call us with a buffer size smaller than our block, so error out. */
     if (noutput_items < DATA_MAX_BUFFER_SIZE)
     {
-        return 0;
+        d_logger->error( "Error : invalid noutput_items {}", noutput_items);
+        throw std::runtime_error("Failure: invalid noutput items");
     }
 
 
     /* Determine if the time has elapsed and display any underruns we have received */
-    if (nitems_written(0) - last_status_update_sample > status_update_rate_in_samples)
+    if ((nitems_written(0) - last_status_update_sample) > status_update_rate_in_samples)
     {
         last_status_update_sample = nitems_written(0);
 
@@ -955,17 +973,18 @@ int sidekiq_rx_impl::work(int noutput_items,
         looping = determine_if_done(samples_written, noutput_items, &portno);
     }
 
+#if DEBUG
     if (debug_ctr < 30)
     {
-        d_logger->debug("noutput_items {}, samples_written {}", noutput_items, samples_written[0]);
+        d_logger->debug("items written {}, noutput_items {}, samples_written {}", nitems_written(0), noutput_items, samples_written[0]);
     }
+#endif
 
 
     debug_ctr++;
 
     // Tell runtime system how many output items we produced.
-//    return samples_written[0];
-    return noutput_items;
+    return samples_written[0];
 }
 
 } /* namespace sidekiq */
