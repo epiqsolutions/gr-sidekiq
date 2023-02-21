@@ -321,7 +321,7 @@ blocks:
     bus_sink: false
     bus_source: false
     bus_structure: null
-    coordinate: [832, 244.0]
+    coordinate: [824, 228.0]
     rotation: 0
     state: true
 - name: sidekiq_sidekiq_rx_0
@@ -332,7 +332,7 @@ blocks:
     bandwidth: bandwidth
     cal_mode: '1'
     cal_type: '2'
-    card: '1'
+    card: '2'
     comment: ''
     frequency: frequency
     gain_index: gain_index

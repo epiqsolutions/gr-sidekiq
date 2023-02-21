@@ -828,19 +828,19 @@ bool sidekiq_rx_impl::determine_if_done(int32_t *samples_written, int32_t noutpu
     {
         /* neither port is done so just leave the port as it is */
         if (((samples_written[0] + DATA_MAX_BUFFER_SIZE) <= noutput_items) && 
-                ((samples_written[1] + DATA_MAX_BUFFER_SIZE)  < noutput_items))
+                ((samples_written[1] + DATA_MAX_BUFFER_SIZE)  <= noutput_items))
         {
             looping = true;
         }
         /* port 0 is done, but port 1 is not, force port to 1 */
-        else if (((samples_written[1] + DATA_MAX_BUFFER_SIZE) < noutput_items) && 
+        else if (((samples_written[1] + DATA_MAX_BUFFER_SIZE) <= noutput_items) && 
                 (samples_written[0] + DATA_MAX_BUFFER_SIZE) > noutput_items)
         {
             *portno = 1;
             looping = true;
         }
         /* port 1 is done, but port 0 is not, force port to 0 */
-        else if (((samples_written[0] + DATA_MAX_BUFFER_SIZE) < noutput_items) && 
+        else if (((samples_written[0] + DATA_MAX_BUFFER_SIZE) <= noutput_items) && 
                 (samples_written[1] + DATA_MAX_BUFFER_SIZE) > noutput_items)
         {
             *portno = 0;
@@ -972,11 +972,13 @@ int sidekiq_rx_impl::work(int noutput_items,
         /* determine if we are done with this work() call */
         looping = determine_if_done(samples_written, noutput_items, &portno);
     }
-
-#if DEBUG
+    
+#define DEBUG
+#ifdef DEBUG
     if (debug_ctr < 30)
     {
-        d_logger->debug("items written {}, noutput_items {}, samples_written {}", nitems_written(0), noutput_items, samples_written[0]);
+        d_logger->debug("dual_port {}, portno {}, items written {}, noutput_items {}, samples_written {}", 
+                dual_port, portno, nitems_written(0), noutput_items, samples_written[portno]);
     }
 #endif
 
