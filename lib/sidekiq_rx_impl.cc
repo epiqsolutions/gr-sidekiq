@@ -11,7 +11,7 @@
 #include <volk/volk.h>
 #include <boost/asio.hpp>
 
-#define DEBUG_LEVEL "error" //Can be debug, info, warning, error, critical
+#define DEBUG_LEVEL "debug" //Can be debug, info, warning, error, critical
 
 using pmt::pmt_t;
 const pmt_t CONTROL_MESSAGE_PORT{pmt::string_to_symbol("command")};
@@ -778,7 +778,7 @@ uint32_t sidekiq_rx_impl::get_new_block(uint32_t portno)
             curr_block_samples_left[new_portno] = DATA_MAX_BUFFER_SIZE;
             done = true;
         }
-        else if (status == skiq_rx_status_no_data)
+        else if (status == skiq_rx_status_no_data || status == skiq_rx_status_error_overrun)
         {
             /* we are non-blocking so we will get this status */
             done = false;

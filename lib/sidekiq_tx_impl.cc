@@ -13,7 +13,7 @@
 #include "sidekiq_tx_impl.h"
 
 
-#define DEBUG_LEVEL "error"  //Can be debug, info, warning, error, critical
+#define DEBUG_LEVEL "debug"  //Can be debug, info, warning, error, critical
 
 /* The tx_complete function needs to be outside the object so it can be registered with libsidekiq 
  * mutex to protect updates to the tx buffer
