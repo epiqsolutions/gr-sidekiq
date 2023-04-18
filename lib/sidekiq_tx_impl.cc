@@ -606,7 +606,13 @@ int sidekiq_tx_impl::handle_tx_burst_tag(tag_t tag)
 {
     if (bursting_cmd != NO_BURSTING_ENABLED)
     {
-        d_logger->debug("in handle_tx_burst_tag, tag offset {}, cmd {}, length {}", tag.offset, bursting_cmd, tag.value);
+        /* old way does not compile anymore */
+#ifdef OLDWAY
+        d_logger->debug("in handle_tx_burst_tag, tag offset {}, cmd {}, length {}", 
+                tag.offset, bursting_cmd, tag.value);
+#endif
+        d_logger->debug("in handle_tx_burst_tag, tag offset {:d}, cmd {}, length {:d}", 
+                tag.offset, bursting_cmd, pmt::write_string(tag.value));
 
         burst_length = pmt::to_uint64(tag.value);
         burst_samples_sent = 0;

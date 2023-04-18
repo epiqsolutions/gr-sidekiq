@@ -31,6 +31,8 @@ sidekiq_rx::sptr sidekiq_rx::make(
         double frequency,
         uint8_t gain_mode,
         int gain_index,
+        int trigger_src,
+        int pps_source,
         int cal_mode,
         int cal_type) 
 {
@@ -43,6 +45,8 @@ sidekiq_rx::sptr sidekiq_rx::make(
           frequency,
           gain_mode,
           gain_index,
+          trigger_src,
+          pps_source,
           cal_mode,
           cal_type);
 }
@@ -56,6 +60,8 @@ sidekiq_rx_impl::sidekiq_rx_impl(
         double frequency,
         uint8_t gain_mode,
         int gain_index,
+        int local_trigger_src,
+        int local_pps_source,
         int cal_mode,
         int cal_type) 
     : gr::sync_block("sidekiq_rx", gr::io_signature::make(0, 0, 0),
@@ -75,19 +81,60 @@ sidekiq_rx_impl::sidekiq_rx_impl(
     uint8_t iq_resolution = 0;
     status_update_rate_in_samples = static_cast<size_t >(sample_rate * STATUS_UPDATE_RATE_SECONDS);
 
-    card = input_card;
-    hdl1 = (skiq_rx_hdl_t) port1_handle;
+    this->card = input_card;
+    this->hdl1 = (skiq_rx_hdl_t) port1_handle;
+
+
+    if (local_trigger_src == 0)
+    {
+        this->trigger_src = skiq_trigger_src_immediate;
+    }
+    else if (local_trigger_src == 1)
+    {
+        this->trigger_src = skiq_trigger_src_1pps;
+    }
+    else if (local_trigger_src == 2)
+    {
+        this->trigger_src = skiq_trigger_src_synced;
+    }
+    else
+    {
+        d_logger->error( "Error: Invalid trigger source {}" , local_trigger_src);
+        throw std::runtime_error("Failure: trigger_src");
+    }
+
+    this->pps_source = skiq_1pps_source_unavailable;
+
+    if (trigger_src == skiq_trigger_src_1pps)
+    {
+        if (local_pps_source == 0)
+        {
+            this->pps_source = skiq_1pps_source_host;
+        }
+        else if (local_pps_source == 1)
+        {
+            this->pps_source = skiq_1pps_source_external;
+        }
+        else
+        {
+            d_logger->error( "Error: Invalid pps source {}" , local_pps_source);
+            throw std::runtime_error("Failure: trigger_src");
+        }
+
+    }
+
+    d_logger->debug("trigger {}, pps_source {}", this->trigger_src, this->pps_source);
 
     /* determine if we are in dual port */
     if (port2_handle < skiq_rx_hdl_end)
     {
-        dual_port = true;
-        hdl2 = (skiq_rx_hdl_t) port2_handle;
+        this->dual_port = true;
+        this->hdl2 = (skiq_rx_hdl_t) port2_handle;
     }
     else
     {
-        hdl2 = skiq_rx_hdl_end;
-        dual_port = false;
+        this->hdl2 = skiq_rx_hdl_end;
+        this->dual_port = false;
     }
 
     /* initialize libsidekiq */
@@ -111,11 +158,22 @@ sidekiq_rx_impl::sidekiq_rx_impl(
         d_logger->info("Info: libsidkiq initialized successfully");
     }
 
-    if (rx_second == false)
+
+    /* configure the 1PPS source for each of the cards */
+    if ( pps_source != skiq_1pps_source_unavailable )
     {
-        set_rx_sample_rate(sample_rate);
-        set_rx_bandwidth(bandwidth);
-    }
+        status = skiq_write_1pps_source( card, pps_source );
+        if ( status != 0 )
+        {
+            d_logger->error( "Error: unable to write 1pps source with status {}", status);
+            throw std::runtime_error("Failure: skiq_write_1pps_source");
+        }
+        else
+        {
+            d_logger->info("Info: configured 1PPS source to {}", pps_source);
+        }
+      }
+
 
 #ifdef COUNTER
     skiq_write_rx_data_src(card, hdl1, skiq_data_src_counter);
@@ -234,9 +292,15 @@ void sidekiq_rx_impl::handle_control_message(pmt_t msg)
     if (!(pmt::is_dict(msg)) && pmt::is_pair(msg)) {
         d_logger->debug(
             "Command message is pair, converting to dict: '{}': car({}), cdr({})",
+            /* old way of doing it, doesn't compile now */
+#ifdef OLDWAY
             msg,
             pmt::car(msg),
             pmt::cdr(msg));
+#endif
+            pmt::write_string(msg),
+            pmt::write_string(pmt::car(msg)),
+            pmt::write_string(pmt::cdr(msg)));
         msg = pmt::dict_add(pmt::make_dict(), pmt::car(msg), pmt::cdr(msg));
      }
 
@@ -277,26 +341,26 @@ void sidekiq_rx_impl::handle_control_message(pmt_t msg)
 bool sidekiq_rx_impl::start() 
 {
     int status = 0;
+    skiq_rx_hdl_t handles[skiq_rx_hdl_end];
+    uint8_t nrhandles = 0;
 
     d_logger->debug("in start");
 
-    status = skiq_start_rx_streaming(card, hdl1);
-    if (status != 0)
+    handles[0] = hdl1;
+    nrhandles = 1;
+
+    if (dual_port == true)
     {
-        d_logger->error( "Error: could not start RX streaming on hdl1, status {}", status);
-        throw std::runtime_error("Failure: skiq_start_rx_streaming");
+        handles[1] = hdl2;
+        nrhandles = 2;
     }
 
-    if (dual_port)
+    status = skiq_start_rx_streaming_multi_on_trigger(card, handles, nrhandles, trigger_src, 0);
+    if ( status != 0 )
     {
-        status = skiq_start_rx_streaming(card, hdl2);
-        if (status != 0)
-        {
-            d_logger->error( "Error: could not start RX streaming on hdl2, status {}", status);
-            throw std::runtime_error("Failure: skiq_start_rx_streaming");
-        }
+       d_logger->error( "Error: could not start RX streaming on hdl1, status {}", status);
+       throw std::runtime_error("Failure: skiq_start_rx_streaming");
     }
-
 
     rx_streaming = true;
     d_logger->info("Info: RX streaming started");
@@ -312,26 +376,27 @@ bool sidekiq_rx_impl::start()
 bool sidekiq_rx_impl::stop() 
 {
     int status = 0;
+    skiq_rx_hdl_t handles[skiq_rx_hdl_end];
+    uint8_t nrhandles = 0;
     
     d_logger->debug("in stop");
 
     /* only call stop if we are actually streaming */
     if (rx_streaming == true)
     {
-        status = skiq_stop_rx_streaming(card, hdl1);
-        if (status != 0)
+        handles[0] = hdl1;
+        nrhandles = 1;
+        if (dual_port == true)
         {
-            d_logger->error( "Error: could not stop TX streaming on hdl1, status {}", status);
-            throw std::runtime_error("Failure: skiq_start_tx_streaming");
+            handles[1] = hdl2;
+            nrhandles = 2;
         }
-        if (dual_port)
+
+        status = skiq_stop_rx_streaming_multi_on_trigger(card, handles, nrhandles, trigger_src, 0);
+        if ( status != 0 )
         {
-            status = skiq_stop_rx_streaming(card, hdl2);
-            if (status != 0)
-            {
-                d_logger->error( "Error: could not stop TX streaming on hdl2, status {}", status);
-                throw std::runtime_error("Failure: skiq_start_tx_streaming");
-            }
+           d_logger->error( "Error: could not start RX streaming on hdl1, status {}", status);
+           throw std::runtime_error("Failure: skiq_start_rx_streaming");
         }
         d_logger->info("Info: RX streaming stopped");
     }
@@ -438,7 +503,7 @@ void sidekiq_rx_impl::set_rx_frequency(double value)
     status = skiq_write_rx_LO_freq(card, hdl1, freq);
     if (status != 0) 
     {
-        d_logger->error("Error: could not set frequency %ld on hdl1, status {}, {}", 
+        d_logger->error("Error: could not set frequency {} on hdl1, status {}, {}", 
                 freq, status, strerror(abs(status)) );
         throw std::runtime_error("Failure: set frequency");
         return;
@@ -546,7 +611,7 @@ void sidekiq_rx_impl::set_rx_gain_index(int value)
             return;
         }
 
-        if (dual_port)
+        if (dual_port == true)
         {
             status = skiq_write_rx_gain(card, hdl2, gain);
             if (status != 0) 
