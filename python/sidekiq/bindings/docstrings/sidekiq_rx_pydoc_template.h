@@ -14,26 +14,41 @@
   and will be overwritten during the build process
  */
 
-static const char *__doc_gr_sidekiq_sidekiq_rx = R"doc()doc";
 
-static const char *__doc_gr_sidekiq_sidekiq_rx_sidekiq_rx_0 = R"doc()doc";
 
-static const char *__doc_gr_sidekiq_sidekiq_rx_sidekiq_rx_1 = R"doc()doc";
+ static const char *__doc_gr_sidekiq_sidekiq_rx = R"doc()doc";
 
-static const char *__doc_gr_sidekiq_sidekiq_rx_make = R"doc()doc";
 
-static const char *__doc_gr_sidekiq_sidekiq_rx_set_rx_sample_rate = R"doc()doc";
+ static const char *__doc_gr_sidekiq_sidekiq_rx_sidekiq_rx_0 = R"doc()doc";
 
-static const char *__doc_gr_sidekiq_sidekiq_rx_set_rx_bandwidth = R"doc()doc";
 
-static const char *__doc_gr_sidekiq_sidekiq_rx_set_rx_frequency = R"doc()doc";
+ static const char *__doc_gr_sidekiq_sidekiq_rx_sidekiq_rx_1 = R"doc()doc";
 
-static const char *__doc_gr_sidekiq_sidekiq_rx_set_rx_gain_mode = R"doc()doc";
 
-static const char *__doc_gr_sidekiq_sidekiq_rx_set_rx_gain_index = R"doc()doc";
+ static const char *__doc_gr_sidekiq_sidekiq_rx_make = R"doc()doc";
 
-static const char *__doc_gr_sidekiq_sidekiq_rx_set_rx_cal_mode = R"doc()doc";
 
-static const char *__doc_gr_sidekiq_sidekiq_rx_set_rx_cal_type = R"doc()doc";
+ static const char *__doc_gr_sidekiq_sidekiq_rx_set_rx_sample_rate = R"doc()doc";
 
-static const char *__doc_gr_sidekiq_sidekiq_rx_run_rx_cal = R"doc()doc";
+
+ static const char *__doc_gr_sidekiq_sidekiq_rx_set_rx_bandwidth = R"doc()doc";
+
+
+ static const char *__doc_gr_sidekiq_sidekiq_rx_set_rx_frequency = R"doc()doc";
+
+
+ static const char *__doc_gr_sidekiq_sidekiq_rx_set_rx_gain_mode = R"doc()doc";
+
+
+ static const char *__doc_gr_sidekiq_sidekiq_rx_set_rx_gain_index = R"doc()doc";
+
+
+ static const char *__doc_gr_sidekiq_sidekiq_rx_set_rx_cal_mode = R"doc()doc";
+
+
+ static const char *__doc_gr_sidekiq_sidekiq_rx_set_rx_cal_type = R"doc()doc";
+
+
+ static const char *__doc_gr_sidekiq_sidekiq_rx_run_rx_cal = R"doc()doc";
+
+  

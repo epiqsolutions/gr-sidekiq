@@ -14,22 +14,35 @@
   and will be overwritten during the build process
  */
 
-static const char *__doc_gr_sidekiq_sidekiq_tx = R"doc()doc";
 
-static const char *__doc_gr_sidekiq_sidekiq_tx_sidekiq_tx_0 = R"doc()doc";
 
-static const char *__doc_gr_sidekiq_sidekiq_tx_sidekiq_tx_1 = R"doc()doc";
+ static const char *__doc_gr_sidekiq_sidekiq_tx = R"doc()doc";
 
-static const char *__doc_gr_sidekiq_sidekiq_tx_make = R"doc()doc";
 
-static const char *__doc_gr_sidekiq_sidekiq_tx_set_tx_sample_rate = R"doc()doc";
+ static const char *__doc_gr_sidekiq_sidekiq_tx_sidekiq_tx_0 = R"doc()doc";
 
-static const char *__doc_gr_sidekiq_sidekiq_tx_set_tx_attenuation = R"doc()doc";
 
-static const char *__doc_gr_sidekiq_sidekiq_tx_set_tx_frequency = R"doc()doc";
+ static const char *__doc_gr_sidekiq_sidekiq_tx_sidekiq_tx_1 = R"doc()doc";
 
-static const char *__doc_gr_sidekiq_sidekiq_tx_set_tx_bandwidth = R"doc()doc";
 
-static const char *__doc_gr_sidekiq_sidekiq_tx_set_tx_cal_mode = R"doc()doc";
+ static const char *__doc_gr_sidekiq_sidekiq_tx_make = R"doc()doc";
 
-static const char *__doc_gr_sidekiq_sidekiq_tx_run_tx_cal = R"doc()doc";
+
+ static const char *__doc_gr_sidekiq_sidekiq_tx_set_tx_sample_rate = R"doc()doc";
+
+
+ static const char *__doc_gr_sidekiq_sidekiq_tx_set_tx_attenuation = R"doc()doc";
+
+
+ static const char *__doc_gr_sidekiq_sidekiq_tx_set_tx_frequency = R"doc()doc";
+
+
+ static const char *__doc_gr_sidekiq_sidekiq_tx_set_tx_bandwidth = R"doc()doc";
+
+
+ static const char *__doc_gr_sidekiq_sidekiq_tx_set_tx_cal_mode = R"doc()doc";
+
+
+ static const char *__doc_gr_sidekiq_sidekiq_tx_run_tx_cal = R"doc()doc";
+
+  

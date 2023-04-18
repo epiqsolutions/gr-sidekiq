@@ -62,6 +62,8 @@ public:
           uint8_t gain_mode,
           int gain_index,
           int timestamp_tags,
+          int trigger_src,
+          int pps_source,
           int cal_mode,
           int cal_type
           );
@@ -112,11 +114,15 @@ private:
     skiq_rx_cal_mode_t cal_mode{};
     skiq_rx_cal_type_t cal_type{};
 
+    skiq_trigger_src_t trigger_src = skiq_trigger_src_immediate;
+    skiq_1pps_source_t pps_source{}; 
+
     /* flags */    
     bool libsidekiq_init{};
     bool rx_streaming{};
     bool cal_enabled{};
     bool dual_port{};
+    bool rx_second{};
 
     /* work parameters */
     uint64_t last_status_update_sample{};
