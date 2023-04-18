@@ -11,7 +11,7 @@ options:
     gen_linking: dynamic
     generate_options: qt_gui
     hier_block_src_path: '.:'
-    id: source_test
+    id: transceive2
     max_nouts: '0'
     output_language: python
     placement: (0,0)
@@ -22,7 +22,7 @@ options:
     run_options: prompt
     sizing_mode: fixed
     thread_safe_setters: ''
-    title: source_test
+    title: Transceive2
     window_size: (1000,1000)
   states:
     bus_sink: false
@@ -33,78 +33,55 @@ options:
     state: enabled
 
 blocks:
-- name: bandwidth
-  id: variable_qtgui_range
-  parameters:
-    comment: ''
-    gui_hint: ''
-    label: ''
-    min_len: '200'
-    orient: QtCore.Qt.Horizontal
-    rangeType: float
-    start: 1e6
-    step: 1e6
-    stop: 250e6
-    value: sample_rate * .8
-    widget: counter_slider
-  states:
-    bus_sink: false
-    bus_source: false
-    bus_structure: null
-    coordinate: [576, 36.0]
-    rotation: 0
-    state: true
-- name: frequency
-  id: variable_qtgui_range
-  parameters:
-    comment: ''
-    gui_hint: ''
-    label: ''
-    min_len: '200'
-    orient: QtCore.Qt.Horizontal
-    rangeType: float
-    start: 250e6
-    step: 1e6
-    stop: 6000e6
-    value: 1000e6
-    widget: counter_slider
-  states:
-    bus_sink: false
-    bus_source: false
-    bus_structure: null
-    coordinate: [784, 36.0]
-    rotation: 0
-    state: true
-- name: run_rx_calibration
-  id: variable_qtgui_push_button
-  parameters:
-    comment: ''
-    gui_hint: ''
-    label: Run RX Calibration
-    pressed: '1'
-    released: '0'
-    type: int
-    value: '0'
-  states:
-    bus_sink: false
-    bus_source: false
-    bus_structure: null
-    coordinate: [1008, 36.0]
-    rotation: 0
-    state: true
-- name: samp_rate
+- name: card
   id: variable
   parameters:
     comment: ''
-    value: '32000'
+    value: '3'
   states:
     bus_sink: false
     bus_source: false
     bus_structure: null
-    coordinate: [184, 12]
+    coordinate: [848, 52.0]
+    rotation: 0
+    state: true
+- name: frequency
+  id: variable
+  parameters:
+    comment: ''
+    value: 1000e6
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [536, 72.0]
+    rotation: 0
+    state: true
+- name: min_output_buffer
+  id: variable
+  parameters:
+    comment: ''
+    value: 32764 *2*2
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [136, 116.0]
+    rotation: 0
+    state: true
+- name: sample_rate
+  id: variable
+  parameters:
+    comment: ''
+    value: 50e6
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [384, 76.0]
     rotation: 0
     state: enabled
-- name: sample_rate
+- name: tone_freq
   id: variable_qtgui_range
   parameters:
     comment: ''
@@ -115,14 +92,36 @@ blocks:
     rangeType: float
     start: 1e6
     step: 1e6
-    stop: 250e6
-    value: 60e6
+    stop: 25e6
+    value: 2e6
     widget: counter_slider
   states:
     bus_sink: false
     bus_source: false
     bus_structure: null
-    coordinate: [392, 36.0]
+    coordinate: [680, 44.0]
+    rotation: 0
+    state: true
+- name: analog_sig_source_x_0
+  id: analog_sig_source_x
+  parameters:
+    affinity: ''
+    alias: ''
+    amp: '1'
+    comment: ''
+    freq: tone_freq
+    maxoutbuf: '0'
+    minoutbuf: min_output_buffer
+    offset: '0'
+    phase: '0'
+    samp_rate: sample_rate
+    type: complex
+    waveform: analog.GR_COS_WAVE
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [640, 212.0]
     rotation: 0
     state: true
 - name: qtgui_freq_sink_x_0
@@ -175,7 +174,7 @@ blocks:
     legend: 'True'
     maxoutbuf: '0'
     minoutbuf: '0'
-    name: '"Channel 0"'
+    name: '""'
     nconnections: '1'
     norm_window: 'False'
     showports: 'False'
@@ -203,88 +202,7 @@ blocks:
     bus_sink: false
     bus_source: false
     bus_structure: null
-    coordinate: [872, 236.0]
-    rotation: 0
-    state: true
-- name: qtgui_freq_sink_x_0_0
-  id: qtgui_freq_sink_x
-  parameters:
-    affinity: ''
-    alias: ''
-    alpha1: '1.0'
-    alpha10: '1.0'
-    alpha2: '1.0'
-    alpha3: '1.0'
-    alpha4: '1.0'
-    alpha5: '1.0'
-    alpha6: '1.0'
-    alpha7: '1.0'
-    alpha8: '1.0'
-    alpha9: '1.0'
-    autoscale: 'False'
-    average: '1.0'
-    axislabels: 'True'
-    bw: sample_rate
-    color1: '"blue"'
-    color10: '"dark blue"'
-    color2: '"red"'
-    color3: '"green"'
-    color4: '"black"'
-    color5: '"cyan"'
-    color6: '"magenta"'
-    color7: '"yellow"'
-    color8: '"dark red"'
-    color9: '"dark green"'
-    comment: ''
-    ctrlpanel: 'False'
-    fc: frequency
-    fftsize: '1024'
-    freqhalf: 'True'
-    grid: 'False'
-    gui_hint: ''
-    label: Relative Gain
-    label1: ''
-    label10: ''''''
-    label2: ''''''
-    label3: ''''''
-    label4: ''''''
-    label5: ''''''
-    label6: ''''''
-    label7: ''''''
-    label8: ''''''
-    label9: ''''''
-    legend: 'True'
-    maxoutbuf: '0'
-    minoutbuf: '0'
-    name: '"Channel 1"'
-    nconnections: '1'
-    norm_window: 'False'
-    showports: 'False'
-    tr_chan: '0'
-    tr_level: '0.0'
-    tr_mode: qtgui.TRIG_MODE_FREE
-    tr_tag: '""'
-    type: complex
-    units: dB
-    update_time: '0.10'
-    width1: '1'
-    width10: '1'
-    width2: '1'
-    width3: '1'
-    width4: '1'
-    width5: '1'
-    width6: '1'
-    width7: '1'
-    width8: '1'
-    width9: '1'
-    wintype: window.WIN_BLACKMAN_hARRIS
-    ymax: '10'
-    ymin: '-140'
-  states:
-    bus_sink: false
-    bus_source: false
-    bus_structure: null
-    coordinate: [872, 340.0]
+    coordinate: [792, 436.0]
     rotation: 0
     state: true
 - name: sidekiq_sidekiq_rx_0
@@ -292,32 +210,56 @@ blocks:
   parameters:
     affinity: ''
     alias: ''
-    bandwidth: bandwidth
-    cal_mode: '1'
-    cal_type: '2'
-    card: '2'
+    bandwidth: sample_rate * .8
+    cal_mode: '0'
+    cal_type: '0'
+    card: card
     comment: ''
     frequency: frequency
-    gain_index: '1'
+    gain_index: '10'
     gain_mode: '1'
     handle1: '0'
-    handle2: '1'
+    handle2: '100'
     maxoutbuf: '0'
     minoutbuf: '0'
-    run_cal: run_rx_calibration
+    run_cal: '0'
     sample_rate: sample_rate
   states:
     bus_sink: false
     bus_source: false
     bus_structure: null
-    coordinate: [152, 204.0]
+    coordinate: [344, 388.0]
+    rotation: 0
+    state: true
+- name: sidekiq_sidekiq_tx_0
+  id: sidekiq_sidekiq_tx
+  parameters:
+    affinity: ''
+    alias: ''
+    attenuation: '100'
+    bandwidth: sample_rate * .8
+    buffer_size: '16380'
+    burst_tag: ''
+    cal_mode: '0'
+    card: card
+    comment: ''
+    frequency: frequency
+    handle: '0'
+    run_cal: '0'
+    sample_rate: sample_rate
+    threads: '4'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [952, 156.0]
     rotation: 0
     state: true
 
 connections:
+- [analog_sig_source_x_0, '0', sidekiq_sidekiq_tx_0, '0']
 - [sidekiq_sidekiq_rx_0, '0', qtgui_freq_sink_x_0, '0']
-- [sidekiq_sidekiq_rx_0, '1', qtgui_freq_sink_x_0_0, '0']
 
 metadata:
   file_format: 1
-  grc_version: 3.10.5.1
+  grc_version: v3.11.0.0git-375-ge2af6089
