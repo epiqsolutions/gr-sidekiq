@@ -116,7 +116,7 @@ blocks:
     start: 1e6
     step: 1e6
     stop: 250e6
-    value: 20e6
+    value: 60e6
     widget: counter_slider
   states:
     bus_sink: false
@@ -320,4 +320,4 @@ connections:
 
 metadata:
   file_format: 1
-  grc_version: 3.10.3.0
+  grc_version: 3.10.5.1
