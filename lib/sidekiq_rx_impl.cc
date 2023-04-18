@@ -10,6 +10,7 @@
 #include <gnuradio/io_signature.h>
 #include <volk/volk.h>
 #include <boost/asio.hpp>
+#include <ctime>
 
 #define DEBUG_LEVEL "debug" //Can be debug, info, warning, error, critical
 
@@ -961,10 +962,11 @@ int sidekiq_rx_impl::work(int noutput_items,
     uint32_t samples_to_write[MAX_PORT]{};
     uint32_t portno{};
     bool looping = true; 
+    time_t this_time;
+    time(&this_time);
+
     gr_complex *out[MAX_PORT] = {NULL, NULL};
     gr_complex *curr_out_ptr[MAX_PORT] = {NULL, NULL} ;
-
-
 
     /* initialize the one-port output variables */    
     out[0] = static_cast<gr_complex *>(output_items[0]);
@@ -979,6 +981,7 @@ int sidekiq_rx_impl::work(int noutput_items,
 
     first_block[0]  = true;
     first_block[1]  = true;
+
     /* We told gnuradio to not call us with a buffer size smaller than our block, so error out. */
     if (noutput_items < DATA_MAX_BUFFER_SIZE)
     {
@@ -996,8 +999,8 @@ int sidekiq_rx_impl::work(int noutput_items,
             d_logger->info("Overruns detected: {}", overrun_counter);
         }
 
-        d_logger->debug("noutput_items {}, nitems_written {}, last_update {} update_rate {}",
-               noutput_items, nitems_written(0), last_status_update_sample, status_update_rate_in_samples );
+        d_logger->debug("noutput_items {}, nitems_written {}, last_update {} update_rate {}, work calls {}",
+               noutput_items, nitems_written(0), last_status_update_sample, status_update_rate_in_samples, debug_ctr );
 
         last_status_update_sample = nitems_written(0);
     }
@@ -1027,7 +1030,7 @@ int sidekiq_rx_impl::work(int noutput_items,
             }
 #define DEBUG
 #ifdef DEBUG
-            if (debug_ctr < 1)
+            if (debug_ctr < 2)
             {
                 printf("portno %d, overrun ctr %lu, samples_left %d, samples_written %d, samples_to_write %u, noutput_items %d\n",
                         portno, overrun_counter, curr_block_samples_left[portno], samples_written[portno], 
@@ -1082,8 +1085,9 @@ int sidekiq_rx_impl::work(int noutput_items,
 #ifdef DEBUG
     if (debug_ctr < 30)
     {
-        d_logger->debug("dual_port {}, portno {}, items written {}, noutput_items {}, samples_written {}", 
-                dual_port, portno, nitems_written(0), noutput_items, samples_written[portno]);
+        d_logger->debug("dual_port {}, delta time {}, items written {}, noutput_items {}, samples_written {}", 
+                dual_port, difftime(this_time, last_time), nitems_written(0), noutput_items, samples_written[portno]);
+        last_time = this_time;
     }
 #endif
 

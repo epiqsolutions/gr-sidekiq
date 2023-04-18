@@ -34,7 +34,7 @@ using pmt::pmt_t;
 namespace gr {
 namespace sidekiq {
 
-    static const double STATUS_UPDATE_RATE_SECONDS{2.0};
+    static const double STATUS_UPDATE_RATE_SECONDS{1.0};
 
     const bool SIDEKIQ_IQ_PACK_MODE_UNPACKED{false}; 
 
@@ -134,6 +134,7 @@ private:
 
     /* used to debug the work function */
     uint32_t debug_ctr{};
+    time_t last_time{};
 };
 
 } // namespace sidekiq
