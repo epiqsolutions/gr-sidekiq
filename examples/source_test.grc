@@ -332,7 +332,7 @@ blocks:
     bandwidth: bandwidth
     cal_mode: '1'
     cal_type: '2'
-    card: '2'
+    card: '0'
     comment: ''
     frequency: frequency
     gain_index: gain_index
@@ -341,8 +341,10 @@ blocks:
     handle2: '100'
     maxoutbuf: '32000'
     minoutbuf: '0'
+    pps_source: '0'
     run_cal: run_rx_calibration
     sample_rate: sample_rate
+    trigger_src: '0'
   states:
     bus_sink: false
     bus_source: false
