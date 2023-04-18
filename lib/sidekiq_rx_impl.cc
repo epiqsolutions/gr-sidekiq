@@ -843,20 +843,19 @@ uint32_t sidekiq_rx_impl::get_new_block(uint32_t portno)
             }
 
             /* check timestamp for overrun */
-            if (first_block == false)
+            if (first_block[new_portno] == false)
             {
                 uint64_t actual_tx = p_rx_block->rf_timestamp;
-                uint64_t expected_ts = last_timestamp + DATA_MAX_BUFFER_SIZE;
+                uint64_t expected_ts = last_timestamp[new_portno] + DATA_MAX_BUFFER_SIZE;
 
                 if (expected_ts != actual_tx)
                 {
                     overrun_counter++;
-                    d_logger->info("Detected overrun, total overruns {}", overrun_counter);
                 }
             }
 
-            last_timestamp = p_rx_block->rf_timestamp;
-            first_block = false;
+            last_timestamp[new_portno] = p_rx_block->rf_timestamp;
+            first_block[new_portno] = false;
 
             /* update the data with the new block */
             curr_block_ptr[new_portno] = (int16_t *)p_rx_block->data;
@@ -966,7 +965,6 @@ int sidekiq_rx_impl::work(int noutput_items,
     gr_complex *curr_out_ptr[MAX_PORT] = {NULL, NULL} ;
 
 
-    first_block = true;
 
     /* initialize the one-port output variables */    
     out[0] = static_cast<gr_complex *>(output_items[0]);
@@ -979,6 +977,8 @@ int sidekiq_rx_impl::work(int noutput_items,
         curr_out_ptr[1] = out[1];
     }
 
+    first_block[0]  = true;
+    first_block[1]  = true;
     /* We told gnuradio to not call us with a buffer size smaller than our block, so error out. */
     if (noutput_items < DATA_MAX_BUFFER_SIZE)
     {
@@ -990,16 +990,16 @@ int sidekiq_rx_impl::work(int noutput_items,
     /* Determine if the time has elapsed and display any underruns we have received */
     if ((nitems_written(0) - last_status_update_sample) > status_update_rate_in_samples)
     {
-        last_status_update_sample = nitems_written(0);
 
         if (overrun_counter > 0)
         {
             d_logger->info("Overruns detected: {}", overrun_counter);
         }
 
-        d_logger->debug("noutput_items {}, nitems_written {}, last_update {}",
-               noutput_items, nitems_written(0), last_status_update_sample );
+        d_logger->debug("noutput_items {}, nitems_written {}, last_update {} update_rate {}",
+               noutput_items, nitems_written(0), last_status_update_sample, status_update_rate_in_samples );
 
+        last_status_update_sample = nitems_written(0);
     }
 
     /* loop until we have filled up these "out" packet(s) */
@@ -1025,14 +1025,15 @@ int sidekiq_rx_impl::work(int noutput_items,
                /* there are fewer items left in the block than we need to write */
                 samples_to_write[portno] = curr_block_samples_left[portno];
             }
-
+#define DEBUG
 #ifdef DEBUG
             if (debug_ctr < 1)
             {
-                printf("overrun ctr %lu, samples_left %d, samples_written %d, samples_to_write %u, noutput_items %d\n",
-                        overrun_counter, curr_block_samples_left[portno], samples_written[portno], 
+                printf("portno %d, overrun ctr %lu, samples_left %d, samples_written %d, samples_to_write %u, noutput_items %d\n",
+                        portno, overrun_counter, curr_block_samples_left[portno], samples_written[portno], 
                         samples_to_write[portno], noutput_items);
 
+#ifdef POO
                 if (samples_written[portno] == 1018)
                 {
                     printf("0x%08X ", (1143 * 4));
@@ -1047,6 +1048,7 @@ int sidekiq_rx_impl::work(int noutput_items,
                     }
                     printf("\n");
                 }
+#endif
                 fflush(stdout);
             }
 #endif
@@ -1077,7 +1079,6 @@ int sidekiq_rx_impl::work(int noutput_items,
         looping = determine_if_done(samples_written, noutput_items, &portno);
     }
     
-#define DEBUG
 #ifdef DEBUG
     if (debug_ctr < 30)
     {

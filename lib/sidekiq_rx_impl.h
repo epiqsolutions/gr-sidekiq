@@ -126,8 +126,8 @@ private:
     uint64_t last_status_update_sample{};
     uint64_t status_update_rate_in_samples{};
     uint64_t overrun_counter{};
-    bool first_block{};
-    uint64_t last_timestamp{};
+    bool first_block[MAX_PORT]{};
+    uint64_t last_timestamp[MAX_PORT]{};
     double adc_scaling{};
     int16_t *curr_block_ptr[MAX_PORT]{};
     int32_t curr_block_samples_left[MAX_PORT]{};
