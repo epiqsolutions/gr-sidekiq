@@ -137,13 +137,13 @@ blocks:
     start: 1e6
     step: 1e6
     stop: 250e6
-    value: 5e6
+    value: 20e6
     widget: counter_slider
   states:
     bus_sink: false
     bus_source: false
     bus_structure: null
-    coordinate: [392, 36.0]
+    coordinate: [384, 36.0]
     rotation: 0
     state: true
 - name: qtgui_freq_sink_x_0
@@ -283,7 +283,7 @@ blocks:
     name: '""'
     nconnections: '1'
     size: '1024'
-    srate: samp_rate
+    srate: '1'
     stemplot: 'False'
     style1: '1'
     style10: '1'
@@ -330,7 +330,7 @@ blocks:
     affinity: ''
     alias: ''
     bandwidth: bandwidth
-    cal_mode: '1'
+    cal_mode: '0'
     cal_type: '2'
     card: '2'
     comment: ''

@@ -115,6 +115,7 @@ private:
     bool rx_streaming{};
     bool cal_enabled{};
     bool dual_port{};
+    bool rx_second{};
 
     /* work parameters */
     uint64_t last_status_update_sample{};

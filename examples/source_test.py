@@ -75,7 +75,11 @@ class source_test(gr.top_block, Qt.QWidget):
         ##################################################
         # Variables
         ##################################################
+<<<<<<< HEAD
+        self.sample_rate = sample_rate = 20e6
+=======
         self.sample_rate = sample_rate = 60e6
+>>>>>>> 6326a7805e62620c54b93cd37d0dc9356aca18f8
         self.samp_rate = samp_rate = 32000
         self.run_rx_calibration = run_rx_calibration = 0
         self.frequency = frequency = 1000e6
@@ -85,7 +89,11 @@ class source_test(gr.top_block, Qt.QWidget):
         # Blocks
         ##################################################
 
+<<<<<<< HEAD
+        self._sample_rate_range = Range(1e6, 250e6, 1e6, 20e6, 200)
+=======
         self._sample_rate_range = Range(1e6, 250e6, 1e6, 60e6, 200)
+>>>>>>> 6326a7805e62620c54b93cd37d0dc9356aca18f8
         self._sample_rate_win = RangeWidget(self._sample_rate_range, self.set_sample_rate, "'sample_rate'", "counter_slider", float, QtCore.Qt.Horizontal)
         self.top_layout.addWidget(self._sample_rate_win)
         self._frequency_range = Range(250e6, 6000e6, 1e6, 1000e6, 200)
@@ -94,7 +102,12 @@ class source_test(gr.top_block, Qt.QWidget):
         self._bandwidth_range = Range(1e6, 250e6, 1e6, sample_rate * .8, 200)
         self._bandwidth_win = RangeWidget(self._bandwidth_range, self.set_bandwidth, "'bandwidth'", "counter_slider", float, QtCore.Qt.Horizontal)
         self.top_layout.addWidget(self._bandwidth_win)
+<<<<<<< HEAD
+        self.sidekiq_sidekiq_rx_0 = sidekiq.sidekiq_rx(1, 0, 100, sample_rate, bandwidth, frequency, 1, gain_index, 0, 2)
+        self.sidekiq_sidekiq_rx_0.set_max_output_buffer(32000)
+=======
         self.sidekiq_sidekiq_rx_0 = sidekiq.sidekiq_rx(2, 0, 1, sample_rate, bandwidth, frequency, 1, 1, 1, 2)
+>>>>>>> 6326a7805e62620c54b93cd37d0dc9356aca18f8
         _run_rx_calibration_push_button = Qt.QPushButton('Run RX Calibration')
         _run_rx_calibration_push_button = Qt.QPushButton('Run RX Calibration')
         self._run_rx_calibration_choices = {'Pressed': 1, 'Released': 0}
@@ -103,11 +116,17 @@ class source_test(gr.top_block, Qt.QWidget):
         self.top_layout.addWidget(_run_rx_calibration_push_button)
         self.qtgui_freq_sink_x_0_0 = qtgui.freq_sink_c(
             1024, #size
+<<<<<<< HEAD
+            1, #samp_rate
+            "", #name
+            1, #number of inputs
+=======
             window.WIN_BLACKMAN_hARRIS, #wintype
             frequency, #fc
             sample_rate, #bw
             "Channel 1", #name
             1,
+>>>>>>> 6326a7805e62620c54b93cd37d0dc9356aca18f8
             None # parent
         )
         self.qtgui_freq_sink_x_0_0.set_update_time(0.10)
