@@ -13,7 +13,7 @@
 #include "sidekiq_tx_impl.h"
 
 
-#define DEBUG_LEVEL "error"  //Can be debug, info, warning, error, critical
+#define DEBUG_LEVEL "debug"  //Can be debug, info, warning, error, critical
 
 /* The tx_complete function needs to be outside the object so it can be registered with libsidekiq 
  * mutex to protect updates to the tx buffer
@@ -118,6 +118,7 @@ sidekiq_tx_impl::sidekiq_tx_impl( int input_card,
     
     int status = 0;
     uint8_t iq_resolution = 0;
+    status_update_rate_in_samples = static_cast<size_t >(sample_rate * STATUS_UPDATE_RATE_SECONDS);
 
     card = input_card;
     hdl = (skiq_tx_hdl_t)handle;
@@ -148,7 +149,8 @@ sidekiq_tx_impl::sidekiq_tx_impl( int input_card,
         }
         else 
         {
-            d_logger->info("Info: The RX block initialized libsidekiq");
+            d_logger->info("Info: If not running Transceive Mode, then this is an error");
+            tx_second = true;
         }
     }
     else
@@ -158,8 +160,11 @@ sidekiq_tx_impl::sidekiq_tx_impl( int input_card,
 
     }
 
-    set_tx_sample_rate(sample_rate);
-    set_tx_bandwidth(bandwidth);
+    if (tx_second == false)
+    {
+        set_tx_sample_rate(sample_rate);
+        set_tx_bandwidth(bandwidth);
+    }
 
     status = skiq_read_tx_iq_resolution(card, &iq_resolution);
     if (status != 0) 
@@ -444,7 +449,6 @@ void sidekiq_tx_impl::set_tx_sample_rate(double value)
     this->sample_rate = rate;
     this->bandwidth = bw;
 
-    status_update_rate_in_samples = static_cast<size_t >(sample_rate * STATUS_UPDATE_RATE_SECONDS);
 
 }
   

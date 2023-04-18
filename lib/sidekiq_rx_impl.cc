@@ -79,6 +79,7 @@ sidekiq_rx_impl::sidekiq_rx_impl(
 
     int status = 0;
     uint8_t iq_resolution = 0;
+    status_update_rate_in_samples = static_cast<size_t >(sample_rate * STATUS_UPDATE_RATE_SECONDS);
 
     this->card = input_card;
     this->hdl1 = (skiq_rx_hdl_t) port1_handle;
@@ -148,6 +149,7 @@ sidekiq_rx_impl::sidekiq_rx_impl(
         else
         {
             d_logger->info("Info: If not running Transceive Mode, then this is an error");
+            rx_second = true;
         }
     }
     else
@@ -155,6 +157,7 @@ sidekiq_rx_impl::sidekiq_rx_impl(
         libsidekiq_init = true;
         d_logger->info("Info: libsidkiq initialized successfully");
     }
+
 
     /* configure the 1PPS source for each of the cards */
     if ( pps_source != skiq_1pps_source_unavailable )
@@ -171,8 +174,10 @@ sidekiq_rx_impl::sidekiq_rx_impl(
         }
       }
 
-    set_rx_sample_rate(sample_rate);
-    set_rx_bandwidth(bandwidth);
+
+#ifdef COUNTER
+    skiq_write_rx_data_src(card, hdl1, skiq_data_src_counter);
+#endif
 
     /* calculate the adc scaling */
     status = skiq_read_rx_iq_resolution(card, &iq_resolution);
@@ -439,7 +444,6 @@ void sidekiq_rx_impl::set_rx_sample_rate(double value)
     this->sample_rate = rate;
     this->bandwidth = bw;
 
-    status_update_rate_in_samples = static_cast<size_t >(sample_rate * STATUS_UPDATE_RATE_SECONDS);
 }
   
 /* 
@@ -847,6 +851,7 @@ uint32_t sidekiq_rx_impl::get_new_block(uint32_t portno)
                 if (expected_ts != actual_tx)
                 {
                     overrun_counter++;
+                    d_logger->info("Detected overrun, total overruns {}", overrun_counter);
                 }
             }
 
@@ -863,7 +868,11 @@ uint32_t sidekiq_rx_impl::get_new_block(uint32_t portno)
             /* we are non-blocking so we will get this status */
             done = false;
             usleep(NON_BLOCKING_TIMEOUT);
-        } 
+        }
+        else if (status == skiq_rx_status_error_overrun)
+        {
+            /* if we get an overrun, it will be detected in the next timestamp overrun test */
+        }
         else 
         {
           done = true;
@@ -988,8 +997,8 @@ int sidekiq_rx_impl::work(int noutput_items,
             d_logger->info("Overruns detected: {}", overrun_counter);
         }
 
-        d_logger->debug("noutput_items {}, dual_port {}, buffer_size {}", 
-               noutput_items, dual_port, DATA_MAX_BUFFER_SIZE);
+        d_logger->debug("noutput_items {}, nitems_written {}, last_update {}",
+               noutput_items, nitems_written(0), last_status_update_sample );
 
     }
 
@@ -1017,12 +1026,39 @@ int sidekiq_rx_impl::work(int noutput_items,
                 samples_to_write[portno] = curr_block_samples_left[portno];
             }
 
+#ifdef DEBUG
+            if (debug_ctr < 1)
+            {
+                printf("overrun ctr %lu, samples_left %d, samples_written %d, samples_to_write %u, noutput_items %d\n",
+                        overrun_counter, curr_block_samples_left[portno], samples_written[portno], 
+                        samples_to_write[portno], noutput_items);
+
+                if (samples_written[portno] == 1018)
+                {
+                    printf("0x%08X ", (1143 * 4));
+                    for (int i=125; i < 141; i++)
+                    {
+                        printf("0x%04X ", curr_block_ptr[portno][i * IQ_SHORT_COUNT + 1]);
+                        printf("0x%04X ", curr_block_ptr[portno][i * IQ_SHORT_COUNT]);
+                        if (i%4 == 0)
+                        {
+                            printf("\n");
+                        }
+                    }
+                    printf("\n");
+                }
+                fflush(stdout);
+            }
+#endif
+
             /* convert and write the samples */
             volk_16i_s32f_convert_32f_u(
                   (float *) curr_out_ptr[portno],
                   (const int16_t *) curr_block_ptr[portno],
                   adc_scaling,
                   (samples_to_write[portno] * IQ_SHORT_COUNT ));
+
+
 
             /* increment all the pointers and counters */
             samples_written[portno] += samples_to_write[portno];
