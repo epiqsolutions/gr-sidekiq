@@ -11,6 +11,7 @@
 #include <pmt/pmt.h>
 #include <gnuradio/sidekiq/sidekiq_rx.h>
 #include <sidekiq_api.h>
+#include <chrono>
 
 #define MAX_PORT                2        // max ports allowed
 #define IQ_SHORT_COUNT          2        // number of shorts in a sample
@@ -134,7 +135,9 @@ private:
 
     /* used to debug the work function */
     uint32_t debug_ctr{};
-    time_t last_time{};
+    typedef std::chrono::high_resolution_clock Clock;
+    typedef std::chrono::milliseconds milliseconds;
+    Clock::time_point last_time{};
 };
 
 } // namespace sidekiq

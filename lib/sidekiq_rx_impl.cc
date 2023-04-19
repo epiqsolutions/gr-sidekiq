@@ -10,7 +10,7 @@
 #include <gnuradio/io_signature.h>
 #include <volk/volk.h>
 #include <boost/asio.hpp>
-#include <ctime>
+#include <chrono>
 
 #define DEBUG_LEVEL "debug" //Can be debug, info, warning, error, critical
 
@@ -86,6 +86,7 @@ sidekiq_rx_impl::sidekiq_rx_impl(
     this->hdl1 = (skiq_rx_hdl_t) port1_handle;
 
 
+
     if (local_trigger_src == 0)
     {
         this->trigger_src = skiq_trigger_src_immediate;
@@ -159,6 +160,8 @@ sidekiq_rx_impl::sidekiq_rx_impl(
         d_logger->info("Info: libsidkiq initialized successfully");
     }
 
+    set_rx_sample_rate(sample_rate);
+    set_rx_bandwidth(bandwidth);
 
     /* configure the 1PPS source for each of the cards */
     if ( pps_source != skiq_1pps_source_unavailable )
@@ -250,6 +253,9 @@ sidekiq_rx_impl::sidekiq_rx_impl(
     /* we need gnuradio to send in buffers of an integer multiple of our DMA block sizes */
     gr::block::set_min_noutput_items(DATA_MAX_BUFFER_SIZE);
     gr::block::set_output_multiple(DATA_MAX_BUFFER_SIZE);
+
+    last_time = Clock::now();
+
 
 }
 
@@ -962,9 +968,9 @@ int sidekiq_rx_impl::work(int noutput_items,
     uint32_t samples_to_write[MAX_PORT]{};
     uint32_t portno{};
     bool looping = true; 
-    time_t this_time;
-    time(&this_time);
+    Clock::time_point this_time;
 
+    this_time = Clock::now();
     gr_complex *out[MAX_PORT] = {NULL, NULL};
     gr_complex *curr_out_ptr[MAX_PORT] = {NULL, NULL} ;
 
@@ -999,8 +1005,16 @@ int sidekiq_rx_impl::work(int noutput_items,
             d_logger->info("Overruns detected: {}", overrun_counter);
         }
 
+#ifdef DEBUG
+        milliseconds ms = std::chrono::duration_cast<milliseconds>(this_time - last_time);
+        last_time = this_time;
+
+        d_logger->debug("delta time {}, noutput_items {}, nitems_written {}, last_update {} update_rate {}, work calls {}",
+               ms.count(), noutput_items, nitems_written(0), last_status_update_sample, status_update_rate_in_samples, debug_ctr );
+#else
         d_logger->debug("noutput_items {}, nitems_written {}, last_update {} update_rate {}, work calls {}",
                noutput_items, nitems_written(0), last_status_update_sample, status_update_rate_in_samples, debug_ctr );
+#endif
 
         last_status_update_sample = nitems_written(0);
     }
@@ -1028,7 +1042,7 @@ int sidekiq_rx_impl::work(int noutput_items,
                /* there are fewer items left in the block than we need to write */
                 samples_to_write[portno] = curr_block_samples_left[portno];
             }
-#define DEBUG
+//#define DEBUG
 #ifdef DEBUG
             if (debug_ctr < 2)
             {
@@ -1085,8 +1099,10 @@ int sidekiq_rx_impl::work(int noutput_items,
 #ifdef DEBUG
     if (debug_ctr < 30)
     {
-        d_logger->debug("dual_port {}, delta time {}, items written {}, noutput_items {}, samples_written {}", 
-                dual_port, difftime(this_time, last_time), nitems_written(0), noutput_items, samples_written[portno]);
+        milliseconds ms = std::chrono::duration_cast<milliseconds>(this_time - last_time);
+        d_logger->debug("dual_port {}, items written {}, noutput_items {}, samples_written {}", 
+                dual_port, nitems_written(0), noutput_items, samples_written[portno]);
+        std::cout << ms.count() << "ms\n";
         last_time = this_time;
     }
 #endif
