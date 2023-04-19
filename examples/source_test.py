@@ -75,10 +75,7 @@ class source_test(gr.top_block, Qt.QWidget):
         ##################################################
         # Variables
         ##################################################
-
         self.sample_rate = sample_rate = 20e6
-
-
         self.samp_rate = samp_rate = 32000
         self.run_rx_calibration = run_rx_calibration = 0
         self.gain_index = gain_index = 10
@@ -89,10 +86,7 @@ class source_test(gr.top_block, Qt.QWidget):
         # Blocks
         ##################################################
 
-
-
-        self._sample_rate_range = Range(1e6, 250e6, 1e6, 5e6, 200)
-
+        self._sample_rate_range = Range(1e6, 250e6, 1e6, 20e6, 200)
         self._sample_rate_win = RangeWidget(self._sample_rate_range, self.set_sample_rate, "'sample_rate'", "counter_slider", float, QtCore.Qt.Horizontal)
         self.top_layout.addWidget(self._sample_rate_win)
         self._gain_index_range = Range(0, 255, 1, 10, 200)
@@ -104,10 +98,8 @@ class source_test(gr.top_block, Qt.QWidget):
         self._bandwidth_range = Range(1e6, 250e6, 1e6, sample_rate * .8, 200)
         self._bandwidth_win = RangeWidget(self._bandwidth_range, self.set_bandwidth, "'bandwidth'", "counter_slider", float, QtCore.Qt.Horizontal)
         self.top_layout.addWidget(self._bandwidth_win)
-
-        self.sidekiq_sidekiq_rx_0 = sidekiq.sidekiq_rx(0, 0, 100, sample_rate, bandwidth, frequency, 1, gain_index, 0, 0, 1, 2)
+        self.sidekiq_sidekiq_rx_0 = sidekiq.sidekiq_rx(0, 0, 100, sample_rate, bandwidth, frequency, 1, gain_index, 0, 0, 0, 2)
         self.sidekiq_sidekiq_rx_0.set_max_output_buffer(32000)
-
         _run_rx_calibration_push_button = Qt.QPushButton('Run RX Calibration')
         _run_rx_calibration_push_button = Qt.QPushButton('Run RX Calibration')
         self._run_rx_calibration_choices = {'Pressed': 1, 'Released': 0}
@@ -116,13 +108,9 @@ class source_test(gr.top_block, Qt.QWidget):
         self.top_layout.addWidget(_run_rx_calibration_push_button)
         self.qtgui_time_sink_x_0 = qtgui.time_sink_c(
             1024, #size
-
-            window.WIN_BLACKMAN_hARRIS, #wintype
-            frequency, #fc
-            sample_rate, #bw
-            "Channel 1", #name
-            1,
-
+            1, #samp_rate
+            "", #name
+            1, #number of inputs
             None # parent
         )
         self.qtgui_time_sink_x_0.set_update_time(0.10)
@@ -242,7 +230,6 @@ class source_test(gr.top_block, Qt.QWidget):
 
     def set_samp_rate(self, samp_rate):
         self.samp_rate = samp_rate
-        self.qtgui_time_sink_x_0.set_samp_rate(self.samp_rate)
 
     def get_run_rx_calibration(self):
         return self.run_rx_calibration
