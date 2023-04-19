@@ -1012,8 +1012,8 @@ int sidekiq_rx_impl::work(int noutput_items,
         d_logger->debug("delta time {}, noutput_items {}, nitems_written {}, last_update {} update_rate {}, work calls {}",
                ms.count(), noutput_items, nitems_written(0), last_status_update_sample, status_update_rate_in_samples, debug_ctr );
 #else
-        d_logger->debug("noutput_items {}, nitems_written {}, last_update {} update_rate {}, work calls {}",
-               noutput_items, nitems_written(0), last_status_update_sample, status_update_rate_in_samples, debug_ctr );
+        d_logger->debug("noutput_items {}, nitems_written {}, last_update {}",
+               noutput_items, nitems_written(0), last_status_update_sample);
 #endif
 
         last_status_update_sample = nitems_written(0);

@@ -45,7 +45,7 @@ blocks:
     start: 1e6
     step: 1e6
     stop: 500e6
-    value: 10e6
+    value: 20e6
     widget: counter_slider
   states:
     bus_sink: false
@@ -178,7 +178,7 @@ blocks:
     bandwidth: samp_rate* 0.9
     cal_mode: '0'
     cal_type: '0'
-    card: '0'
+    card: '2'
     comment: ''
     frequency: 1000e6
     gain_index: '1'
@@ -206,4 +206,4 @@ connections:
 
 metadata:
   file_format: 1
-  grc_version: 3.10.5.1
+  grc_version: v3.11.0.0git-375-ge2af6089
