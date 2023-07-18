@@ -336,7 +336,7 @@ blocks:
     comment: ''
     frequency: frequency
     gain_index: gain_index
-    gain_mode: '0'
+    gain_mode: '1'
     handle1: '0'
     handle2: '100'
     maxoutbuf: '32000'
