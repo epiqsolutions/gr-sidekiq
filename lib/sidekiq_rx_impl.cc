@@ -893,8 +893,8 @@ uint32_t sidekiq_rx_impl::get_new_block(uint32_t portno)
                 curr_rf_block_tag.value = pmt::from_uint64(p_rx_block->rf_timestamp);
             }
 
-            last_timestamp = p_rx_block->rf_timestamp;
-            first_block = false;
+            last_timestamp[new_portno] = p_rx_block->rf_timestamp;
+            first_block[new_portno] = false;
 
 
             /* update the data with the new block */
