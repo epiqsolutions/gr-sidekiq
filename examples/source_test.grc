@@ -93,7 +93,7 @@ blocks:
     bus_sink: false
     bus_source: false
     bus_structure: null
-    coordinate: [1144, 52.0]
+    coordinate: [920, 36.0]
     rotation: 0
     state: true
 - name: run_rx_calibration
@@ -110,7 +110,7 @@ blocks:
     bus_sink: false
     bus_source: false
     bus_structure: null
-    coordinate: [944, 52.0]
+    coordinate: [1056, 36.0]
     rotation: 0
     state: true
 - name: samp_rate
@@ -332,11 +332,11 @@ blocks:
     bandwidth: bandwidth
     cal_mode: '0'
     cal_type: '2'
-    card: '0'
+    card: '1'
     comment: ''
     frequency: frequency
     gain_index: gain_index
-    gain_mode: '1'
+    gain_mode: '0'
     handle1: '0'
     handle2: '100'
     maxoutbuf: '32000'
@@ -344,12 +344,13 @@ blocks:
     pps_source: '0'
     run_cal: run_rx_calibration
     sample_rate: sample_rate
+    timestamp_tags: '0'
     trigger_src: '0'
   states:
     bus_sink: false
     bus_source: false
     bus_structure: null
-    coordinate: [160, 220.0]
+    coordinate: [176, 220.0]
     rotation: 0
     state: true
 
@@ -359,4 +360,4 @@ connections:
 
 metadata:
   file_format: 1
-  grc_version: 3.10.5.1
+  grc_version: v3.11.0.0git-375-ge2af6089
