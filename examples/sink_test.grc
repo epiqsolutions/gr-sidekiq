@@ -37,7 +37,7 @@ blocks:
   id: variable_qtgui_range
   parameters:
     comment: ''
-    gui_hint: ''
+    gui_hint: '[4, 0, 1, 1]'
     label: ''
     min_len: '100'
     orient: QtCore.Qt.Horizontal
@@ -58,7 +58,7 @@ blocks:
   id: variable_qtgui_range
   parameters:
     comment: ''
-    gui_hint: ''
+    gui_hint: '[1,0, 1, 1]'
     label: ''
     min_len: '200'
     orient: QtCore.Qt.Horizontal
@@ -79,7 +79,7 @@ blocks:
   id: variable_qtgui_range
   parameters:
     comment: ''
-    gui_hint: ''
+    gui_hint: '[3, 0, 1, 1]'
     label: Frequency
     min_len: '100'
     orient: QtCore.Qt.Horizontal
@@ -112,7 +112,7 @@ blocks:
   id: variable_qtgui_push_button
   parameters:
     comment: ''
-    gui_hint: ''
+    gui_hint: '[6, 0, 1, 1]'
     label: ''
     pressed: '1'
     released: '0'
@@ -129,7 +129,7 @@ blocks:
   id: variable_qtgui_range
   parameters:
     comment: ''
-    gui_hint: ''
+    gui_hint: '[0,0,1,1]'
     label: ''
     min_len: '200'
     orient: QtCore.Qt.Horizontal
@@ -143,14 +143,14 @@ blocks:
     bus_sink: false
     bus_source: false
     bus_structure: null
-    coordinate: [392, 60.0]
+    coordinate: [400, 60.0]
     rotation: 0
     state: true
 - name: tone_freq
   id: variable_qtgui_range
   parameters:
     comment: ''
-    gui_hint: ''
+    gui_hint: '[5, 0, 1, 1]'
     label: ''
     min_len: '200'
     orient: QtCore.Qt.Horizontal
@@ -219,4 +219,4 @@ connections:
 
 metadata:
   file_format: 1
-  grc_version: 3.10.3.0
+  grc_version: 3.10.5.1
