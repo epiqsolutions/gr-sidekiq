@@ -30,6 +30,7 @@ public:
           double frequency,
           uint8_t gain_mode,
           int gain_index,
+          int timestamp_tags,
           int trigger_src,
           int pps_source,
           int cal_mode,

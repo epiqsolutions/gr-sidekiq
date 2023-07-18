@@ -32,6 +32,7 @@ sidekiq_rx::sptr sidekiq_rx::make(
         double frequency,
         uint8_t gain_mode,
         int gain_index,
+        int timestamp_tags,
         int trigger_src,
         int pps_source,
         int cal_mode,
@@ -46,6 +47,7 @@ sidekiq_rx::sptr sidekiq_rx::make(
           frequency,
           gain_mode,
           gain_index,
+          timestamp_tags,
           trigger_src,
           pps_source,
           cal_mode,
@@ -61,6 +63,7 @@ sidekiq_rx_impl::sidekiq_rx_impl(
         double frequency,
         uint8_t gain_mode,
         int gain_index,
+        int timestamp_tags,
         int local_trigger_src,
         int local_pps_source,
         int cal_mode,
@@ -82,6 +85,12 @@ sidekiq_rx_impl::sidekiq_rx_impl(
     uint8_t iq_resolution = 0;
     status_update_rate_in_samples = static_cast<size_t >(sample_rate * STATUS_UPDATE_RATE_SECONDS);
 
+    curr_rf_block_tag.key = pmt::intern("rf_timestamp");
+    curr_rf_block_tag.value = pmt::from_uint64(0);
+
+    this->timestamp_tags = timestamp_tags;
+    card = input_card;
+    hdl1 = (skiq_rx_hdl_t) port1_handle;
     this->card = input_card;
     this->hdl1 = (skiq_rx_hdl_t) port1_handle;
 
@@ -353,6 +362,13 @@ bool sidekiq_rx_impl::start()
 
     d_logger->debug("in start");
 
+    status = skiq_reset_timestamps(card);
+    if (status != 0)
+    {
+        d_logger->error( "Error: could not reset timestamps, status {}", status);
+        throw std::runtime_error("Failure: skiq_reset_timestamps");
+    }
+
     handles[0] = hdl1;
     nrhandles = 1;
 
@@ -370,6 +386,13 @@ bool sidekiq_rx_impl::start()
     }
 
     rx_streaming = true;
+
+    /* tag indexes are absolute starting from the first sample out
+     * so they must be reset when starting a stream
+     */
+    last_tag_index[0] = 0;
+    last_tag_index[1] = 0;
+
     d_logger->info("Info: RX streaming started");
 
     return block::start();
@@ -829,7 +852,8 @@ uint32_t sidekiq_rx_impl::get_new_block(uint32_t portno)
     uint32_t new_portno = portno;
     bool done = false;
 
-    if (done == false)
+
+    while (done == false)
     {
         status = skiq_receive(card, &tmp_hdl, &p_rx_block, &data_length_bytes);
         if (status  == skiq_rx_status_success) 
@@ -861,8 +885,17 @@ uint32_t sidekiq_rx_impl::get_new_block(uint32_t portno)
                 }
             }
 
-            last_timestamp[new_portno] = p_rx_block->rf_timestamp;
-            first_block[new_portno] = false;
+
+            /* if enabled for stream tags, set the tag value */
+            if (timestamp_tags == true)
+            {
+                curr_rf_block_tag.key = pmt::intern("rf_timestamp");
+                curr_rf_block_tag.value = pmt::from_uint64(p_rx_block->rf_timestamp);
+            }
+
+            last_timestamp = p_rx_block->rf_timestamp;
+            first_block = false;
+
 
             /* update the data with the new block */
             curr_block_ptr[new_portno] = (int16_t *)p_rx_block->data;
@@ -1026,7 +1059,7 @@ int sidekiq_rx_impl::work(int noutput_items,
         portno = get_new_block(portno);
 
         /* fill the output packet for this portno up with the contents of the block */
-        if ((curr_block_samples_left[portno] > 0) && samples_written[portno] < noutput_items)
+        if ((curr_block_samples_left[portno] > 0) && (samples_written[portno] < noutput_items))
         {
             /* figure out how many samples we have left to write */
             delta_samples[portno] = noutput_items - samples_written[portno];
@@ -1083,17 +1116,35 @@ int sidekiq_rx_impl::work(int noutput_items,
             samples_written[portno] += samples_to_write[portno];
             curr_out_ptr[portno] += samples_to_write[portno];
             curr_block_ptr[portno] += (samples_to_write[portno] * IQ_SHORT_COUNT);
-
             curr_block_samples_left[portno] -= samples_to_write[portno];
-            if (curr_block_samples_left[portno] == 0)
-            {
-                curr_block_ptr[portno] = NULL;
-            }
 
+            if (timestamp_tags == true)
+            {
+                add_item_tag(portno, last_tag_index[portno] + samples_written[portno], 
+                                curr_rf_block_tag.key, curr_rf_block_tag.value);
+
+                if (debug_ctr < 10)
+                {
+                    d_logger->debug("add item: ctr {}, portno {}, samples_written {}, noutput_items {}, buffer_size {}", 
+                            debug_ctr, portno, samples_written[portno], noutput_items, DATA_MAX_BUFFER_SIZE);
+                    d_logger->debug("key {}, value {}, abs_tag_index {}",
+                            last_tag_index[portno], curr_rf_block_tag.key, curr_rf_block_tag.value);
+                }
+            }
         }
+
+        /* update the absolute index into the stream */
+        last_tag_index[portno] = last_tag_index[portno] + samples_written[portno];
 
         /* determine if we are done with this work() call */
         looping = determine_if_done(samples_written, noutput_items, &portno);
+
+    }
+
+
+    if (curr_block_samples_left[portno] == 0)
+    {
+        curr_block_ptr[portno] = NULL;
     }
     
 #ifdef DEBUG

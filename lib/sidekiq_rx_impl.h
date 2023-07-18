@@ -62,6 +62,7 @@ public:
           double frequency,
           uint8_t gain_mode,
           int gain_index,
+          int timestamp_tags,
           int trigger_src,
           int pps_source,
           int cal_mode,
@@ -110,6 +111,7 @@ private:
     uint64_t frequency{};
     skiq_rx_gain_t gain_mode{};
     uint8_t gain_index{};
+    bool timestamp_tags{};
     skiq_rx_cal_mode_t cal_mode{};
     skiq_rx_cal_type_t cal_type{};
 
@@ -132,6 +134,10 @@ private:
     double adc_scaling{};
     int16_t *curr_block_ptr[MAX_PORT]{};
     int32_t curr_block_samples_left[MAX_PORT]{};
+
+    gr::tag_t curr_rf_block_tag{};
+
+    uint64_t last_tag_index[MAX_PORT]{};
 
     /* used to debug the work function */
     uint32_t debug_ctr{};
