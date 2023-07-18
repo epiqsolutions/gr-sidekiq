@@ -10,6 +10,7 @@
 #include <gnuradio/io_signature.h>
 #include <volk/volk.h>
 #include <boost/asio.hpp>
+#include <chrono>
 
 #define DEBUG_LEVEL "debug" //Can be debug, info, warning, error, critical
 
@@ -94,6 +95,7 @@ sidekiq_rx_impl::sidekiq_rx_impl(
     this->hdl1 = (skiq_rx_hdl_t) port1_handle;
 
 
+
     if (local_trigger_src == 0)
     {
         this->trigger_src = skiq_trigger_src_immediate;
@@ -167,6 +169,8 @@ sidekiq_rx_impl::sidekiq_rx_impl(
         d_logger->info("Info: libsidkiq initialized successfully");
     }
 
+    set_rx_sample_rate(sample_rate);
+    set_rx_bandwidth(bandwidth);
 
     /* configure the 1PPS source for each of the cards */
     if ( pps_source != skiq_1pps_source_unavailable )
@@ -258,6 +262,9 @@ sidekiq_rx_impl::sidekiq_rx_impl(
     /* we need gnuradio to send in buffers of an integer multiple of our DMA block sizes */
     gr::block::set_min_noutput_items(DATA_MAX_BUFFER_SIZE);
     gr::block::set_output_multiple(DATA_MAX_BUFFER_SIZE);
+
+    last_time = Clock::now();
+
 
 }
 
@@ -867,17 +874,17 @@ uint32_t sidekiq_rx_impl::get_new_block(uint32_t portno)
             }
 
             /* check timestamp for overrun */
-            if (first_block == false)
+            if (first_block[new_portno] == false)
             {
                 uint64_t actual_tx = p_rx_block->rf_timestamp;
-                uint64_t expected_ts = last_timestamp + DATA_MAX_BUFFER_SIZE;
+                uint64_t expected_ts = last_timestamp[new_portno] + DATA_MAX_BUFFER_SIZE;
 
                 if (expected_ts != actual_tx)
                 {
                     overrun_counter++;
-                    d_logger->info("Detected overrun, total overruns {}", overrun_counter);
                 }
             }
+
 
             /* if enabled for stream tags, set the tag value */
             if (timestamp_tags == true)
@@ -888,6 +895,7 @@ uint32_t sidekiq_rx_impl::get_new_block(uint32_t portno)
 
             last_timestamp = p_rx_block->rf_timestamp;
             first_block = false;
+
 
             /* update the data with the new block */
             curr_block_ptr[new_portno] = (int16_t *)p_rx_block->data;
@@ -993,11 +1001,11 @@ int sidekiq_rx_impl::work(int noutput_items,
     uint32_t samples_to_write[MAX_PORT]{};
     uint32_t portno{};
     bool looping = true; 
+    Clock::time_point this_time;
+
+    this_time = Clock::now();
     gr_complex *out[MAX_PORT] = {NULL, NULL};
     gr_complex *curr_out_ptr[MAX_PORT] = {NULL, NULL} ;
-
-
-    first_block = true;
 
     /* initialize the one-port output variables */    
     out[0] = static_cast<gr_complex *>(output_items[0]);
@@ -1010,6 +1018,9 @@ int sidekiq_rx_impl::work(int noutput_items,
         curr_out_ptr[1] = out[1];
     }
 
+    first_block[0]  = true;
+    first_block[1]  = true;
+
     /* We told gnuradio to not call us with a buffer size smaller than our block, so error out. */
     if (noutput_items < DATA_MAX_BUFFER_SIZE)
     {
@@ -1021,16 +1032,24 @@ int sidekiq_rx_impl::work(int noutput_items,
     /* Determine if the time has elapsed and display any underruns we have received */
     if ((nitems_written(0) - last_status_update_sample) > status_update_rate_in_samples)
     {
-        last_status_update_sample = nitems_written(0);
 
         if (overrun_counter > 0)
         {
             d_logger->info("Overruns detected: {}", overrun_counter);
         }
 
-        d_logger->debug("noutput_items {}, nitems_written {}, last_update {}",
-               noutput_items, nitems_written(0), last_status_update_sample );
+#ifdef DEBUG
+        milliseconds ms = std::chrono::duration_cast<milliseconds>(this_time - last_time);
+        last_time = this_time;
 
+        d_logger->debug("delta time {}, noutput_items {}, nitems_written {}, last_update {} update_rate {}, work calls {}",
+               ms.count(), noutput_items, nitems_written(0), last_status_update_sample, status_update_rate_in_samples, debug_ctr );
+#else
+        d_logger->debug("noutput_items {}, nitems_written {}, last_update {}",
+               noutput_items, nitems_written(0), last_status_update_sample);
+#endif
+
+        last_status_update_sample = nitems_written(0);
     }
 
     /* loop until we have filled up these "out" packet(s) */
@@ -1056,14 +1075,15 @@ int sidekiq_rx_impl::work(int noutput_items,
                /* there are fewer items left in the block than we need to write */
                 samples_to_write[portno] = curr_block_samples_left[portno];
             }
-
+//#define DEBUG
 #ifdef DEBUG
-            if (debug_ctr < 1)
+            if (debug_ctr < 2)
             {
-                printf("overrun ctr %lu, samples_left %d, samples_written %d, samples_to_write %u, noutput_items %d\n",
-                        overrun_counter, curr_block_samples_left[portno], samples_written[portno], 
+                printf("portno %d, overrun ctr %lu, samples_left %d, samples_written %d, samples_to_write %u, noutput_items %d\n",
+                        portno, overrun_counter, curr_block_samples_left[portno], samples_written[portno], 
                         samples_to_write[portno], noutput_items);
 
+#ifdef POO
                 if (samples_written[portno] == 1018)
                 {
                     printf("0x%08X ", (1143 * 4));
@@ -1078,6 +1098,7 @@ int sidekiq_rx_impl::work(int noutput_items,
                     }
                     printf("\n");
                 }
+#endif
                 fflush(stdout);
             }
 #endif
@@ -1126,12 +1147,14 @@ int sidekiq_rx_impl::work(int noutput_items,
         curr_block_ptr[portno] = NULL;
     }
     
-#define DEBUG
 #ifdef DEBUG
     if (debug_ctr < 30)
     {
-        d_logger->debug("dual_port {}, portno {}, items written {}, noutput_items {}, samples_written {}", 
-                dual_port, portno, nitems_written(0), noutput_items, samples_written[portno]);
+        milliseconds ms = std::chrono::duration_cast<milliseconds>(this_time - last_time);
+        d_logger->debug("dual_port {}, items written {}, noutput_items {}, samples_written {}", 
+                dual_port, nitems_written(0), noutput_items, samples_written[portno]);
+        std::cout << ms.count() << "ms\n";
+        last_time = this_time;
     }
 #endif
 

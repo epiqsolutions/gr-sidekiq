@@ -11,6 +11,7 @@
 #include <pmt/pmt.h>
 #include <gnuradio/sidekiq/sidekiq_rx.h>
 #include <sidekiq_api.h>
+#include <chrono>
 
 #define MAX_PORT                2        // max ports allowed
 #define IQ_SHORT_COUNT          2        // number of shorts in a sample
@@ -128,8 +129,8 @@ private:
     uint64_t last_status_update_sample{};
     uint64_t status_update_rate_in_samples{};
     uint64_t overrun_counter{};
-    bool first_block{};
-    uint64_t last_timestamp{};
+    bool first_block[MAX_PORT]{};
+    uint64_t last_timestamp[MAX_PORT]{};
     double adc_scaling{};
     int16_t *curr_block_ptr[MAX_PORT]{};
     int32_t curr_block_samples_left[MAX_PORT]{};
@@ -140,6 +141,9 @@ private:
 
     /* used to debug the work function */
     uint32_t debug_ctr{};
+    typedef std::chrono::high_resolution_clock Clock;
+    typedef std::chrono::milliseconds milliseconds;
+    Clock::time_point last_time{};
 };
 
 } // namespace sidekiq
