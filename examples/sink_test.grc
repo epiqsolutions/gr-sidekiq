@@ -37,15 +37,15 @@ blocks:
   id: variable_qtgui_range
   parameters:
     comment: ''
-    gui_hint: '[4, 0, 1, 1]'
+    gui_hint: '[8, 0, 2, 1]'
     label: ''
     min_len: '100'
     orient: QtCore.Qt.Horizontal
     rangeType: float
     start: '0'
     step: '10'
-    stop: '255'
-    value: '125'
+    stop: '359'
+    value: '150'
     widget: counter_slider
   states:
     bus_sink: false
@@ -58,7 +58,7 @@ blocks:
   id: variable_qtgui_range
   parameters:
     comment: ''
-    gui_hint: '[1,0, 1, 1]'
+    gui_hint: '[2,0, 2, 1]'
     label: ''
     min_len: '200'
     orient: QtCore.Qt.Horizontal
@@ -79,7 +79,7 @@ blocks:
   id: variable_qtgui_range
   parameters:
     comment: ''
-    gui_hint: '[3, 0, 1, 1]'
+    gui_hint: '[4, 0, 2, 1]'
     label: Frequency
     min_len: '100'
     orient: QtCore.Qt.Horizontal
@@ -112,7 +112,7 @@ blocks:
   id: variable_qtgui_push_button
   parameters:
     comment: ''
-    gui_hint: '[6, 0, 1, 1]'
+    gui_hint: '[12, 0, 1, 1]'
     label: ''
     pressed: '1'
     released: '0'
@@ -129,7 +129,7 @@ blocks:
   id: variable_qtgui_range
   parameters:
     comment: ''
-    gui_hint: '[0,0,1,1]'
+    gui_hint: '[0,0,2,1]'
     label: ''
     min_len: '200'
     orient: QtCore.Qt.Horizontal
@@ -137,20 +137,20 @@ blocks:
     start: 1e6
     step: 1e6
     stop: 250e6
-    value: 10e6
+    value: 20e6
     widget: counter_slider
   states:
     bus_sink: false
     bus_source: false
     bus_structure: null
-    coordinate: [400, 60.0]
+    coordinate: [392, 60.0]
     rotation: 0
     state: true
 - name: tone_freq
   id: variable_qtgui_range
   parameters:
     comment: ''
-    gui_hint: '[5, 0, 1, 1]'
+    gui_hint: '[10, 0, 2, 1]'
     label: ''
     min_len: '200'
     orient: QtCore.Qt.Horizontal
@@ -199,7 +199,7 @@ blocks:
     buffer_size: '32764'
     burst_tag: ''
     cal_mode: '1'
-    card: '0'
+    card: '1'
     comment: ''
     frequency: frequency
     handle: '0'
@@ -219,4 +219,4 @@ connections:
 
 metadata:
   file_format: 1
-  grc_version: 3.10.5.1
+  grc_version: v3.11.0.0git-375-ge2af6089

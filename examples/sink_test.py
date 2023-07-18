@@ -6,7 +6,7 @@
 #
 # GNU Radio Python Flow Graph
 # Title: Sink Test
-# GNU Radio version: 3.10.5.1
+# GNU Radio version: v3.11.0.0git-375-ge2af6089
 
 from packaging.version import Version as StrictVersion
 
@@ -74,61 +74,61 @@ class sink_test(gr.top_block, Qt.QWidget):
         ##################################################
         # Variables
         ##################################################
-        self.sample_rate = sample_rate = 10e6
+        self.sample_rate = sample_rate = 20e6
         self.tone_freq = tone_freq = 2e6
         self.run_tx_calibration = run_tx_calibration = 0
         self.min_output_buffer = min_output_buffer = 32764 *2*2
         self.frequency = frequency = 1000e6
         self.bandwidth = bandwidth = sample_rate * 0.8
-        self.attenuation = attenuation = 125
+        self.attenuation = attenuation = 150
 
         ##################################################
         # Blocks
         ##################################################
 
-        self._sample_rate_range = Range(1e6, 250e6, 1e6, 10e6, 200)
+        self._sample_rate_range = Range(1e6, 250e6, 1e6, 20e6, 200)
         self._sample_rate_win = RangeWidget(self._sample_rate_range, self.set_sample_rate, "'sample_rate'", "counter_slider", float, QtCore.Qt.Horizontal)
-        self.top_grid_layout.addWidget(self._sample_rate_win, 0, 0, 1, 1)
-        for r in range(0, 1):
+        self.top_grid_layout.addWidget(self._sample_rate_win, 0, 0, 2, 1)
+        for r in range(0, 2):
             self.top_grid_layout.setRowStretch(r, 1)
         for c in range(0, 1):
             self.top_grid_layout.setColumnStretch(c, 1)
         self._tone_freq_range = Range(1e6, 25e6, 1e6, 2e6, 200)
         self._tone_freq_win = RangeWidget(self._tone_freq_range, self.set_tone_freq, "'tone_freq'", "counter_slider", float, QtCore.Qt.Horizontal)
-        self.top_grid_layout.addWidget(self._tone_freq_win, 5, 0, 1, 1)
-        for r in range(5, 6):
+        self.top_grid_layout.addWidget(self._tone_freq_win, 10, 0, 2, 1)
+        for r in range(10, 12):
             self.top_grid_layout.setRowStretch(r, 1)
         for c in range(0, 1):
             self.top_grid_layout.setColumnStretch(c, 1)
         self._frequency_range = Range(500e6, 6000e6, 1e6, 1000e6, 100)
         self._frequency_win = RangeWidget(self._frequency_range, self.set_frequency, "Frequency", "counter_slider", float, QtCore.Qt.Horizontal)
-        self.top_grid_layout.addWidget(self._frequency_win, 3, 0, 1, 1)
-        for r in range(3, 4):
+        self.top_grid_layout.addWidget(self._frequency_win, 4, 0, 2, 1)
+        for r in range(4, 6):
             self.top_grid_layout.setRowStretch(r, 1)
         for c in range(0, 1):
             self.top_grid_layout.setColumnStretch(c, 1)
         self._bandwidth_range = Range(1000, 250e6, 1e6, sample_rate * 0.8, 200)
         self._bandwidth_win = RangeWidget(self._bandwidth_range, self.set_bandwidth, "'bandwidth'", "counter_slider", float, QtCore.Qt.Horizontal)
-        self.top_grid_layout.addWidget(self._bandwidth_win, 1, 0, 1, 1)
-        for r in range(1, 2):
+        self.top_grid_layout.addWidget(self._bandwidth_win, 2, 0, 2, 1)
+        for r in range(2, 4):
             self.top_grid_layout.setRowStretch(r, 1)
         for c in range(0, 1):
             self.top_grid_layout.setColumnStretch(c, 1)
-        self._attenuation_range = Range(0, 255, 10, 125, 100)
+        self._attenuation_range = Range(0, 359, 10, 150, 100)
         self._attenuation_win = RangeWidget(self._attenuation_range, self.set_attenuation, "'attenuation'", "counter_slider", float, QtCore.Qt.Horizontal)
-        self.top_grid_layout.addWidget(self._attenuation_win, 4, 0, 1, 1)
-        for r in range(4, 5):
+        self.top_grid_layout.addWidget(self._attenuation_win, 8, 0, 2, 1)
+        for r in range(8, 10):
             self.top_grid_layout.setRowStretch(r, 1)
         for c in range(0, 1):
             self.top_grid_layout.setColumnStretch(c, 1)
-        self.sidekiq_sidekiq_tx_0 = sidekiq.sidekiq_tx(0, 0, sample_rate, bandwidth, frequency, attenuation, '', 4, 32764, 1)
+        self.sidekiq_sidekiq_tx_0 = sidekiq.sidekiq_tx(1, 0, sample_rate, bandwidth, frequency, attenuation, '', 4, 32764, 1)
         _run_tx_calibration_push_button = Qt.QPushButton('')
         _run_tx_calibration_push_button = Qt.QPushButton('run_tx_calibration')
         self._run_tx_calibration_choices = {'Pressed': 1, 'Released': 0}
         _run_tx_calibration_push_button.pressed.connect(lambda: self.set_run_tx_calibration(self._run_tx_calibration_choices['Pressed']))
         _run_tx_calibration_push_button.released.connect(lambda: self.set_run_tx_calibration(self._run_tx_calibration_choices['Released']))
-        self.top_grid_layout.addWidget(_run_tx_calibration_push_button, 6, 0, 1, 1)
-        for r in range(6, 7):
+        self.top_grid_layout.addWidget(_run_tx_calibration_push_button, 12, 0, 1, 1)
+        for r in range(12, 13):
             self.top_grid_layout.setRowStretch(r, 1)
         for c in range(0, 1):
             self.top_grid_layout.setColumnStretch(c, 1)
