@@ -36,22 +36,22 @@ parameters:
 - id: sample_rate
   label: Sample Rate
   dtype: real
-  default: 1e6
+  default: 20e6
 
 - id: bandwidth
   label: Bandwidth
-  default: 1e6
+  default: 18e6
   dtype: real
 
 - id: frequency
   label: Frequency
   dtype: real
-  default: 2400e6
+  default: 1000e6
 
 - id: attenuation
   label: Attenuation
   dtype: real
-  default: 1
+  default: 150
 
 - id: burst_tag
   label: Bursting Tag Name 
@@ -61,7 +61,7 @@ parameters:
 - id: threads
   label: Threads
   dtype: int
-  default: 4
+  default: 0
 
 - id: buffer_size
   label: Buffer Size
@@ -81,7 +81,7 @@ parameters:
   label: Run Cal 
   hide: ${ ('all' if (cal_mode == '0') else 'part') }
   dtype: int
-  default: run_tx_calibration 
+  default: 0
 
 
 

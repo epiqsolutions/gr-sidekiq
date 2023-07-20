@@ -11,7 +11,7 @@ options:
     gen_linking: dynamic
     generate_options: qt_gui
     hier_block_src_path: '.:'
-    id: source_test_debug
+    id: timestamp
     max_nouts: '0'
     output_language: python
     placement: (0,0)
@@ -22,7 +22,7 @@ options:
     run_options: prompt
     sizing_mode: fixed
     thread_safe_setters: ''
-    title: source_test_debug
+    title: timestamp
     window_size: (1000,1000)
   states:
     bus_sink: false
@@ -134,118 +134,16 @@ blocks:
     min_len: '200'
     orient: QtCore.Qt.Horizontal
     rangeType: float
-    start: 1e5
+    start: 1e6
     step: 1e6
     stop: 250e6
-    value: 1e6
+    value: 10e6
     widget: counter_slider
   states:
     bus_sink: false
     bus_source: false
     bus_structure: null
     coordinate: [392, 36.0]
-    rotation: 0
-    state: true
-- name: blocks_complex_to_interleaved_short_0
-  id: blocks_complex_to_interleaved_short
-  parameters:
-    affinity: ''
-    alias: ''
-    comment: ''
-    maxoutbuf: '32000'
-    minoutbuf: '32000'
-    scale_factor: '2047.0'
-    vector_output: 'False'
-  states:
-    bus_sink: false
-    bus_source: false
-    bus_structure: null
-    coordinate: [248, 484.0]
-    rotation: 0
-    state: true
-- name: blocks_endian_swap_0
-  id: blocks_endian_swap
-  parameters:
-    affinity: ''
-    alias: ''
-    comment: ''
-    maxoutbuf: '0'
-    minoutbuf: '0'
-    type: s16
-  states:
-    bus_sink: false
-    bus_source: false
-    bus_structure: null
-    coordinate: [760, 616.0]
-    rotation: 0
-    state: disabled
-- name: blocks_file_sink_0
-  id: blocks_file_sink
-  parameters:
-    affinity: ''
-    alias: ''
-    append: 'False'
-    comment: ''
-    file: readable.bin
-    type: short
-    unbuffered: 'False'
-    vlen: '1'
-  states:
-    bus_sink: false
-    bus_source: false
-    bus_structure: null
-    coordinate: [928, 700.0]
-    rotation: 0
-    state: disabled
-- name: blocks_file_sink_2
-  id: blocks_file_sink
-  parameters:
-    affinity: ''
-    alias: ''
-    append: 'False'
-    comment: ''
-    file: samples.bin
-    type: short
-    unbuffered: 'False'
-    vlen: '1'
-  states:
-    bus_sink: false
-    bus_source: false
-    bus_structure: null
-    coordinate: [536, 692.0]
-    rotation: 0
-    state: disabled
-- name: blocks_null_sink_0
-  id: blocks_null_sink
-  parameters:
-    affinity: ''
-    alias: ''
-    bus_structure_sink: '[[0,],]'
-    comment: ''
-    num_inputs: '1'
-    type: short
-    vlen: '1'
-  states:
-    bus_sink: false
-    bus_source: false
-    bus_structure: null
-    coordinate: [1120, 544.0]
-    rotation: 0
-    state: true
-- name: blocks_swapiq_0
-  id: blocks_swapiq
-  parameters:
-    affinity: ''
-    alias: ''
-    comment: ''
-    datatype: short
-    maxoutbuf: '32000'
-    minoutbuf: '0'
-  states:
-    bus_sink: false
-    bus_source: false
-    bus_structure: null
-    coordinate: [504, 496.0]
     rotation: 0
     state: true
 - name: epy_block_0
@@ -255,42 +153,54 @@ blocks:
       \ GRC will instantiate the first class it finds\nto get ports and parameters\
       \ of your block. The arguments to __init__  will\nbe the parameters. All of\
       \ them are required to have default values!\n\"\"\"\n\nimport numpy as np\n\
-      from gnuradio import gr\nrx_resolution = 12\nmax_data = (1 << (rx_resolution\
-      \ -1))-1\nprint(max_data)\n\ndebug_ctr = 0\nbyte_num = 0\n\n\nclass blk(gr.sync_block):\
-      \  # other base classes are basic_block, decim_block, interp_block\n    \"\"\
-      \"Embedded Python Block example - a simple multiply const\"\"\"\n\n    def __init__(self,\
-      \ example_param=1.0):  # only default arguments here\n        \"\"\"arguments\
+      from gnuradio import gr\nimport pmt\n\n\nclass blk(gr.sync_block):  # other\
+      \ base classes are basic_block, decim_block, interp_block\n    \"\"\"Embedded\
+      \ Python Block example - a simple multiply const\"\"\"\n\n    ctr = 0\n    last_sys\
+      \ = 0\n    last_rf = 0\n    tags_displayed = 0\n\n    def __init__(self,  num_tags_display\
+      \ = 1, sample_rate = 0):  # only default arguments here\n        \"\"\"arguments\
       \ to this function show up as parameters in GRC\"\"\"\n        gr.sync_block.__init__(\n\
-      \            self,\n            name='Embedded Python Block',   # will show\
-      \ up in GRC\n            in_sig=[np.int16],\n            out_sig=[np.int16]\n\
-      \        )\n        # if an attribute with the same name as a parameter is found,\n\
-      \        # a callback is registered (properties work, too).j\n        self.example_param\
-      \ = example_param\n\n    def work(self, input_items, output_items):\n      \
-      \  global debug_ctr, byte_num\n        \n        \n        expected = input_items[0][0]\n\
-      \n        #validate samples\n        for j in range(len(input_items[0])): \n\
-      \            this_value = input_items[0][j]\n\n            if (this_value !=\
-      \ expected):\n                print(\"Fail: Byte # \", hex(byte_num + (j*2)),\
-      \ \"expected\", hex((0xffff & expected)), \"actual\", hex((0xffff & this_value)))\
-      \                \n\n            expected = (this_value + 1)\n            if\
-      \ expected == (max_data + 1):\n                expected = -(max_data+1)\n  \
-      \              \n                \n        debug_ctr += 1\n        if debug_ctr\
-      \ % 1000 == 0:\n            print(\"ninput_items\", len(input_items[0]))\n \
-      \           \n        byte_num = byte_num + (len(input_items[0]) * 2)\n    \
-      \    \n        return len(output_items[0])\n"
+      \            self,\n            name='Print Tags',   # will show up in GRC\n\
+      \            in_sig=[np.complex64],\n            out_sig=[np.complex64]\n  \
+      \     \n        )\n        print(\"init print tags\")\n                  \n\
+      \        # a callback is registered (properties work, too).\n        self.num_tags_display\
+      \ = num_tags_display\n        self.sample_rate = sample_rate\n        \n   \
+      \     \n    \n    def work(self, input_items, output_items):\n   \n        output_items[0][:]\
+      \ = input_items[0] * 1\n        \n        #print(\"ts\", len(input_items[0]))\n\
+      \        tags = self.get_tags_in_window(0, 0, len(input_items[0]))\n       \
+      \ blk.ctr += 1\n        if blk.tags_displayed < self.num_tags_display:\n   \
+      \         if len(tags) > 0:\n                print(\"ctr\", blk.tags_displayed,\
+      \ \"sample_rate\", self.sample_rate, \"tags\", len(tags), \"input_items\", len(input_items[0]),\
+      \ \"\\n\")\n                \n                for tag in tags:\n           \
+      \         key = pmt.to_python(tag.key) # convert from PMT to python string\n\
+      \                    value = pmt.to_python(tag.value) # Note that the type(value)\
+      \ can be several things, it depends what PMT type it was\n                 \
+      \   print('key:', key)\n                    print('value:', value, type(value))\n\
+      \                    \n                    \n                    if key == 'sys_timestamp':\n\
+      \                        delta = value - blk.last_sys\n                    \
+      \    time = delta / 40000000\n                        \n                   \
+      \     print(\"delta: \", delta, \"time: \", time)\n                        blk.last_sys\
+      \ = value\n                    \n                    if key == 'rf_timestamp':\n\
+      \                        delta = value - blk.last_rf\n                     \
+      \   time = delta / self.sample_rate\n                        \n            \
+      \            print(\"delta: \", delta, \"time: \", time)\n                 \
+      \       blk.last_rf = value\n                        \n                    \
+      \    \n                    print(\" \")\n            blk.tags_displayed += len(tags)\
+      \    \n        \n        return len(output_items[0])\n"
     affinity: ''
     alias: ''
     comment: ''
-    example_param: '1.0'
     maxoutbuf: '32000'
-    minoutbuf: '0'
+    minoutbuf: '8000'
+    num_tags_display: '100'
+    sample_rate: sample_rate
   states:
-    _io_cache: ('Embedded Python Block', 'blk', [('example_param', '1.0')], [('0',
-      'short', 1)], [('0', 'short', 1)], 'Embedded Python Block example - a simple
-      multiply const', ['example_param'])
+    _io_cache: ('Print Tags', 'blk', [('num_tags_display', '1'), ('sample_rate', '0')],
+      [('0', 'complex', 1)], [('0', 'complex', 1)], 'Embedded Python Block example
+      - a simple multiply const', ['num_tags_display', 'sample_rate'])
     bus_sink: false
     bus_source: false
     bus_structure: null
-    coordinate: [776, 500.0]
+    coordinate: [672, 324.0]
     rotation: 0
     state: true
 - name: qtgui_freq_sink_x_0
@@ -371,18 +281,115 @@ blocks:
     bus_sink: false
     bus_source: false
     bus_structure: null
-    coordinate: [848, 316.0]
+    coordinate: [1088, 364.0]
     rotation: 0
-    state: disabled
+    state: true
+- name: qtgui_time_sink_x_0
+  id: qtgui_time_sink_x
+  parameters:
+    affinity: ''
+    alias: ''
+    alpha1: '1.0'
+    alpha10: '1.0'
+    alpha2: '1.0'
+    alpha3: '1.0'
+    alpha4: '1.0'
+    alpha5: '1.0'
+    alpha6: '1.0'
+    alpha7: '1.0'
+    alpha8: '1.0'
+    alpha9: '1.0'
+    autoscale: 'False'
+    axislabels: 'True'
+    color1: blue
+    color10: dark blue
+    color2: red
+    color3: green
+    color4: black
+    color5: cyan
+    color6: magenta
+    color7: yellow
+    color8: dark red
+    color9: dark green
+    comment: ''
+    ctrlpanel: 'False'
+    entags: 'True'
+    grid: 'False'
+    gui_hint: ''
+    label1: Signal 1
+    label10: Signal 10
+    label2: Signal 2
+    label3: Signal 3
+    label4: Signal 4
+    label5: Signal 5
+    label6: Signal 6
+    label7: Signal 7
+    label8: Signal 8
+    label9: Signal 9
+    legend: 'True'
+    marker1: '-1'
+    marker10: '-1'
+    marker2: '-1'
+    marker3: '-1'
+    marker4: '-1'
+    marker5: '-1'
+    marker6: '-1'
+    marker7: '-1'
+    marker8: '-1'
+    marker9: '-1'
+    name: '""'
+    nconnections: '1'
+    size: '1024'
+    srate: samp_rate
+    stemplot: 'False'
+    style1: '1'
+    style10: '1'
+    style2: '1'
+    style3: '1'
+    style4: '1'
+    style5: '1'
+    style6: '1'
+    style7: '1'
+    style8: '1'
+    style9: '1'
+    tr_chan: '0'
+    tr_delay: '0'
+    tr_level: '0.0'
+    tr_mode: qtgui.TRIG_MODE_FREE
+    tr_slope: qtgui.TRIG_SLOPE_POS
+    tr_tag: '""'
+    type: complex
+    update_time: '0.10'
+    width1: '1'
+    width10: '1'
+    width2: '1'
+    width3: '1'
+    width4: '1'
+    width5: '1'
+    width6: '1'
+    width7: '1'
+    width8: '1'
+    width9: '1'
+    ylabel: Amplitude
+    ymax: '1'
+    ymin: '-1'
+    yunit: '""'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [1088, 236.0]
+    rotation: 0
+    state: true
 - name: sidekiq_sidekiq_rx_0
   id: sidekiq_sidekiq_rx
   parameters:
     affinity: ''
     alias: ''
     bandwidth: bandwidth
-    cal_mode: '0'
-    cal_type: '2'
-    card: '1'
+    cal_mode: '2'
+    cal_type: '0'
+    card: '2'
     comment: ''
     frequency: frequency
     gain_index: gain_index
@@ -390,27 +397,23 @@ blocks:
     handle1: '0'
     handle2: '100'
     maxoutbuf: '32000'
-    minoutbuf: '0'
+    minoutbuf: '8000'
     run_cal: run_rx_calibration
     sample_rate: sample_rate
+    timestamp_tags: '1'
   states:
     bus_sink: false
     bus_source: false
     bus_structure: null
-    coordinate: [112, 228.0]
+    coordinate: [160, 268.0]
     rotation: 0
     state: true
 
 connections:
-- [blocks_complex_to_interleaved_short_0, '0', blocks_swapiq_0, '0']
-- [blocks_endian_swap_0, '0', blocks_file_sink_0, '0']
-- [blocks_swapiq_0, '0', blocks_endian_swap_0, '0']
-- [blocks_swapiq_0, '0', blocks_file_sink_2, '0']
-- [blocks_swapiq_0, '0', epy_block_0, '0']
-- [epy_block_0, '0', blocks_null_sink_0, '0']
-- [sidekiq_sidekiq_rx_0, '0', blocks_complex_to_interleaved_short_0, '0']
-- [sidekiq_sidekiq_rx_0, '0', qtgui_freq_sink_x_0, '0']
+- [epy_block_0, '0', qtgui_freq_sink_x_0, '0']
+- [epy_block_0, '0', qtgui_time_sink_x_0, '0']
+- [sidekiq_sidekiq_rx_0, '0', epy_block_0, '0']
 
 metadata:
   file_format: 1
-  grc_version: 3.10.5.1
+  grc_version: 3.10.3.0

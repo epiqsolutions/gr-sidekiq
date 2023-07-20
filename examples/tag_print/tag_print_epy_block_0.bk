@@ -1,0 +1,46 @@
+"""
+Embedded Python Blocks:
+
+Each time this file is saved, GRC will instantiate the first class it finds
+to get ports and parameters of your block. The arguments to __init__  will
+be the parameters. All of them are required to have default values!
+"""
+
+import numpy as np
+from gnuradio import gr
+import pmt
+
+
+class blk(gr.sync_block):  # other base classes are basic_block, decim_block, interp_block
+    """Embedded Python Block example - a simple multiply const"""
+
+    def __init__(self, out_of_n =2):  # only default arguments here
+        """arguments to this function show up as parameters in GRC"""
+        gr.sync_block.__init__(
+            self,
+            name='Print Tags',   # will show up in GRC
+            in_sig=[np.complex64],
+            out_sig=[np.complex64]
+       
+        )
+        self.ctr=0
+        # if an attribute with the same name as a parameter is found,
+        # a callback is registered (properties work, too).
+        self.out_of_n = out_of_n
+        
+    def work(self, input_items, output_items):
+        
+        tags = self.get_tags_in_window(0, 0, len(input_items[0]))
+        
+        for tag in tags:
+            self.ctr = self.ctr + 1
+            print(self.ctr, self.out_of_n)
+            if self.ctr == self.out_of_n:
+                key = pmt.to_python(tag.key) # convert from PMT to python string
+                value = pmt.to_python(tag.value) # Note that the type(value) can be several things, it depends what PMT type it was
+                print('key:', key)
+                print('value:', value, type(value))
+                print('')
+                self.ctr = 0
+        
+        return len(output_items[0])

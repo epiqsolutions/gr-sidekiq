@@ -11,6 +11,7 @@
 #include <pmt/pmt.h>
 #include <gnuradio/sidekiq/sidekiq_rx.h>
 #include <sidekiq_api.h>
+#include <chrono>
 
 #define MAX_PORT                2        // max ports allowed
 #define IQ_SHORT_COUNT          2        // number of shorts in a sample
@@ -61,6 +62,9 @@ public:
           double frequency,
           uint8_t gain_mode,
           int gain_index,
+          int timestamp_tags,
+          int trigger_src,
+          int pps_source,
           int cal_mode,
           int cal_type
           );
@@ -107,8 +111,12 @@ private:
     uint64_t frequency{};
     skiq_rx_gain_t gain_mode{};
     uint8_t gain_index{};
+    bool timestamp_tags{};
     skiq_rx_cal_mode_t cal_mode{};
     skiq_rx_cal_type_t cal_type{};
+
+    skiq_trigger_src_t trigger_src = skiq_trigger_src_immediate;
+    skiq_1pps_source_t pps_source{}; 
 
     /* flags */    
     bool libsidekiq_init{};
@@ -121,14 +129,21 @@ private:
     uint64_t last_status_update_sample{};
     uint64_t status_update_rate_in_samples{};
     uint64_t overrun_counter{};
-    bool first_block{};
-    uint64_t last_timestamp{};
+    bool first_block[MAX_PORT]{};
+    uint64_t last_timestamp[MAX_PORT]{};
     double adc_scaling{};
     int16_t *curr_block_ptr[MAX_PORT]{};
     int32_t curr_block_samples_left[MAX_PORT]{};
 
+    gr::tag_t curr_rf_block_tag{};
+
+    uint64_t last_tag_index[MAX_PORT]{};
+
     /* used to debug the work function */
     uint32_t debug_ctr{};
+    typedef std::chrono::high_resolution_clock Clock;
+    typedef std::chrono::milliseconds milliseconds;
+    Clock::time_point last_time{};
 };
 
 } // namespace sidekiq

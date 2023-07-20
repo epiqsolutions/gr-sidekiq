@@ -10,6 +10,7 @@
 #include <gnuradio/io_signature.h>
 #include <volk/volk.h>
 #include <boost/asio.hpp>
+#include <chrono>
 
 #define DEBUG_LEVEL "debug" //Can be debug, info, warning, error, critical
 
@@ -31,6 +32,9 @@ sidekiq_rx::sptr sidekiq_rx::make(
         double frequency,
         uint8_t gain_mode,
         int gain_index,
+        int timestamp_tags,
+        int trigger_src,
+        int pps_source,
         int cal_mode,
         int cal_type) 
 {
@@ -43,6 +47,9 @@ sidekiq_rx::sptr sidekiq_rx::make(
           frequency,
           gain_mode,
           gain_index,
+          timestamp_tags,
+          trigger_src,
+          pps_source,
           cal_mode,
           cal_type);
 }
@@ -56,6 +63,9 @@ sidekiq_rx_impl::sidekiq_rx_impl(
         double frequency,
         uint8_t gain_mode,
         int gain_index,
+        int timestamp_tags,
+        int local_trigger_src,
+        int local_pps_source,
         int cal_mode,
         int cal_type) 
     : gr::sync_block("sidekiq_rx", gr::io_signature::make(0, 0, 0),
@@ -75,19 +85,67 @@ sidekiq_rx_impl::sidekiq_rx_impl(
     uint8_t iq_resolution = 0;
     status_update_rate_in_samples = static_cast<size_t >(sample_rate * STATUS_UPDATE_RATE_SECONDS);
 
+    curr_rf_block_tag.key = pmt::intern("rf_timestamp");
+    curr_rf_block_tag.value = pmt::from_uint64(0);
+
+    this->timestamp_tags = timestamp_tags;
     card = input_card;
     hdl1 = (skiq_rx_hdl_t) port1_handle;
+    this->card = input_card;
+    this->hdl1 = (skiq_rx_hdl_t) port1_handle;
+
+
+
+    if (local_trigger_src == 0)
+    {
+        this->trigger_src = skiq_trigger_src_immediate;
+    }
+    else if (local_trigger_src == 1)
+    {
+        this->trigger_src = skiq_trigger_src_1pps;
+    }
+    else if (local_trigger_src == 2)
+    {
+        this->trigger_src = skiq_trigger_src_synced;
+    }
+    else
+    {
+        d_logger->error( "Error: Invalid trigger source {}" , local_trigger_src);
+        throw std::runtime_error("Failure: trigger_src");
+    }
+
+    this->pps_source = skiq_1pps_source_unavailable;
+
+    if (trigger_src == skiq_trigger_src_1pps)
+    {
+        if (local_pps_source == 0)
+        {
+            this->pps_source = skiq_1pps_source_host;
+        }
+        else if (local_pps_source == 1)
+        {
+            this->pps_source = skiq_1pps_source_external;
+        }
+        else
+        {
+            d_logger->error( "Error: Invalid pps source {}" , local_pps_source);
+            throw std::runtime_error("Failure: trigger_src");
+        }
+
+    }
+
+    d_logger->debug("trigger {}, pps_source {}", this->trigger_src, this->pps_source);
 
     /* determine if we are in dual port */
     if (port2_handle < skiq_rx_hdl_end)
     {
-        dual_port = true;
-        hdl2 = (skiq_rx_hdl_t) port2_handle;
+        this->dual_port = true;
+        this->hdl2 = (skiq_rx_hdl_t) port2_handle;
     }
     else
     {
-        hdl2 = skiq_rx_hdl_end;
-        dual_port = false;
+        this->hdl2 = skiq_rx_hdl_end;
+        this->dual_port = false;
     }
 
     /* initialize libsidekiq */
@@ -111,11 +169,24 @@ sidekiq_rx_impl::sidekiq_rx_impl(
         d_logger->info("Info: libsidkiq initialized successfully");
     }
 
-    if (rx_second == false)
+    set_rx_sample_rate(sample_rate);
+    set_rx_bandwidth(bandwidth);
+
+    /* configure the 1PPS source for each of the cards */
+    if ( pps_source != skiq_1pps_source_unavailable )
     {
-        set_rx_sample_rate(sample_rate);
-        set_rx_bandwidth(bandwidth);
-    }
+        status = skiq_write_1pps_source( card, pps_source );
+        if ( status != 0 )
+        {
+            d_logger->error( "Error: unable to write 1pps source with status {}", status);
+            throw std::runtime_error("Failure: skiq_write_1pps_source");
+        }
+        else
+        {
+            d_logger->info("Info: configured 1PPS source to {}", pps_source);
+        }
+      }
+
 
 #ifdef COUNTER
     skiq_write_rx_data_src(card, hdl1, skiq_data_src_counter);
@@ -192,6 +263,9 @@ sidekiq_rx_impl::sidekiq_rx_impl(
     gr::block::set_min_noutput_items(DATA_MAX_BUFFER_SIZE);
     gr::block::set_output_multiple(DATA_MAX_BUFFER_SIZE);
 
+    last_time = Clock::now();
+
+
 }
 
 
@@ -234,9 +308,15 @@ void sidekiq_rx_impl::handle_control_message(pmt_t msg)
     if (!(pmt::is_dict(msg)) && pmt::is_pair(msg)) {
         d_logger->debug(
             "Command message is pair, converting to dict: '{}': car({}), cdr({})",
+            /* old way of doing it, doesn't compile now */
+#ifdef OLDWAY
             msg,
             pmt::car(msg),
             pmt::cdr(msg));
+#endif
+            pmt::write_string(msg),
+            pmt::write_string(pmt::car(msg)),
+            pmt::write_string(pmt::cdr(msg)));
         msg = pmt::dict_add(pmt::make_dict(), pmt::car(msg), pmt::cdr(msg));
      }
 
@@ -277,28 +357,42 @@ void sidekiq_rx_impl::handle_control_message(pmt_t msg)
 bool sidekiq_rx_impl::start() 
 {
     int status = 0;
+    skiq_rx_hdl_t handles[skiq_rx_hdl_end];
+    uint8_t nrhandles = 0;
 
     d_logger->debug("in start");
 
-    status = skiq_start_rx_streaming(card, hdl1);
+    status = skiq_reset_timestamps(card);
     if (status != 0)
     {
-        d_logger->error( "Error: could not start RX streaming on hdl1, status {}", status);
-        throw std::runtime_error("Failure: skiq_start_rx_streaming");
+        d_logger->error( "Error: could not reset timestamps, status {}", status);
+        throw std::runtime_error("Failure: skiq_reset_timestamps");
     }
 
-    if (dual_port)
+    handles[0] = hdl1;
+    nrhandles = 1;
+
+    if (dual_port == true)
     {
-        status = skiq_start_rx_streaming(card, hdl2);
-        if (status != 0)
-        {
-            d_logger->error( "Error: could not start RX streaming on hdl2, status {}", status);
-            throw std::runtime_error("Failure: skiq_start_rx_streaming");
-        }
+        handles[1] = hdl2;
+        nrhandles = 2;
     }
 
+    status = skiq_start_rx_streaming_multi_on_trigger(card, handles, nrhandles, trigger_src, 0);
+    if ( status != 0 )
+    {
+       d_logger->error( "Error: could not start RX streaming on hdl1, status {}", status);
+       throw std::runtime_error("Failure: skiq_start_rx_streaming");
+    }
 
     rx_streaming = true;
+
+    /* tag indexes are absolute starting from the first sample out
+     * so they must be reset when starting a stream
+     */
+    last_tag_index[0] = 0;
+    last_tag_index[1] = 0;
+
     d_logger->info("Info: RX streaming started");
 
     return block::start();
@@ -312,26 +406,27 @@ bool sidekiq_rx_impl::start()
 bool sidekiq_rx_impl::stop() 
 {
     int status = 0;
+    skiq_rx_hdl_t handles[skiq_rx_hdl_end];
+    uint8_t nrhandles = 0;
     
     d_logger->debug("in stop");
 
     /* only call stop if we are actually streaming */
     if (rx_streaming == true)
     {
-        status = skiq_stop_rx_streaming(card, hdl1);
-        if (status != 0)
+        handles[0] = hdl1;
+        nrhandles = 1;
+        if (dual_port == true)
         {
-            d_logger->error( "Error: could not stop TX streaming on hdl1, status {}", status);
-            throw std::runtime_error("Failure: skiq_start_tx_streaming");
+            handles[1] = hdl2;
+            nrhandles = 2;
         }
-        if (dual_port)
+
+        status = skiq_stop_rx_streaming_multi_on_trigger(card, handles, nrhandles, trigger_src, 0);
+        if ( status != 0 )
         {
-            status = skiq_stop_rx_streaming(card, hdl2);
-            if (status != 0)
-            {
-                d_logger->error( "Error: could not stop TX streaming on hdl2, status {}", status);
-                throw std::runtime_error("Failure: skiq_start_tx_streaming");
-            }
+           d_logger->error( "Error: could not start RX streaming on hdl1, status {}", status);
+           throw std::runtime_error("Failure: skiq_start_rx_streaming");
         }
         d_logger->info("Info: RX streaming stopped");
     }
@@ -438,7 +533,7 @@ void sidekiq_rx_impl::set_rx_frequency(double value)
     status = skiq_write_rx_LO_freq(card, hdl1, freq);
     if (status != 0) 
     {
-        d_logger->error("Error: could not set frequency %ld on hdl1, status {}, {}", 
+        d_logger->error("Error: could not set frequency {} on hdl1, status {}, {}", 
                 freq, status, strerror(abs(status)) );
         throw std::runtime_error("Failure: set frequency");
         return;
@@ -546,7 +641,7 @@ void sidekiq_rx_impl::set_rx_gain_index(int value)
             return;
         }
 
-        if (dual_port)
+        if (dual_port == true)
         {
             status = skiq_write_rx_gain(card, hdl2, gain);
             if (status != 0) 
@@ -757,7 +852,8 @@ uint32_t sidekiq_rx_impl::get_new_block(uint32_t portno)
     uint32_t new_portno = portno;
     bool done = false;
 
-    if (done == false)
+
+    while (done == false)
     {
         status = skiq_receive(card, &tmp_hdl, &p_rx_block, &data_length_bytes);
         if (status  == skiq_rx_status_success) 
@@ -778,20 +874,28 @@ uint32_t sidekiq_rx_impl::get_new_block(uint32_t portno)
             }
 
             /* check timestamp for overrun */
-            if (first_block == false)
+            if (first_block[new_portno] == false)
             {
                 uint64_t actual_tx = p_rx_block->rf_timestamp;
-                uint64_t expected_ts = last_timestamp + DATA_MAX_BUFFER_SIZE;
+                uint64_t expected_ts = last_timestamp[new_portno] + DATA_MAX_BUFFER_SIZE;
 
                 if (expected_ts != actual_tx)
                 {
                     overrun_counter++;
-                    d_logger->info("Detected overrun, total overruns {}", overrun_counter);
                 }
             }
 
-            last_timestamp = p_rx_block->rf_timestamp;
-            first_block = false;
+
+            /* if enabled for stream tags, set the tag value */
+            if (timestamp_tags == true)
+            {
+                curr_rf_block_tag.key = pmt::intern("rf_timestamp");
+                curr_rf_block_tag.value = pmt::from_uint64(p_rx_block->rf_timestamp);
+            }
+
+            last_timestamp[new_portno] = p_rx_block->rf_timestamp;
+            first_block[new_portno] = false;
+
 
             /* update the data with the new block */
             curr_block_ptr[new_portno] = (int16_t *)p_rx_block->data;
@@ -897,11 +1001,11 @@ int sidekiq_rx_impl::work(int noutput_items,
     uint32_t samples_to_write[MAX_PORT]{};
     uint32_t portno{};
     bool looping = true; 
+    Clock::time_point this_time;
+
+    this_time = Clock::now();
     gr_complex *out[MAX_PORT] = {NULL, NULL};
     gr_complex *curr_out_ptr[MAX_PORT] = {NULL, NULL} ;
-
-
-    first_block = true;
 
     /* initialize the one-port output variables */    
     out[0] = static_cast<gr_complex *>(output_items[0]);
@@ -914,6 +1018,9 @@ int sidekiq_rx_impl::work(int noutput_items,
         curr_out_ptr[1] = out[1];
     }
 
+    first_block[0]  = true;
+    first_block[1]  = true;
+
     /* We told gnuradio to not call us with a buffer size smaller than our block, so error out. */
     if (noutput_items < DATA_MAX_BUFFER_SIZE)
     {
@@ -925,16 +1032,24 @@ int sidekiq_rx_impl::work(int noutput_items,
     /* Determine if the time has elapsed and display any underruns we have received */
     if ((nitems_written(0) - last_status_update_sample) > status_update_rate_in_samples)
     {
-        last_status_update_sample = nitems_written(0);
 
         if (overrun_counter > 0)
         {
             d_logger->info("Overruns detected: {}", overrun_counter);
         }
 
-        d_logger->debug("noutput_items {}, nitems_written {}, last_update {}",
-               noutput_items, nitems_written(0), last_status_update_sample );
+#ifdef DEBUG
+        milliseconds ms = std::chrono::duration_cast<milliseconds>(this_time - last_time);
+        last_time = this_time;
 
+        d_logger->debug("delta time {}, noutput_items {}, nitems_written {}, last_update {} update_rate {}, work calls {}",
+               ms.count(), noutput_items, nitems_written(0), last_status_update_sample, status_update_rate_in_samples, debug_ctr );
+#else
+        d_logger->debug("noutput_items {}, nitems_written {}, last_update {}",
+               noutput_items, nitems_written(0), last_status_update_sample);
+#endif
+
+        last_status_update_sample = nitems_written(0);
     }
 
     /* loop until we have filled up these "out" packet(s) */
@@ -944,7 +1059,7 @@ int sidekiq_rx_impl::work(int noutput_items,
         portno = get_new_block(portno);
 
         /* fill the output packet for this portno up with the contents of the block */
-        if ((curr_block_samples_left[portno] > 0) && samples_written[portno] < noutput_items)
+        if ((curr_block_samples_left[portno] > 0) && (samples_written[portno] < noutput_items))
         {
             /* figure out how many samples we have left to write */
             delta_samples[portno] = noutput_items - samples_written[portno];
@@ -960,14 +1075,15 @@ int sidekiq_rx_impl::work(int noutput_items,
                /* there are fewer items left in the block than we need to write */
                 samples_to_write[portno] = curr_block_samples_left[portno];
             }
-
+//#define DEBUG
 #ifdef DEBUG
-            if (debug_ctr < 1)
+            if (debug_ctr < 2)
             {
-                printf("overrun ctr %lu, samples_left %d, samples_written %d, samples_to_write %u, noutput_items %d\n",
-                        overrun_counter, curr_block_samples_left[portno], samples_written[portno], 
+                printf("portno %d, overrun ctr %lu, samples_left %d, samples_written %d, samples_to_write %u, noutput_items %d\n",
+                        portno, overrun_counter, curr_block_samples_left[portno], samples_written[portno], 
                         samples_to_write[portno], noutput_items);
 
+#ifdef POO
                 if (samples_written[portno] == 1018)
                 {
                     printf("0x%08X ", (1143 * 4));
@@ -982,6 +1098,7 @@ int sidekiq_rx_impl::work(int noutput_items,
                     }
                     printf("\n");
                 }
+#endif
                 fflush(stdout);
             }
 #endif
@@ -999,25 +1116,45 @@ int sidekiq_rx_impl::work(int noutput_items,
             samples_written[portno] += samples_to_write[portno];
             curr_out_ptr[portno] += samples_to_write[portno];
             curr_block_ptr[portno] += (samples_to_write[portno] * IQ_SHORT_COUNT);
-
             curr_block_samples_left[portno] -= samples_to_write[portno];
-            if (curr_block_samples_left[portno] == 0)
-            {
-                curr_block_ptr[portno] = NULL;
-            }
 
+            if (timestamp_tags == true)
+            {
+                add_item_tag(portno, last_tag_index[portno] + samples_written[portno], 
+                                curr_rf_block_tag.key, curr_rf_block_tag.value);
+
+                if (debug_ctr < 10)
+                {
+                    d_logger->debug("add item: ctr {}, portno {}, samples_written {}, noutput_items {}, buffer_size {}", 
+                            debug_ctr, portno, samples_written[portno], noutput_items, DATA_MAX_BUFFER_SIZE);
+                    d_logger->debug("key {}, value {}, abs_tag_index {}",
+                            last_tag_index[portno], curr_rf_block_tag.key, curr_rf_block_tag.value);
+                }
+            }
         }
+
+        /* update the absolute index into the stream */
+        last_tag_index[portno] = last_tag_index[portno] + samples_written[portno];
 
         /* determine if we are done with this work() call */
         looping = determine_if_done(samples_written, noutput_items, &portno);
+
+    }
+
+
+    if (curr_block_samples_left[portno] == 0)
+    {
+        curr_block_ptr[portno] = NULL;
     }
     
-#define DEBUG
 #ifdef DEBUG
     if (debug_ctr < 30)
     {
-        d_logger->debug("dual_port {}, portno {}, items written {}, noutput_items {}, samples_written {}", 
-                dual_port, portno, nitems_written(0), noutput_items, samples_written[portno]);
+        milliseconds ms = std::chrono::duration_cast<milliseconds>(this_time - last_time);
+        d_logger->debug("dual_port {}, items written {}, noutput_items {}, samples_written {}", 
+                dual_port, nitems_written(0), noutput_items, samples_written[portno]);
+        std::cout << ms.count() << "ms\n";
+        last_time = this_time;
     }
 #endif
 

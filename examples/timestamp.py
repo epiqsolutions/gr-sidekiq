@@ -5,8 +5,8 @@
 # SPDX-License-Identifier: GPL-3.0
 #
 # GNU Radio Python Flow Graph
-# Title: source_test
-# GNU Radio version: v3.11.0.0git-375-ge2af6089
+# Title: timestamp
+# GNU Radio version: 3.10.3.0
 
 from packaging.version import Version as StrictVersion
 
@@ -34,17 +34,18 @@ from gnuradio import eng_notation
 from gnuradio import sidekiq
 from gnuradio.qtgui import Range, RangeWidget
 from PyQt5 import QtCore
+import timestamp_epy_block_0 as epy_block_0  # embedded python block
 
 
 
 from gnuradio import qtgui
 
-class source_test(gr.top_block, Qt.QWidget):
+class timestamp(gr.top_block, Qt.QWidget):
 
     def __init__(self):
-        gr.top_block.__init__(self, "source_test", catch_exceptions=True)
+        gr.top_block.__init__(self, "timestamp", catch_exceptions=True)
         Qt.QWidget.__init__(self)
-        self.setWindowTitle("source_test")
+        self.setWindowTitle("timestamp")
         qtgui.util.check_set_qss()
         try:
             self.setWindowIcon(Qt.QIcon.fromTheme('gnuradio-grc'))
@@ -62,7 +63,7 @@ class source_test(gr.top_block, Qt.QWidget):
         self.top_grid_layout = Qt.QGridLayout()
         self.top_layout.addLayout(self.top_grid_layout)
 
-        self.settings = Qt.QSettings("GNU Radio", "source_test")
+        self.settings = Qt.QSettings("GNU Radio", "timestamp")
 
         try:
             if StrictVersion(Qt.qVersion()) < StrictVersion("5.0.0"):
@@ -75,7 +76,7 @@ class source_test(gr.top_block, Qt.QWidget):
         ##################################################
         # Variables
         ##################################################
-        self.sample_rate = sample_rate = 20e6
+        self.sample_rate = sample_rate = 10e6
         self.samp_rate = samp_rate = 32000
         self.run_rx_calibration = run_rx_calibration = 0
         self.gain_index = gain_index = 10
@@ -85,8 +86,7 @@ class source_test(gr.top_block, Qt.QWidget):
         ##################################################
         # Blocks
         ##################################################
-
-        self._sample_rate_range = Range(1e6, 250e6, 1e6, 20e6, 200)
+        self._sample_rate_range = Range(1e6, 250e6, 1e6, 10e6, 200)
         self._sample_rate_win = RangeWidget(self._sample_rate_range, self.set_sample_rate, "'sample_rate'", "counter_slider", float, QtCore.Qt.Horizontal)
         self.top_layout.addWidget(self._sample_rate_win)
         self._gain_index_range = Range(0, 255, 1, 10, 200)
@@ -95,10 +95,11 @@ class source_test(gr.top_block, Qt.QWidget):
         self._frequency_range = Range(250e6, 6000e6, 1e6, 1000e6, 200)
         self._frequency_win = RangeWidget(self._frequency_range, self.set_frequency, "'frequency'", "counter_slider", float, QtCore.Qt.Horizontal)
         self.top_layout.addWidget(self._frequency_win)
-        self._bandwidth_range = Range(1e6, 250e6, 1e6, sample_rate * .8, 200)
+        self._bandwidth_range = Range(1e5, 250e6, 1e6, sample_rate * .8, 200)
         self._bandwidth_win = RangeWidget(self._bandwidth_range, self.set_bandwidth, "'bandwidth'", "counter_slider", float, QtCore.Qt.Horizontal)
         self.top_layout.addWidget(self._bandwidth_win)
-        self.sidekiq_sidekiq_rx_0 = sidekiq.sidekiq_rx(1, 0, 100, sample_rate, bandwidth, frequency, 1, gain_index, 0, 0, 0, 0, 2)
+        self.sidekiq_sidekiq_rx_0 = sidekiq.sidekiq_rx(2, 0, 100, sample_rate, bandwidth, frequency, 1, gain_index, 1, 2, 0)
+        self.sidekiq_sidekiq_rx_0.set_min_output_buffer(8000)
         self.sidekiq_sidekiq_rx_0.set_max_output_buffer(32000)
         _run_rx_calibration_push_button = Qt.QPushButton('Run RX Calibration')
         _run_rx_calibration_push_button = Qt.QPushButton('Run RX Calibration')
@@ -108,7 +109,7 @@ class source_test(gr.top_block, Qt.QWidget):
         self.top_layout.addWidget(_run_rx_calibration_push_button)
         self.qtgui_time_sink_x_0 = qtgui.time_sink_c(
             1024, #size
-            1, #samp_rate
+            samp_rate, #samp_rate
             "", #name
             1, #number of inputs
             None # parent
@@ -199,17 +200,21 @@ class source_test(gr.top_block, Qt.QWidget):
 
         self._qtgui_freq_sink_x_0_win = sip.wrapinstance(self.qtgui_freq_sink_x_0.qwidget(), Qt.QWidget)
         self.top_layout.addWidget(self._qtgui_freq_sink_x_0_win)
+        self.epy_block_0 = epy_block_0.blk(num_tags_display=100, sample_rate=sample_rate)
+        self.epy_block_0.set_min_output_buffer(8000)
+        self.epy_block_0.set_max_output_buffer(32000)
 
 
         ##################################################
         # Connections
         ##################################################
-        self.connect((self.sidekiq_sidekiq_rx_0, 0), (self.qtgui_freq_sink_x_0, 0))
-        self.connect((self.sidekiq_sidekiq_rx_0, 0), (self.qtgui_time_sink_x_0, 0))
+        self.connect((self.epy_block_0, 0), (self.qtgui_freq_sink_x_0, 0))
+        self.connect((self.epy_block_0, 0), (self.qtgui_time_sink_x_0, 0))
+        self.connect((self.sidekiq_sidekiq_rx_0, 0), (self.epy_block_0, 0))
 
 
     def closeEvent(self, event):
-        self.settings = Qt.QSettings("GNU Radio", "source_test")
+        self.settings = Qt.QSettings("GNU Radio", "timestamp")
         self.settings.setValue("geometry", self.saveGeometry())
         self.stop()
         self.wait()
@@ -222,6 +227,7 @@ class source_test(gr.top_block, Qt.QWidget):
     def set_sample_rate(self, sample_rate):
         self.sample_rate = sample_rate
         self.set_bandwidth(self.sample_rate * .8)
+        self.epy_block_0.sample_rate = self.sample_rate
         self.qtgui_freq_sink_x_0.set_frequency_range(self.frequency, self.sample_rate)
         self.sidekiq_sidekiq_rx_0.set_rx_sample_rate(self.sample_rate)
 
@@ -230,6 +236,7 @@ class source_test(gr.top_block, Qt.QWidget):
 
     def set_samp_rate(self, samp_rate):
         self.samp_rate = samp_rate
+        self.qtgui_time_sink_x_0.set_samp_rate(self.samp_rate)
 
     def get_run_rx_calibration(self):
         return self.run_rx_calibration
@@ -263,7 +270,7 @@ class source_test(gr.top_block, Qt.QWidget):
 
 
 
-def main(top_block_cls=source_test, options=None):
+def main(top_block_cls=timestamp, options=None):
 
     if StrictVersion("4.5.0") <= StrictVersion(Qt.qVersion()) < StrictVersion("5.0.0"):
         style = gr.prefs().get_string('qtgui', 'style', 'raster')
