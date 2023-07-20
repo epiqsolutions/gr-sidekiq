@@ -46,12 +46,13 @@ parameters:
 - id: sample_rate
   label: Sample Rate
   dtype: real
-  default: 1e6
+  default: 20e6
 
 - id: bandwidth
   label: Bandwidth
   default: 1e6
   dtype: real
+  default: 18e6
 
 - id: frequency
   label: Frequency
@@ -63,7 +64,7 @@ parameters:
   dtype: enum
   options: ['0', '1']
   option_labels: ['Manual', 'Auto']
-  default: 0
+  default: 1
 
 - id: gain_index
   label: Gain Index
@@ -79,24 +80,24 @@ parameters:
   default: 0
 
 - id: trigger_src
-  label: streaming trigger
+  label: Streaming Trigger
   dtype: enum
   options: ['0', '1', '2']
-  option_labels: ['immediate', '1pps', 'synced']
+  option_labels: ['Immediate', '1pps', 'Synced']
   default: 0
 
 - id: pps_source
-  label: 1PPS source
+  label: 1PPS Source
   dtype: enum
   options: ['0', '1']
-  option_labels: ['host', 'external']
+  option_labels: ['Host', 'External']
   default: 0
 
 - id: cal_mode
   label: Calibration Mode
   dtype: enum
   options: ['0', '1', '2']
-  option_labels: ['Auto', 'Manual', 'off']
+  option_labels: ['Auto', 'Manual', 'Off']
   default: 0
 
 - id: cal_type
@@ -110,8 +111,7 @@ parameters:
   label: Run Cal 
   hide: ${ ('all' if (cal_mode == '0') else 'part') }
   dtype: int
-  default: rx_run_calibration
-
+  default: 0
 
   
 #  Make one 'inputs' list entry per input and one 'outputs' list entry per output.
