@@ -14,7 +14,7 @@ cd build
 
 cmake ../
 
-make 
+make -j8
 
 sudo make install
 
