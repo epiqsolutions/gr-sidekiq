@@ -5,7 +5,7 @@ category: '[sidekiq]'
 
 templates:
   imports: from gnuradio import sidekiq
-  make: sidekiq.sidekiq_rx(${card}, ${handle1}, ${handle2}, ${sample_rate}, ${bandwidth}, ${frequency}, ${gain_mode}, ${gain_index}, ${trigger_src}, ${pps_source}, ${timestamp_tags}, ${cal_mode}, ${cal_type})
+  make: sidekiq.sidekiq_rx(${card}, ${handle1}, ${handle2}, ${sample_rate}, ${bandwidth}, ${frequency}, ${gain_mode}, ${gain_index}, ${timestamp_tags}, ${trigger_src}, ${pps_source}, ${cal_mode}, ${cal_type})
   callbacks:
   - set_rx_sample_rate(${sample_rate})
   - set_rx_bandwidth(${bandwidth})
