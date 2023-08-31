@@ -6,7 +6,7 @@
 #
 # GNU Radio Python Flow Graph
 # Title: timestamp
-# GNU Radio version: 3.10.3.0
+# GNU Radio version: 3.10.5.1
 
 from packaging.version import Version as StrictVersion
 
@@ -24,6 +24,7 @@ from PyQt5 import Qt
 from gnuradio import qtgui
 from gnuradio.filter import firdes
 import sip
+from gnuradio import blocks
 from gnuradio import gr
 from gnuradio.fft import window
 import sys
@@ -86,6 +87,7 @@ class timestamp(gr.top_block, Qt.QWidget):
         ##################################################
         # Blocks
         ##################################################
+
         self._sample_rate_range = Range(1e6, 250e6, 1e6, 10e6, 200)
         self._sample_rate_win = RangeWidget(self._sample_rate_range, self.set_sample_rate, "'sample_rate'", "counter_slider", float, QtCore.Qt.Horizontal)
         self.top_layout.addWidget(self._sample_rate_win)
@@ -98,7 +100,7 @@ class timestamp(gr.top_block, Qt.QWidget):
         self._bandwidth_range = Range(1e5, 250e6, 1e6, sample_rate * .8, 200)
         self._bandwidth_win = RangeWidget(self._bandwidth_range, self.set_bandwidth, "'bandwidth'", "counter_slider", float, QtCore.Qt.Horizontal)
         self.top_layout.addWidget(self._bandwidth_win)
-        self.sidekiq_sidekiq_rx_0 = sidekiq.sidekiq_rx(2, 0, 100, sample_rate, bandwidth, frequency, 1, gain_index, 1, 2, 0)
+        self.sidekiq_sidekiq_rx_0 = sidekiq.sidekiq_rx(0, 0, 100, sample_rate, bandwidth, frequency, 1, gain_index, 0, 0, 1, 2, 0)
         self.sidekiq_sidekiq_rx_0.set_min_output_buffer(8000)
         self.sidekiq_sidekiq_rx_0.set_max_output_buffer(32000)
         _run_rx_calibration_push_button = Qt.QPushButton('Run RX Calibration')
@@ -203,6 +205,8 @@ class timestamp(gr.top_block, Qt.QWidget):
         self.epy_block_0 = epy_block_0.blk(num_tags_display=100, sample_rate=sample_rate)
         self.epy_block_0.set_min_output_buffer(8000)
         self.epy_block_0.set_max_output_buffer(32000)
+        self.blocks_tag_debug_0 = blocks.tag_debug(gr.sizeof_gr_complex*1, '', "")
+        self.blocks_tag_debug_0.set_display(True)
 
 
         ##################################################
@@ -210,6 +214,7 @@ class timestamp(gr.top_block, Qt.QWidget):
         ##################################################
         self.connect((self.epy_block_0, 0), (self.qtgui_freq_sink_x_0, 0))
         self.connect((self.epy_block_0, 0), (self.qtgui_time_sink_x_0, 0))
+        self.connect((self.sidekiq_sidekiq_rx_0, 0), (self.blocks_tag_debug_0, 0))
         self.connect((self.sidekiq_sidekiq_rx_0, 0), (self.epy_block_0, 0))
 
 

@@ -146,6 +146,25 @@ blocks:
     coordinate: [392, 36.0]
     rotation: 0
     state: true
+- name: blocks_tag_debug_0
+  id: blocks_tag_debug
+  parameters:
+    affinity: ''
+    alias: ''
+    comment: ''
+    display: 'True'
+    filter: '""'
+    name: ''
+    num_inputs: '1'
+    type: complex
+    vlen: '1'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [704, 440.0]
+    rotation: 0
+    state: true
 - name: epy_block_0
   id: epy_block
   parameters:
@@ -389,7 +408,7 @@ blocks:
     bandwidth: bandwidth
     cal_mode: '2'
     cal_type: '0'
-    card: '2'
+    card: '0'
     comment: ''
     frequency: frequency
     gain_index: gain_index
@@ -398,9 +417,11 @@ blocks:
     handle2: '100'
     maxoutbuf: '32000'
     minoutbuf: '8000'
+    pps_source: '0'
     run_cal: run_rx_calibration
     sample_rate: sample_rate
     timestamp_tags: '1'
+    trigger_src: '0'
   states:
     bus_sink: false
     bus_source: false
@@ -412,8 +433,9 @@ blocks:
 connections:
 - [epy_block_0, '0', qtgui_freq_sink_x_0, '0']
 - [epy_block_0, '0', qtgui_time_sink_x_0, '0']
+- [sidekiq_sidekiq_rx_0, '0', blocks_tag_debug_0, '0']
 - [sidekiq_sidekiq_rx_0, '0', epy_block_0, '0']
 
 metadata:
   file_format: 1
-  grc_version: 3.10.3.0
+  grc_version: 3.10.5.1

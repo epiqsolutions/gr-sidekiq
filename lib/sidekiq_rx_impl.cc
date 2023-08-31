@@ -390,8 +390,8 @@ bool sidekiq_rx_impl::start()
     /* tag indexes are absolute starting from the first sample out
      * so they must be reset when starting a stream
      */
-    last_tag_index[0] = 0;
-    last_tag_index[1] = 0;
+    tag_index[0] = 0;
+    tag_index[1] = 0;
 
     d_logger->info("Info: RX streaming started");
 
@@ -1120,21 +1120,22 @@ int sidekiq_rx_impl::work(int noutput_items,
 
             if (timestamp_tags == true)
             {
-                add_item_tag(portno, last_tag_index[portno] + samples_written[portno], 
+                add_item_tag(portno, tag_index[portno], 
                                 curr_rf_block_tag.key, curr_rf_block_tag.value);
+
+                /* update the absolute index into the stream */
+                tag_index[portno] = tag_index[portno] + samples_written[portno];
 
                 if (debug_ctr < 10)
                 {
                     d_logger->debug("add item: ctr {}, portno {}, samples_written {}, noutput_items {}, buffer_size {}", 
                             debug_ctr, portno, samples_written[portno], noutput_items, DATA_MAX_BUFFER_SIZE);
                     d_logger->debug("key {}, value {}, abs_tag_index {}",
-                            last_tag_index[portno], curr_rf_block_tag.key, curr_rf_block_tag.value);
+                            tag_index[portno], curr_rf_block_tag.key, curr_rf_block_tag.value);
                 }
             }
         }
 
-        /* update the absolute index into the stream */
-        last_tag_index[portno] = last_tag_index[portno] + samples_written[portno];
 
         /* determine if we are done with this work() call */
         looping = determine_if_done(samples_written, noutput_items, &portno);

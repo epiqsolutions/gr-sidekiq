@@ -137,7 +137,7 @@ private:
 
     gr::tag_t curr_rf_block_tag{};
 
-    uint64_t last_tag_index[MAX_PORT]{};
+    uint64_t tag_index[MAX_PORT]{};
 
     /* used to debug the work function */
     uint32_t debug_ctr{};
