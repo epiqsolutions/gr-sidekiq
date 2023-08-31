@@ -1123,13 +1123,10 @@ int sidekiq_rx_impl::work(int noutput_items,
             {
                 add_item_tag(portno, tag_index[portno], 
                                 curr_rf_block_tag.key, curr_rf_block_tag.value);
-<<<<<<< Updated upstream
 
                 /* update the absolute index into the stream */
                 tag_index[portno] = tag_index[portno] + samples_written[portno];
 
-=======
->>>>>>> Stashed changes
                 if (debug_ctr < 10)
                 {
                     d_logger->debug("add item: ctr {}, portno {}, samples_written {}, noutput_items {}, buffer_size {}", 
