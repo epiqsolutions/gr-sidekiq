@@ -16,7 +16,7 @@
 /* BINDTOOL_GEN_AUTOMATIC(0) */
 /* BINDTOOL_USE_PYGCCXML(0) */
 /* BINDTOOL_HEADER_FILE(telemetry.h)                                        */
-/* BINDTOOL_HEADER_FILE_HASH(c725715dfed787eb44595dd8f94cc407) */
+/* BINDTOOL_HEADER_FILE_HASH(607174287eb65112ee2a2eeaa1f1bf61) */
 /***********************************************************************************/
 
 #include <pybind11/complex.h>
@@ -33,11 +33,15 @@ void bind_telemetry(py::module &m) {
 
   using telemetry = ::gr::sidekiq::telemetry;
 
-  py::class_<telemetry, gr::sync_block, gr::block, gr::basic_block,
-             std::shared_ptr<telemetry>>(m, "telemetry", D(telemetry))
+  py::class_<telemetry, gr::block, gr::basic_block, std::shared_ptr<telemetry>>(
+      m, "telemetry", D(telemetry))
 
       .def(py::init(&telemetry::make), py::arg("input_card"),
            py::arg("temp_enabled"), py::arg("imu_enabled"), D(telemetry, make))
+
+      .def("temp", &telemetry::temp, py::arg("msg"), D(telemetry, temp))
+
+      .def("imu", &telemetry::imu, py::arg("msg"), D(telemetry, imu))
 
       ;
 }

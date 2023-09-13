@@ -11,7 +11,6 @@
 namespace gr {
 namespace sidekiq {
 
-using input_type = float;
 telemetry::sptr telemetry::make(
         int input_card,
         int temp_enabled,
@@ -30,13 +29,11 @@ telemetry_impl::telemetry_impl(
         int input_card,
         int temp_enabled,
         int imu_enabled) 
-    : gr::sync_block("telemetry",
+    : block("telemetry",
                      gr::io_signature::make(0 /* min inputs */,
                                             0 /* max inputs */,
                                             0),
-                     gr::io_signature::make(1 /* min outputs */, 1 /*max outputs */,
-                                            sizeof(gr_complex)))
-
+                     gr::io_signature::make(0, 0, 0))
 {
     int status;
 //    bool libsidekiq_init;
@@ -65,25 +62,32 @@ telemetry_impl::telemetry_impl(
         d_logger->info("Info: libsidkiq initialized successfully");
     }
 
+    message_port_register_in(pmt::mp("temp"));
+    set_msg_handler(pmt::mp("temp"),
+                    [this](const pmt::pmt_t& msg) { this->temp(msg); });
+      
+    message_port_register_in(pmt::mp("imu"));
+    set_msg_handler(pmt::mp("imu"),
+            [this](const pmt::pmt_t& msg) { this->imu(msg); });
 
 
+    
 }
+void telemetry::temp(const pmt::pmt_t& msg)
+{
+    printf("in temp\n");
+}
+void telemetry::imu(const pmt::pmt_t& msg)
+{
+    printf("in imu\n");
+}
+
 
 /*
  * Our virtual destructor.
  */
 telemetry_impl::~telemetry_impl() {}
 
-int telemetry_impl::work(int noutput_items,
-                         gr_vector_const_void_star &input_items,
-                         gr_vector_void_star &output_items) {
-
-  // Do <+signal processing+>
-    printf("in work, noutput_items %d\n", noutput_items);
-
-  // Tell runtime system how many output items we produced.
-  return noutput_items;
-}
 
 } /* namespace sidekiq */
 } /* namespace gr */

@@ -16,6 +16,12 @@
 
 static const char *__doc_gr_sidekiq_telemetry = R"doc()doc";
 
-static const char *__doc_gr_sidekiq_telemetry_telemetry = R"doc()doc";
+static const char *__doc_gr_sidekiq_telemetry_telemetry_0 = R"doc()doc";
+
+static const char *__doc_gr_sidekiq_telemetry_telemetry_1 = R"doc()doc";
 
 static const char *__doc_gr_sidekiq_telemetry_make = R"doc()doc";
+
+static const char *__doc_gr_sidekiq_telemetry_temp = R"doc()doc";
+
+static const char *__doc_gr_sidekiq_telemetry_imu = R"doc()doc";

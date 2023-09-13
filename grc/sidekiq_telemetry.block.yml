@@ -4,7 +4,12 @@ category: '[sidekiq]'
 
 templates:
   imports: from gnuradio import sidekiq
-  make: sidekiq.telemetry(${card}, ${temp}, ${imu})
+  make: sidekiq.telemetry(${input_card}, ${temp_enabled}, ${imu_enabled})
+
+cpp_templates:
+    includes: ['#include <gnuradio/sidekiq/telemetry.h>']
+    declarations: 'sidekiq::telemetry::sptr ${id};'
+    make: 'this->${id} = sidekiq::telemetry::make();'
 
 #  Make one 'parameters' list entry for every parameter you want settable from the GUI.
 #     Keys include:
@@ -13,19 +18,19 @@ templates:
 #     * dtype (e.g. int, float, complex, byte, short, xxx_vector, ...)
 #     * default
 parameters:
-- id: card
+- id: input_card
   label: Card
   dtype: int
   default: 0
 
-- id: temp
+- id: temp_enabled
   label: Display Temp
   dtype: enum
   options: ['0', '1']
   option_labels: ['Disabled', 'Enabled']
   default: 0
 
-- id: imu
+- id: imu_enabled
   label: Display IMU
   dtype: enum
   options: ['0', '1']
@@ -40,10 +45,15 @@ parameters:
 #      * vlen (optional - data stream vector length. Default is 1)
 #      * optional (optional - set to 1 for optional inputs. Default is 0)
 inputs:
-#- label: command
-#  domain: message
-#  dtype: float
-#  optional: true
+- label: temp
+  domain: message
+  dtype: float
+  optional: true
+
+- label: imu
+  domain: message
+  dtype: float
+  optional: true
 
 #- label: ...
 #  domain: ...
@@ -52,10 +62,6 @@ inputs:
 #  optional: ...
 
 outputs:
-- label: Samples
-  domain: stream
-  dtype: complex
-
 #- label: command-out
 #  domain: message
 #  dtype: float

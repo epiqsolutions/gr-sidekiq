@@ -9,7 +9,7 @@
 #define INCLUDED_SIDEKIQ_TELEMETRY_H
 
 #include <gnuradio/sidekiq/api.h>
-#include <gnuradio/sync_block.h>
+#include <gnuradio/block.h>
 
 namespace gr {
 namespace sidekiq {
@@ -19,7 +19,7 @@ namespace sidekiq {
  * \ingroup sidekiq
  *
  */
-class SIDEKIQ_API telemetry : virtual public gr::sync_block {
+class SIDEKIQ_API telemetry : virtual public gr::block {
 public:
   typedef std::shared_ptr<telemetry> sptr;
 
@@ -32,9 +32,13 @@ public:
    * creating new instances.
    */
   static sptr make(
-         int input_card,
+          int input_card,
           int temp_enabled,
           int imu_enabled);
+
+           virtual void temp(const pmt::pmt_t& msg) = 0;
+           virtual void imu(const pmt::pmt_t& msg) = 0;
+
 };
 
 } // namespace sidekiq
