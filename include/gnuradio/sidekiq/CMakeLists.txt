@@ -12,5 +12,6 @@
 install(FILES
     api.h
     sidekiq_tx.h
-    sidekiq_rx.h DESTINATION include/gnuradio/sidekiq
+    sidekiq_rx.h
+    telemetry.h DESTINATION include/gnuradio/sidekiq
 )

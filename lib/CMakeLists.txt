@@ -14,6 +14,7 @@ include(GrPlatform) #define LIB_SUFFIX
 list(APPEND sidekiq_sources
     sidekiq_tx_impl.cc
     sidekiq_rx_impl.cc
+    telemetry_impl.cc
 )
 
 
