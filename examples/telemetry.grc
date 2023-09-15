@@ -45,20 +45,6 @@ blocks:
     coordinate: [184, 12]
     rotation: 0
     state: enabled
-- name: blocks_message_debug_0
-  id: blocks_message_debug
-  parameters:
-    affinity: ''
-    alias: ''
-    comment: ''
-    en_uvec: 'True'
-  states:
-    bus_sink: false
-    bus_source: false
-    bus_structure: null
-    coordinate: [592, 376.0]
-    rotation: 0
-    state: true
 - name: blocks_message_strobe_0
   id: blocks_message_strobe
   parameters:
@@ -73,7 +59,7 @@ blocks:
     bus_sink: false
     bus_source: false
     bus_structure: null
-    coordinate: [320, 196.0]
+    coordinate: [320, 108.0]
     rotation: 0
     state: true
 - name: blocks_message_strobe_1
@@ -90,7 +76,7 @@ blocks:
     bus_sink: false
     bus_source: false
     bus_structure: null
-    coordinate: [320, 308.0]
+    coordinate: [328, 204.0]
     rotation: 0
     state: true
 - name: sidekiq_telemetry_0
@@ -98,10 +84,10 @@ blocks:
   parameters:
     affinity: ''
     alias: ''
-    card: '0'
     comment: ''
-    imu: '0'
-    temp: '0'
+    imu_enabled: '0'
+    input_card: '0'
+    temp_enabled: '0'
   states:
     bus_sink: false
     bus_source: false
@@ -111,9 +97,7 @@ blocks:
     state: true
 
 connections:
-- [blocks_message_strobe_0, strobe, blocks_message_debug_0, print]
 - [blocks_message_strobe_0, strobe, sidekiq_telemetry_0, temp]
-- [blocks_message_strobe_1, strobe, blocks_message_debug_0, print]
 - [blocks_message_strobe_1, strobe, sidekiq_telemetry_0, imu]
 
 metadata:

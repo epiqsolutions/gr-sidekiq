@@ -19,11 +19,6 @@ namespace sidekiq {
 
 
 class telemetry_impl : public telemetry {
-private:
-    void temp(const pmt::pmt_t& msg);
-    void imu(const pmt::pmt_t& msg);
-
-
 public:
   telemetry_impl(
           int input_card,
@@ -31,6 +26,11 @@ public:
           int imu_enabled);
 
   ~telemetry_impl();
+
+private:
+    void temp(const pmt::pmt_t& msg);
+    void imu(const pmt::pmt_t& msg);
+    uint8_t card{};
 
 };
 
