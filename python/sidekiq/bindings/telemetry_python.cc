@@ -16,7 +16,7 @@
 /* BINDTOOL_GEN_AUTOMATIC(0) */
 /* BINDTOOL_USE_PYGCCXML(0) */
 /* BINDTOOL_HEADER_FILE(telemetry.h)                                        */
-/* BINDTOOL_HEADER_FILE_HASH(607174287eb65112ee2a2eeaa1f1bf61) */
+/* BINDTOOL_HEADER_FILE_HASH(ecf943f6a2cb00946704bf1edc1c2e52) */
 /***********************************************************************************/
 
 #include <pybind11/complex.h>
@@ -38,10 +38,6 @@ void bind_telemetry(py::module &m) {
 
       .def(py::init(&telemetry::make), py::arg("input_card"),
            py::arg("temp_enabled"), py::arg("imu_enabled"), D(telemetry, make))
-
-      .def("temp", &telemetry::temp, py::arg("msg"), D(telemetry, temp))
-
-      .def("imu", &telemetry::imu, py::arg("msg"), D(telemetry, imu))
 
       ;
 }

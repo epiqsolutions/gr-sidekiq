@@ -36,8 +36,6 @@ public:
           int temp_enabled,
           int imu_enabled);
 
-           virtual void temp(const pmt::pmt_t& msg) = 0;
-           virtual void imu(const pmt::pmt_t& msg) = 0;
 
 };
 
