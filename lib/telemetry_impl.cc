@@ -159,9 +159,9 @@ void telemetry_impl::imu(const pmt::pmt_t& msg)
         status = skiq_write_accel_reg( card, 0x6b, &val, 1);
         if ( status != 0 )
         {
-            fprintf(stderr, "Error: unable to take IMU out of sleep / standby (result code %"
-                    PRIi32 ")\n", status);
-            return;
+            d_logger->error("Error: Card does not support IMU (result code {})\n", status);
+            throw std::runtime_error("Failure: No IMU");
+
         }
 
         if ( status == 0 ) status = read_accel_reg_word( card, 0x3b, &acc_x);

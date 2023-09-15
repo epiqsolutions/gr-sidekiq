@@ -19,7 +19,7 @@ options:
     realtime_scheduling: ''
     run: 'True'
     run_command: '{python} -u {filename}'
-    run_options: prompt
+    run_options: run
     sizing_mode: fixed
     thread_safe_setters: ''
     title: telemetry
@@ -73,9 +73,9 @@ blocks:
     affinity: ''
     alias: ''
     comment: ''
-    imu_enabled: '1'
-    input_card: '2'
-    temp_enabled: '0'
+    imu_enabled: '0'
+    input_card: '0'
+    temp_enabled: '1'
   states:
     bus_sink: false
     bus_source: false
