@@ -11,7 +11,7 @@ options:
     gen_linking: dynamic
     generate_options: qt_gui
     hier_block_src_path: '.:'
-    id: transceive
+    id: source_test
     max_nouts: '0'
     output_language: python
     placement: (0,0)
@@ -22,7 +22,7 @@ options:
     run_options: prompt
     sizing_mode: fixed
     thread_safe_setters: ''
-    title: Transceive
+    title: source_test
     window_size: (1000,1000)
   states:
     bus_sink: false
@@ -33,42 +33,119 @@ options:
     state: enabled
 
 blocks:
-- name: card
-  id: variable
+- name: bandwidth
+  id: variable_qtgui_range
   parameters:
     comment: ''
-    value: '2'
+    gui_hint: ''
+    label: ''
+    min_len: '200'
+    orient: QtCore.Qt.Horizontal
+    rangeType: float
+    start: 1e6
+    step: 1e6
+    stop: 250e6
+    value: sample_rate * .8
+    widget: counter_slider
   states:
     bus_sink: false
     bus_source: false
     bus_structure: null
-    coordinate: [584, 68.0]
+    coordinate: [576, 36.0]
     rotation: 0
     state: true
 - name: frequency
-  id: variable
+  id: variable_qtgui_range
   parameters:
     comment: ''
+    gui_hint: ''
+    label: ''
+    min_len: '200'
+    orient: QtCore.Qt.Horizontal
+    rangeType: float
+    start: 250e6
+    step: 1e6
+    stop: 6000e6
     value: 1000e6
+    widget: counter_slider
   states:
     bus_sink: false
     bus_source: false
     bus_structure: null
-    coordinate: [440, 68.0]
+    coordinate: [784, 36.0]
+    rotation: 0
+    state: true
+- name: gain_index
+  id: variable_qtgui_range
+  parameters:
+    comment: ''
+    gui_hint: ''
+    label: Gain Index
+    min_len: '200'
+    orient: QtCore.Qt.Horizontal
+    rangeType: int
+    start: '0'
+    step: '1'
+    stop: '255'
+    value: '10'
+    widget: counter_slider
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [920, 36.0]
+    rotation: 0
+    state: true
+- name: run_rx_calibration
+  id: variable_qtgui_push_button
+  parameters:
+    comment: ''
+    gui_hint: ''
+    label: Run RX Calibration
+    pressed: '1'
+    released: '0'
+    type: int
+    value: '0'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [1056, 36.0]
     rotation: 0
     state: true
 - name: samp_rate
   id: variable
   parameters:
     comment: ''
-    value: 8e6
+    value: '32000'
   states:
     bus_sink: false
     bus_source: false
     bus_structure: null
-    coordinate: [312, 68.0]
+    coordinate: [184, 12]
     rotation: 0
     state: enabled
+- name: sample_rate
+  id: variable_qtgui_range
+  parameters:
+    comment: ''
+    gui_hint: ''
+    label: ''
+    min_len: '200'
+    orient: QtCore.Qt.Horizontal
+    rangeType: float
+    start: 1e6
+    step: 1e6
+    stop: 250e6
+    value: 20e6
+    widget: counter_slider
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [384, 36.0]
+    rotation: 0
+    state: true
 - name: blocks_message_strobe_0
   id: blocks_message_strobe
   parameters:
@@ -83,7 +160,7 @@ blocks:
     bus_sink: false
     bus_source: false
     bus_structure: null
-    coordinate: [888, 164.0]
+    coordinate: [424, 428.0]
     rotation: 0
     state: true
 - name: blocks_message_strobe_1
@@ -100,7 +177,7 @@ blocks:
     bus_sink: false
     bus_source: false
     bus_structure: null
-    coordinate: [896, 260.0]
+    coordinate: [432, 524.0]
     rotation: 0
     state: true
 - name: qtgui_freq_sink_x_0
@@ -121,7 +198,7 @@ blocks:
     autoscale: 'False'
     average: '1.0'
     axislabels: 'True'
-    bw: samp_rate
+    bw: sample_rate
     color1: '"blue"'
     color10: '"dark blue"'
     color2: '"red"'
@@ -181,7 +258,7 @@ blocks:
     bus_sink: false
     bus_source: false
     bus_structure: null
-    coordinate: [576, 404.0]
+    coordinate: [832, 372.0]
     rotation: 0
     state: true
 - name: qtgui_time_sink_x_0
@@ -240,7 +317,7 @@ blocks:
     name: '""'
     nconnections: '1'
     size: '1024'
-    srate: samp_rate
+    srate: '1'
     stemplot: 'False'
     style1: '1'
     style10: '1'
@@ -278,7 +355,7 @@ blocks:
     bus_sink: false
     bus_source: false
     bus_structure: null
-    coordinate: [528, 548.0]
+    coordinate: [824, 228.0]
     rotation: 0
     state: true
 - name: sidekiq_sidekiq_rx_0
@@ -286,52 +363,28 @@ blocks:
   parameters:
     affinity: ''
     alias: ''
-    bandwidth: samp_rate * .8
+    bandwidth: bandwidth
     cal_mode: '0'
-    cal_type: '0'
-    card: card
+    cal_type: '2'
+    card: '2'
     comment: ''
     frequency: frequency
-    gain_index: '10'
-    gain_mode: '0'
+    gain_index: gain_index
+    gain_mode: '1'
     handle1: '0'
     handle2: '100'
     maxoutbuf: '32000'
     minoutbuf: '0'
     pps_source: '0'
-    run_cal: '0'
-    sample_rate: samp_rate
+    run_cal: run_rx_calibration
+    sample_rate: sample_rate
     timestamp_tags: '0'
     trigger_src: '0'
   states:
     bus_sink: false
     bus_source: false
     bus_structure: null
-    coordinate: [80, 180.0]
-    rotation: 0
-    state: true
-- name: sidekiq_sidekiq_tx_0
-  id: sidekiq_sidekiq_tx
-  parameters:
-    affinity: ''
-    alias: ''
-    attenuation: '100'
-    bandwidth: samp_rate * .8
-    buffer_size: '16380'
-    burst_tag: ''
-    cal_mode: '0'
-    card: card
-    comment: ''
-    frequency: frequency
-    handle: '0'
-    run_cal: '0'
-    sample_rate: samp_rate
-    threads: '6'
-  states:
-    bus_sink: false
-    bus_source: false
-    bus_structure: null
-    coordinate: [592, 148.0]
+    coordinate: [176, 220.0]
     rotation: 0
     state: true
 - name: sidekiq_telemetry_0
@@ -341,13 +394,13 @@ blocks:
     alias: ''
     comment: ''
     imu_enabled: '0'
-    input_card: card
+    input_card: '2'
     temp_enabled: '0'
   states:
     bus_sink: false
     bus_source: false
     bus_structure: null
-    coordinate: [1296, 252.0]
+    coordinate: [832, 516.0]
     rotation: 0
     state: true
 
@@ -356,7 +409,6 @@ connections:
 - [blocks_message_strobe_1, strobe, sidekiq_telemetry_0, imu]
 - [sidekiq_sidekiq_rx_0, '0', qtgui_freq_sink_x_0, '0']
 - [sidekiq_sidekiq_rx_0, '0', qtgui_time_sink_x_0, '0']
-- [sidekiq_sidekiq_rx_0, '0', sidekiq_sidekiq_tx_0, '0']
 
 metadata:
   file_format: 1

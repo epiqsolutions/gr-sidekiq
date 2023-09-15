@@ -30,7 +30,10 @@ public:
 private:
     void temp(const pmt::pmt_t& msg);
     void imu(const pmt::pmt_t& msg);
+
     uint8_t card{};
+    int temp_enabled{};
+    int imu_enabled{};
 
 };
 

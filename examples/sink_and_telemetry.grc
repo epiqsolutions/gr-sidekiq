@@ -1,0 +1,275 @@
+options:
+  parameters:
+    author: ''
+    catch_exceptions: 'True'
+    category: '[GRC Hier Blocks]'
+    cmake_opt: ''
+    comment: ''
+    copyright: ''
+    description: ''
+    gen_cmake: 'On'
+    gen_linking: dynamic
+    generate_options: qt_gui
+    hier_block_src_path: '.:'
+    id: sink_test
+    max_nouts: '0'
+    output_language: python
+    placement: (0,0)
+    qt_qss_theme: ''
+    realtime_scheduling: ''
+    run: 'True'
+    run_command: '{python} -u {filename}'
+    run_options: prompt
+    sizing_mode: fixed
+    thread_safe_setters: ''
+    title: Sink Test
+    window_size: (1000,1000)
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [8, 8]
+    rotation: 0
+    state: enabled
+
+blocks:
+- name: attenuation
+  id: variable_qtgui_range
+  parameters:
+    comment: ''
+    gui_hint: '[8, 0, 2, 1]'
+    label: ''
+    min_len: '100'
+    orient: QtCore.Qt.Horizontal
+    rangeType: float
+    start: '0'
+    step: '10'
+    stop: '359'
+    value: '150'
+    widget: counter_slider
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [856, 28.0]
+    rotation: 0
+    state: true
+- name: bandwidth
+  id: variable_qtgui_range
+  parameters:
+    comment: ''
+    gui_hint: '[2,0, 2, 1]'
+    label: ''
+    min_len: '200'
+    orient: QtCore.Qt.Horizontal
+    rangeType: float
+    start: '1000'
+    step: 1e6
+    stop: 250e6
+    value: sample_rate * 0.8
+    widget: counter_slider
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [560, 28.0]
+    rotation: 0
+    state: true
+- name: frequency
+  id: variable_qtgui_range
+  parameters:
+    comment: ''
+    gui_hint: '[4, 0, 2, 1]'
+    label: Frequency
+    min_len: '100'
+    orient: QtCore.Qt.Horizontal
+    rangeType: float
+    start: 500e6
+    step: 1e6
+    stop: 6000e6
+    value: 1000e6
+    widget: counter_slider
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [712, 28.0]
+    rotation: 0
+    state: true
+- name: min_out_buffer
+  id: variable
+  parameters:
+    comment: ''
+    value: 32764 *2*2
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [240, 60.0]
+    rotation: 0
+    state: true
+- name: run_tx_calibration
+  id: variable_qtgui_push_button
+  parameters:
+    comment: ''
+    gui_hint: '[12, 0, 1, 1]'
+    label: ''
+    pressed: '1'
+    released: '0'
+    type: int
+    value: '0'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [1216, 60.0]
+    rotation: 0
+    state: true
+- name: sample_rate
+  id: variable_qtgui_range
+  parameters:
+    comment: ''
+    gui_hint: '[0,0,2,1]'
+    label: ''
+    min_len: '200'
+    orient: QtCore.Qt.Horizontal
+    rangeType: float
+    start: 1e6
+    step: 1e6
+    stop: 250e6
+    value: 20e6
+    widget: counter_slider
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [400, 28.0]
+    rotation: 0
+    state: true
+- name: tone_freq
+  id: variable_qtgui_range
+  parameters:
+    comment: ''
+    gui_hint: '[10, 0, 2, 1]'
+    label: ''
+    min_len: '200'
+    orient: QtCore.Qt.Horizontal
+    rangeType: float
+    start: 1e6
+    step: 1e6
+    stop: 25e6
+    value: 2e6
+    widget: counter_slider
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [1016, 60.0]
+    rotation: 0
+    state: true
+- name: analog_sig_source_x_0
+  id: analog_sig_source_x
+  parameters:
+    affinity: ''
+    alias: ''
+    amp: '1'
+    comment: ''
+    freq: tone_freq
+    maxoutbuf: '0'
+    minoutbuf: min_out_buffer
+    offset: '0'
+    phase: '0'
+    samp_rate: sample_rate
+    showports: 'False'
+    type: complex
+    waveform: analog.GR_COS_WAVE
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [264, 228.0]
+    rotation: 0
+    state: true
+- name: blocks_message_strobe_0
+  id: blocks_message_strobe
+  parameters:
+    affinity: ''
+    alias: ''
+    comment: ''
+    maxoutbuf: '0'
+    minoutbuf: '0'
+    msg: pmt.intern("temp")
+    period: '1000'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [296, 404.0]
+    rotation: 0
+    state: true
+- name: blocks_message_strobe_1
+  id: blocks_message_strobe
+  parameters:
+    affinity: ''
+    alias: ''
+    comment: ''
+    maxoutbuf: '0'
+    minoutbuf: '0'
+    msg: pmt.intern("imu")
+    period: '1000'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [304, 500.0]
+    rotation: 0
+    state: true
+- name: sidekiq_sidekiq_tx_0
+  id: sidekiq_sidekiq_tx
+  parameters:
+    affinity: ''
+    alias: ''
+    attenuation: attenuation
+    bandwidth: bandwidth
+    buffer_size: '32764'
+    burst_tag: ''
+    cal_mode: '1'
+    card: '2'
+    comment: ''
+    frequency: frequency
+    handle: '0'
+    run_cal: run_tx_calibration
+    sample_rate: sample_rate
+    threads: '4'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [1016, 212.0]
+    rotation: 0
+    state: true
+- name: sidekiq_telemetry_0
+  id: sidekiq_telemetry
+  parameters:
+    affinity: ''
+    alias: ''
+    comment: ''
+    imu_enabled: '0'
+    input_card: '2'
+    temp_enabled: '0'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [1016, 444.0]
+    rotation: 0
+    state: true
+
+connections:
+- [analog_sig_source_x_0, '0', sidekiq_sidekiq_tx_0, '0']
+- [blocks_message_strobe_0, strobe, sidekiq_telemetry_0, temp]
+- [blocks_message_strobe_1, strobe, sidekiq_telemetry_0, imu]
+
+metadata:
+  file_format: 1
+  grc_version: v3.11.0.0git-495-g30aea759

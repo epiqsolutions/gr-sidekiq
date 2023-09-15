@@ -9,7 +9,7 @@ options:
     description: ''
     gen_cmake: 'On'
     gen_linking: dynamic
-    generate_options: qt_gui
+    generate_options: no_gui
     hier_block_src_path: '.:'
     id: telemetry
     max_nouts: '0'
@@ -22,7 +22,7 @@ options:
     run_options: prompt
     sizing_mode: fixed
     thread_safe_setters: ''
-    title: Not titled yet
+    title: telemetry
     window_size: (1000,1000)
   states:
     bus_sink: false
@@ -33,18 +33,6 @@ options:
     state: enabled
 
 blocks:
-- name: samp_rate
-  id: variable
-  parameters:
-    comment: ''
-    value: '10'
-  states:
-    bus_sink: false
-    bus_source: false
-    bus_structure: null
-    coordinate: [184, 12]
-    rotation: 0
-    state: enabled
 - name: blocks_message_strobe_0
   id: blocks_message_strobe
   parameters:
@@ -59,7 +47,7 @@ blocks:
     bus_sink: false
     bus_source: false
     bus_structure: null
-    coordinate: [320, 108.0]
+    coordinate: [392, 244.0]
     rotation: 0
     state: true
 - name: blocks_message_strobe_1
@@ -76,7 +64,7 @@ blocks:
     bus_sink: false
     bus_source: false
     bus_structure: null
-    coordinate: [328, 204.0]
+    coordinate: [400, 340.0]
     rotation: 0
     state: true
 - name: sidekiq_telemetry_0
@@ -85,14 +73,14 @@ blocks:
     affinity: ''
     alias: ''
     comment: ''
-    imu_enabled: '0'
-    input_card: '0'
+    imu_enabled: '1'
+    input_card: '2'
     temp_enabled: '0'
   states:
     bus_sink: false
     bus_source: false
     bus_structure: null
-    coordinate: [728, 196.0]
+    coordinate: [808, 300.0]
     rotation: 0
     state: true
 
@@ -102,4 +90,4 @@ connections:
 
 metadata:
   file_format: 1
-  grc_version: 3.10.5.1
+  grc_version: v3.11.0.0git-495-g30aea759

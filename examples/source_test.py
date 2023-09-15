@@ -6,38 +6,28 @@
 #
 # GNU Radio Python Flow Graph
 # Title: source_test
-# GNU Radio version: v3.11.0.0git-375-ge2af6089
+# GNU Radio version: v3.11.0.0git-495-g30aea759
 
 from packaging.version import Version as StrictVersion
-
-if __name__ == '__main__':
-    import ctypes
-    import sys
-    if sys.platform.startswith('linux'):
-        try:
-            x11 = ctypes.cdll.LoadLibrary('libX11.so')
-            x11.XInitThreads()
-        except:
-            print("Warning: failed to XInitThreads()")
-
 from PyQt5 import Qt
 from gnuradio import qtgui
-from gnuradio.filter import firdes
-import sip
+from gnuradio import blocks
+import pmt
 from gnuradio import gr
+from gnuradio.filter import firdes
 from gnuradio.fft import window
 import sys
 import signal
+from PyQt5 import Qt
 from argparse import ArgumentParser
 from gnuradio.eng_arg import eng_float, intx
 from gnuradio import eng_notation
 from gnuradio import sidekiq
 from gnuradio.qtgui import Range, RangeWidget
 from PyQt5 import QtCore
+import sip
 
 
-
-from gnuradio import qtgui
 
 class source_test(gr.top_block, Qt.QWidget):
 
@@ -48,8 +38,8 @@ class source_test(gr.top_block, Qt.QWidget):
         qtgui.util.check_set_qss()
         try:
             self.setWindowIcon(Qt.QIcon.fromTheme('gnuradio-grc'))
-        except:
-            pass
+        except BaseException as exc:
+            print(f"Qt GUI: Could not set Icon: {str(exc)}", file=sys.stderr)
         self.top_scroll_layout = Qt.QVBoxLayout()
         self.setLayout(self.top_scroll_layout)
         self.top_scroll = Qt.QScrollArea()
@@ -69,8 +59,8 @@ class source_test(gr.top_block, Qt.QWidget):
                 self.restoreGeometry(self.settings.value("geometry").toByteArray())
             else:
                 self.restoreGeometry(self.settings.value("geometry"))
-        except:
-            pass
+        except BaseException as exc:
+            print(f"Qt GUI: Could not restore geometry: {str(exc)}", file=sys.stderr)
 
         ##################################################
         # Variables
@@ -98,7 +88,8 @@ class source_test(gr.top_block, Qt.QWidget):
         self._bandwidth_range = Range(1e6, 250e6, 1e6, sample_rate * .8, 200)
         self._bandwidth_win = RangeWidget(self._bandwidth_range, self.set_bandwidth, "'bandwidth'", "counter_slider", float, QtCore.Qt.Horizontal)
         self.top_layout.addWidget(self._bandwidth_win)
-        self.sidekiq_sidekiq_rx_0 = sidekiq.sidekiq_rx(1, 0, 100, sample_rate, bandwidth, frequency, 1, gain_index, 0, 0, 0, 0, 2)
+        self.sidekiq_telemetry_0 = sidekiq.telemetry(2, 0, 0)
+        self.sidekiq_sidekiq_rx_0 = sidekiq.sidekiq_rx(2, 0, 100, sample_rate, bandwidth, frequency, 1, gain_index, 0, 0, 0, 0, 2)
         self.sidekiq_sidekiq_rx_0.set_max_output_buffer(32000)
         _run_rx_calibration_push_button = Qt.QPushButton('Run RX Calibration')
         _run_rx_calibration_push_button = Qt.QPushButton('Run RX Calibration')
@@ -199,11 +190,15 @@ class source_test(gr.top_block, Qt.QWidget):
 
         self._qtgui_freq_sink_x_0_win = sip.wrapinstance(self.qtgui_freq_sink_x_0.qwidget(), Qt.QWidget)
         self.top_layout.addWidget(self._qtgui_freq_sink_x_0_win)
+        self.blocks_message_strobe_1 = blocks.message_strobe(pmt.intern("imu"), 1000)
+        self.blocks_message_strobe_0 = blocks.message_strobe(pmt.intern("temp"), 1000)
 
 
         ##################################################
         # Connections
         ##################################################
+        self.msg_connect((self.blocks_message_strobe_0, 'strobe'), (self.sidekiq_telemetry_0, 'temp'))
+        self.msg_connect((self.blocks_message_strobe_1, 'strobe'), (self.sidekiq_telemetry_0, 'imu'))
         self.connect((self.sidekiq_sidekiq_rx_0, 0), (self.qtgui_freq_sink_x_0, 0))
         self.connect((self.sidekiq_sidekiq_rx_0, 0), (self.qtgui_time_sink_x_0, 0))
 

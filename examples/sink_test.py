@@ -6,27 +6,20 @@
 #
 # GNU Radio Python Flow Graph
 # Title: Sink Test
-# GNU Radio version: v3.11.0.0git-375-ge2af6089
+# GNU Radio version: v3.11.0.0git-495-g30aea759
 
 from packaging.version import Version as StrictVersion
-
-if __name__ == '__main__':
-    import ctypes
-    import sys
-    if sys.platform.startswith('linux'):
-        try:
-            x11 = ctypes.cdll.LoadLibrary('libX11.so')
-            x11.XInitThreads()
-        except:
-            print("Warning: failed to XInitThreads()")
-
 from PyQt5 import Qt
+from gnuradio import qtgui
 from gnuradio import analog
+from gnuradio import blocks
+import pmt
 from gnuradio import gr
 from gnuradio.filter import firdes
 from gnuradio.fft import window
 import sys
 import signal
+from PyQt5 import Qt
 from argparse import ArgumentParser
 from gnuradio.eng_arg import eng_float, intx
 from gnuradio import eng_notation
@@ -35,8 +28,6 @@ from gnuradio.qtgui import Range, RangeWidget
 from PyQt5 import QtCore
 
 
-
-from gnuradio import qtgui
 
 class sink_test(gr.top_block, Qt.QWidget):
 
@@ -47,8 +38,8 @@ class sink_test(gr.top_block, Qt.QWidget):
         qtgui.util.check_set_qss()
         try:
             self.setWindowIcon(Qt.QIcon.fromTheme('gnuradio-grc'))
-        except:
-            pass
+        except BaseException as exc:
+            print(f"Qt GUI: Could not set Icon: {str(exc)}", file=sys.stderr)
         self.top_scroll_layout = Qt.QVBoxLayout()
         self.setLayout(self.top_scroll_layout)
         self.top_scroll = Qt.QScrollArea()
@@ -68,8 +59,8 @@ class sink_test(gr.top_block, Qt.QWidget):
                 self.restoreGeometry(self.settings.value("geometry").toByteArray())
             else:
                 self.restoreGeometry(self.settings.value("geometry"))
-        except:
-            pass
+        except BaseException as exc:
+            print(f"Qt GUI: Could not restore geometry: {str(exc)}", file=sys.stderr)
 
         ##################################################
         # Variables
@@ -77,7 +68,7 @@ class sink_test(gr.top_block, Qt.QWidget):
         self.sample_rate = sample_rate = 20e6
         self.tone_freq = tone_freq = 2e6
         self.run_tx_calibration = run_tx_calibration = 0
-        self.min_output_buffer = min_output_buffer = 32764 *2*2
+        self.min_out_buffer = min_out_buffer = 32764 *2*2
         self.frequency = frequency = 1000e6
         self.bandwidth = bandwidth = sample_rate * 0.8
         self.attenuation = attenuation = 150
@@ -121,7 +112,8 @@ class sink_test(gr.top_block, Qt.QWidget):
             self.top_grid_layout.setRowStretch(r, 1)
         for c in range(0, 1):
             self.top_grid_layout.setColumnStretch(c, 1)
-        self.sidekiq_sidekiq_tx_0 = sidekiq.sidekiq_tx(1, 0, sample_rate, bandwidth, frequency, attenuation, '', 4, 32764, 1)
+        self.sidekiq_telemetry_0 = sidekiq.telemetry(2, 0, 0)
+        self.sidekiq_sidekiq_tx_0 = sidekiq.sidekiq_tx(2, 0, sample_rate, bandwidth, frequency, attenuation, '', 4, 32764, 1)
         _run_tx_calibration_push_button = Qt.QPushButton('')
         _run_tx_calibration_push_button = Qt.QPushButton('run_tx_calibration')
         self._run_tx_calibration_choices = {'Pressed': 1, 'Released': 0}
@@ -132,13 +124,17 @@ class sink_test(gr.top_block, Qt.QWidget):
             self.top_grid_layout.setRowStretch(r, 1)
         for c in range(0, 1):
             self.top_grid_layout.setColumnStretch(c, 1)
+        self.blocks_message_strobe_1 = blocks.message_strobe(pmt.intern("imu"), 1000)
+        self.blocks_message_strobe_0 = blocks.message_strobe(pmt.intern("temp"), 1000)
         self.analog_sig_source_x_0 = analog.sig_source_c(sample_rate, analog.GR_COS_WAVE, tone_freq, 1, 0, 0)
-        self.analog_sig_source_x_0.set_min_output_buffer(min_output_buffer)
+        self.analog_sig_source_x_0.set_min_output_buffer(min_out_buffer)
 
 
         ##################################################
         # Connections
         ##################################################
+        self.msg_connect((self.blocks_message_strobe_0, 'strobe'), (self.sidekiq_telemetry_0, 'temp'))
+        self.msg_connect((self.blocks_message_strobe_1, 'strobe'), (self.sidekiq_telemetry_0, 'imu'))
         self.connect((self.analog_sig_source_x_0, 0), (self.sidekiq_sidekiq_tx_0, 0))
 
 
@@ -173,11 +169,11 @@ class sink_test(gr.top_block, Qt.QWidget):
         self.run_tx_calibration = run_tx_calibration
         self.sidekiq_sidekiq_tx_0.run_tx_cal(self.run_tx_calibration)
 
-    def get_min_output_buffer(self):
-        return self.min_output_buffer
+    def get_min_out_buffer(self):
+        return self.min_out_buffer
 
-    def set_min_output_buffer(self, min_output_buffer):
-        self.min_output_buffer = min_output_buffer
+    def set_min_out_buffer(self, min_out_buffer):
+        self.min_out_buffer = min_out_buffer
 
     def get_frequency(self):
         return self.frequency

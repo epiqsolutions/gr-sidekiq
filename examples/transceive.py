@@ -6,36 +6,26 @@
 #
 # GNU Radio Python Flow Graph
 # Title: Transceive
-# GNU Radio version: 3.10.5.1
+# GNU Radio version: v3.11.0.0git-495-g30aea759
 
 from packaging.version import Version as StrictVersion
-
-if __name__ == '__main__':
-    import ctypes
-    import sys
-    if sys.platform.startswith('linux'):
-        try:
-            x11 = ctypes.cdll.LoadLibrary('libX11.so')
-            x11.XInitThreads()
-        except:
-            print("Warning: failed to XInitThreads()")
-
 from PyQt5 import Qt
 from gnuradio import qtgui
-from gnuradio.filter import firdes
-import sip
+from gnuradio import blocks
+import pmt
 from gnuradio import gr
+from gnuradio.filter import firdes
 from gnuradio.fft import window
 import sys
 import signal
+from PyQt5 import Qt
 from argparse import ArgumentParser
 from gnuradio.eng_arg import eng_float, intx
 from gnuradio import eng_notation
 from gnuradio import sidekiq
+import sip
 
 
-
-from gnuradio import qtgui
 
 class transceive(gr.top_block, Qt.QWidget):
 
@@ -46,8 +36,8 @@ class transceive(gr.top_block, Qt.QWidget):
         qtgui.util.check_set_qss()
         try:
             self.setWindowIcon(Qt.QIcon.fromTheme('gnuradio-grc'))
-        except:
-            pass
+        except BaseException as exc:
+            print(f"Qt GUI: Could not set Icon: {str(exc)}", file=sys.stderr)
         self.top_scroll_layout = Qt.QVBoxLayout()
         self.setLayout(self.top_scroll_layout)
         self.top_scroll = Qt.QScrollArea()
@@ -67,22 +57,23 @@ class transceive(gr.top_block, Qt.QWidget):
                 self.restoreGeometry(self.settings.value("geometry").toByteArray())
             else:
                 self.restoreGeometry(self.settings.value("geometry"))
-        except:
-            pass
+        except BaseException as exc:
+            print(f"Qt GUI: Could not restore geometry: {str(exc)}", file=sys.stderr)
 
         ##################################################
         # Variables
         ##################################################
         self.samp_rate = samp_rate = 8e6
         self.frequency = frequency = 1000e6
-        self.card = card = 1
+        self.card = card = 2
 
         ##################################################
         # Blocks
         ##################################################
 
+        self.sidekiq_telemetry_0 = sidekiq.telemetry(card, 0, 0)
         self.sidekiq_sidekiq_tx_0 = sidekiq.sidekiq_tx(card, 0, samp_rate, (samp_rate * .8), frequency, 100, '', 6, 16380, 0)
-        self.sidekiq_sidekiq_rx_0 = sidekiq.sidekiq_rx(card, 0, 100, samp_rate, (samp_rate * .8), frequency, 0, 10, 0, 0)
+        self.sidekiq_sidekiq_rx_0 = sidekiq.sidekiq_rx(card, 0, 100, samp_rate, (samp_rate * .8), frequency, 0, 10, 0, 0, 0, 0, 0)
         self.sidekiq_sidekiq_rx_0.set_max_output_buffer(32000)
         self.qtgui_time_sink_x_0 = qtgui.time_sink_c(
             1024, #size
@@ -177,11 +168,15 @@ class transceive(gr.top_block, Qt.QWidget):
 
         self._qtgui_freq_sink_x_0_win = sip.wrapinstance(self.qtgui_freq_sink_x_0.qwidget(), Qt.QWidget)
         self.top_layout.addWidget(self._qtgui_freq_sink_x_0_win)
+        self.blocks_message_strobe_1 = blocks.message_strobe(pmt.intern("imu"), 1000)
+        self.blocks_message_strobe_0 = blocks.message_strobe(pmt.intern("temp"), 1000)
 
 
         ##################################################
         # Connections
         ##################################################
+        self.msg_connect((self.blocks_message_strobe_0, 'strobe'), (self.sidekiq_telemetry_0, 'temp'))
+        self.msg_connect((self.blocks_message_strobe_1, 'strobe'), (self.sidekiq_telemetry_0, 'imu'))
         self.connect((self.sidekiq_sidekiq_rx_0, 0), (self.qtgui_freq_sink_x_0, 0))
         self.connect((self.sidekiq_sidekiq_rx_0, 0), (self.qtgui_time_sink_x_0, 0))
         self.connect((self.sidekiq_sidekiq_rx_0, 0), (self.sidekiq_sidekiq_tx_0, 0))
@@ -201,11 +196,11 @@ class transceive(gr.top_block, Qt.QWidget):
     def set_samp_rate(self, samp_rate):
         self.samp_rate = samp_rate
         self.qtgui_freq_sink_x_0.set_frequency_range(self.frequency, self.samp_rate)
+        self.qtgui_time_sink_x_0.set_samp_rate(self.samp_rate)
         self.sidekiq_sidekiq_rx_0.set_rx_sample_rate(self.samp_rate)
         self.sidekiq_sidekiq_rx_0.set_rx_bandwidth((self.samp_rate * .8))
         self.sidekiq_sidekiq_tx_0.set_tx_sample_rate(self.samp_rate)
         self.sidekiq_sidekiq_tx_0.set_tx_bandwidth((self.samp_rate * .8))
-        self.qtgui_time_sink_x_0.set_samp_rate(self.samp_rate)
 
     def get_frequency(self):
         return self.frequency
