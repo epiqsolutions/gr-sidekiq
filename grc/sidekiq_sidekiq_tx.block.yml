@@ -29,8 +29,8 @@ parameters:
 - id: handle
   label: Handle Id
   dtype: enum
-  options: ['0', '2',]
-  option_labels: ['TxA1', 'TxB1']
+  options: ['0', '1', '2', '3']
+  option_labels: ['TxA1', 'TxA2', 'TxB1', 'TxB2']
   default: 0
 
 - id: sample_rate
