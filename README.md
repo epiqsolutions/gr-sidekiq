@@ -20,11 +20,15 @@ To Build and Install (from the gr-sidekiq directory)
   2) Change to the build directory
       > cd build
   3) Run cmake 
-     (NOTE: if you wish to install to a specific directory, 
-          run with -DCMAKE_INSTALL_PREFIX)
       > cmake ../
-           OR
+
+        OR if you wish to install to a specific directory:
+
       > cmake -DCMAKE_INSTALL_PREFIX=/my_install_directory ../
+
+        OR to specify a custom sidekiq sdk location:
+
+      > cmake -DSIDEKIQ_SDK_DIR=/opt/sidekiq_sdk_current ../
   4) Build the code
       > make
   5) Install it

@@ -7,15 +7,17 @@
 
 if(NOT Sidekiq_FOUND)
 
+    if(NOT SIDEKIQ_SDK_DIR)
+        get_filename_component(sdk_name "~/sidekiq_sdk_current" ABSOLUTE)
+        set(SIDEKIQ_SDK_DIR ${sdk_name})
+    endif(NOT SIDEKIQ_SDK_DIR)
+
+    message(STATUS "Sidekiq SDK directory is: ${SIDEKIQ_SDK_DIR}")
+
     find_path(Sidekiq_INCLUDE_DIR
             NAMES sidekiq_api.h
             HINTS ${Sidekiq_PKG_INCLUDE_DIRS} $ENV{Sidekiq_DIR}/include
-            PATHS ~/sidekiq_sdk_current/sidekiq_core/inc/ /usr/local/include /usr/include /opt/include /opt/local/include)
-
-    get_filename_component(sdk_name "~/sidekiq_sdk_current" ABSOLUTE)
-
-    set(SIDEKIQ_SDK ${sdk_name})
-    message(STATUS "sdk is: ${SIDEKIQ_SDK}")
+            PATHS ${SIDEKIQ_SDK_DIR}/sidekiq_core/inc/ /usr/local/include /usr/include /opt/include /opt/local/include)
 
     execute_process (
         COMMAND uname -m
@@ -35,7 +37,7 @@ if(NOT Sidekiq_FOUND)
     find_library(Sidekiq_LIBRARY
         NAMES ${libname}
         HINTS ${Sidekiq_PKG_LIBRARY_DIRS} $ENV{Sidekiq_DIR}/include
-        PATHS ~/sidekiq_sdk_current/lib/ /usr/local/lib /usr/lib /opt/lib /opt/local/lib)
+        PATHS ${SIDEKIQ_SDK_DIR}/lib/ /usr/local/lib /usr/lib /opt/lib /opt/local/lib)
 
 
     set(Sidekiq_LIBRARIES ${Sidekiq_LIBRARY})
