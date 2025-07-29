@@ -1133,14 +1133,17 @@ int sidekiq_rx_impl::work(int noutput_items,
             }
         }
 
-        /* update the absolute index into the stream */
-        last_tag_index[portno] = last_tag_index[portno] + samples_written[portno];
 
         /* determine if we are done with this work() call */
         looping = determine_if_done(samples_written, noutput_items, &portno);
 
     }
 
+    for (int i = 0; i < MAX_PORT; i++)
+    {
+        /* update the absolute index into the stream */
+        last_tag_index[portno] += samples_written[portno];
+    }
 
     if (curr_block_samples_left[portno] == 0)
     {
