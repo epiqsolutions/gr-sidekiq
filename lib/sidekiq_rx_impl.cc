@@ -1142,7 +1142,7 @@ int sidekiq_rx_impl::work(int noutput_items,
     for (int i = 0; i < MAX_PORT; i++)
     {
         /* update the absolute index into the stream */
-        last_tag_index[portno] += samples_written[portno];
+        last_tag_index[i] += samples_written[i];
     }
 
     if (curr_block_samples_left[portno] == 0)
