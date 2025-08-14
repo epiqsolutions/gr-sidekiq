@@ -29,6 +29,8 @@ endif ()
 message(STATUS "Sidekiq_INCLUDE_DIRS - ${Sidekiq_INCLUDE_DIRS}")
 message(STATUS "Sidekiq_LIBRARIES - ${Sidekiq_LIBRARIES}")
 message(STATUS "OTHER_LIBS - ${OTHER_LIBS}")
+message(STATUS "PKGCONFIG_LIBS - ${PKGCONFIG_LIBS}")
+
 
 include_directories(${CMAKE_CURRENT_SOURCE_DIR})
 include_directories(${Sidekiq_INCLUDE_DIRS})
@@ -41,6 +43,8 @@ if(NOT sidekiq_sources)
 endif(NOT sidekiq_sources)
 
 add_library(gnuradio-sidekiq SHARED ${sidekiq_sources})
+add_library(gnuradio-sidekiq SHARED ${OTHER_LIBS})
+add_library(gnuradio-sidekiq SHARED ${PKGCONFIG_LIBS})
 
 include_directories(sidekiq_sources)
 
