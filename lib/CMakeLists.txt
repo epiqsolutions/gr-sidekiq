@@ -43,8 +43,6 @@ if(NOT sidekiq_sources)
 endif(NOT sidekiq_sources)
 
 add_library(gnuradio-sidekiq SHARED ${sidekiq_sources})
-add_library(gnuradio-sidekiq SHARED ${OTHER_LIBS})
-add_library(gnuradio-sidekiq SHARED ${PKGCONFIG_LIBS})
 
 include_directories(sidekiq_sources)
 
