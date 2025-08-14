@@ -30,7 +30,7 @@ if(NOT Sidekiq_FOUND)
         set (libname  "libsidekiq__x86_64.gcc.a")
         set (otherlib "none")
     else()
-        set(libname  "libsidekiq__aarch64.gcc6.3.a")
+        set(libname  "libsidekiq__aarch64.gcc.a")
         set(otherlib "libiio.so")
     endif()
 
