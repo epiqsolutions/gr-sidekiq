@@ -17,7 +17,13 @@ if(NOT Sidekiq_FOUND)
         OUTPUT_VARIABLE cpu_arch
     )
 
-    message(STATUS "cpu_arch ${cpu_arch}")
+    string(STRIP "${cpu_arch}" cpu_arch)
+
+    message(STATUS "cpu_arch is: '${cpu_arch}'")
+
+    if(NOT DEFINED SUFFIX OR "${SUFFIX}" STREQUAL "")
+        set(SUFFIX "none")  
+    endif()
 
     if (NOT ${cpu_arch} MATCHES "x86_64")
         set(SDK_DIR "$ENV{HOME}/sidekiq_sdk_current/lib")
@@ -29,31 +35,31 @@ if(NOT Sidekiq_FOUND)
             string(REPLACE "libsidekiq__" "" SUFFIX_WITH_EXT "${LIB_NAME}")
             string(REPLACE ".a" "" SUFFIX "${SUFFIX_WITH_EXT}")
             message(STATUS "Detected SDK SUFFIX: ${SUFFIX}")
-
         else()
             message(FATAL_ERROR "No libsidekiq__*.a file found in ${SDK_DIR}")
         endif()
     endif()
 
-    if(${cpu_arch} MATCHES "x86_64")
+
+    if("${cpu_arch}" STREQUAL "x86_64")
         set (libname  "libsidekiq__x86_64.gcc.a")
         set (otherlib "none")
-    elseif(${SUFFIX} MATCHES "msiq-x40")
+      elseif("${SUFFIX}" STREQUAL "msiq-x40")
         set(otherlib "none")
         set(libname  "libsidekiq__msiq-x40.a")
-    elseif(${SUFFIX} MATCHES "msiq-g20g40")
+      elseif("${SUFFIX}" STREQUAL "msiq-g20g40")
         set(otherlib "none")
         set(libname  "libsidekiq__msiq-g20g40.a")
-    elseif(${SUFFIX} MATCHES "z3u")
+      elseif("${SUFFIX}" STREQUAL "z3u")
         set(otherlib "libiio")
         set(libname  "libsidekiq__z3u.a")
-    elseif(${SUFFIX} MATCHES "aarch64")
+      elseif("${SUFFIX}" STREQUAL "aarch64")
         set (libname  "libsidekiq__aarch64.a")
         set (otherlib "libiio")
-    elseif(${SUFFIX} MATCHES "aarch64.gcc6.3")
+      elseif("${SUFFIX}" STREQUAL "aarch64.gcc6.3")
         set (libname  "libsidekiq__aarch64.gcc6.3.a")
         set (otherlib "libiio")
-    elseif(${SUFFIX} MATCHES "arm_cortex-a9.gcc7.2.1_gnueabihf")
+      elseif("${SUFFIX}" STREQUAL "arm_cortex-a9.gcc7.2.1_gnueabihf")
         set (libname  "libsidekiq__arm_cortex-a9.gcc7.2.1_gnueabihf.a")
         set (otherlib "libiio")
     else()
@@ -78,7 +84,7 @@ if(NOT Sidekiq_FOUND)
     set(Sidekiq_INCLUDE_DIRS ${Sidekiq_INCLUDE_DIR})
 
 
-    if(${cpu_arch} MATCHES "x86_64")
+    if("${cpu_arch}" STREQUAL "x86_64")
         message(STATUS "building for x86_64.gcc")
         include(FindPackageHandleStandardArgs)
         # handle the QUIETLY and REQUIRED arguments and set LibSidekiq_FOUND to TRUE
@@ -89,7 +95,7 @@ if(NOT Sidekiq_FOUND)
         set(OTHER_LIBS "")
         set(PKGCONFIG_LIBS "")
         mark_as_advanced(Sidekiq_INCLUDE_DIRS Sidekiq_LIBRARIES OTHER_LIBS PKGCONFIG_LIBS) 
-    elseif(SUFFIX MATCHES "^(z3u|aarch64|aarch64\\.gcc6\\.3|arm_cortex-a9\\.gcc7\\.2\\.1_gnueabihf)$")
+      elseif("${SUFFIX}" STREQUAL "^(z3u|aarch64|aarch64\\.gcc6\\.3|arm_cortex-a9\\.gcc7\\.2\\.1_gnueabihf)$")
         message(STATUS "building for aarch")
         find_library(OTHER_LIBS
             NAMES ${otherlib}
@@ -107,7 +113,7 @@ if(NOT Sidekiq_FOUND)
         set(PKGCONFIG_LIBS "")
 
         mark_as_advanced(Sidekiq_INCLUDE_DIRS Sidekiq_LIBRARIES OTHER_LIBS PKGCONFIG_LIBS) 
-    elseif(${SUFFIX} MATCHES "msiq-x40")
+      elseif("${SUFFIX}" STREQUAL "msiq-x40")
         message(STATUS "building for x40")
 
         # Get home directory
