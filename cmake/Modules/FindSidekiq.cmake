@@ -82,7 +82,8 @@ if(NOT Sidekiq_FOUND)
 
     set(Sidekiq_LIBRARIES ${Sidekiq_LIBRARY})
     set(Sidekiq_INCLUDE_DIRS ${Sidekiq_INCLUDE_DIR})
-
+    set(Sidekiq_PKG_LIBRARY_DIRS "~/sidekiq_sdk_current/lib/support/${SUFFIX}/usr/lib/epiq")
+    set(ENV{Sidekiq_DIR} "~/sidekiq_sdk_current")
 
     if("${cpu_arch}" STREQUAL "x86_64")
         message(STATUS "building for x86_64.gcc")
@@ -98,8 +99,6 @@ if(NOT Sidekiq_FOUND)
       elseif("${SUFFIX}" MATCHES "^(z3u|aarch64|aarch64\\.gcc6\\.3|arm_cortex-a9\\.gcc7\\.2\\.1_gnueabihf)$")
         message(STATUS "building for aarch")
 
-        set(Sidekiq_PKG_LIBRARY_DIRS "~/sidekiq_sdk_current/lib/support/${SUFFIX}/usr/lib/epiq")
-        set(ENV{Sidekiq_DIR} "~/sidekiq_sdk_current")
 
         find_library(OTHER_LIBS
             NAMES ${otherlib}
