@@ -61,7 +61,6 @@ if(NOT Sidekiq_FOUND)
         set (otherlib "iio")
       elseif("${SUFFIX}" STREQUAL "arm_cortex-a9.gcc7.2.1_gnueabihf")
         set (libname  "libsidekiq__arm_cortex-a9.gcc7.2.1_gnueabihf.a")
-        A
         set (otherlib "iio")
     else()
       message(FATAL_ERROR "Invalid platform ${SUFFIX}")
