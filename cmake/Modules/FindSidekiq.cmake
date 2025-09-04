@@ -55,13 +55,14 @@ if(NOT Sidekiq_FOUND)
         set(libname  "libsidekiq__z3u.a")
       elseif("${SUFFIX}" STREQUAL "aarch64")
         set (libname  "libsidekiq__aarch64.a")
-        set (otherlib "libiio")
+        set (otherlib "iio")
       elseif("${SUFFIX}" STREQUAL "aarch64.gcc6.3")
         set (libname  "libsidekiq__aarch64.gcc6.3.a")
-        set (otherlib "libiio")
+        set (otherlib "iio")
       elseif("${SUFFIX}" STREQUAL "arm_cortex-a9.gcc7.2.1_gnueabihf")
         set (libname  "libsidekiq__arm_cortex-a9.gcc7.2.1_gnueabihf.a")
-        set (otherlib "libiio")
+        A
+        set (otherlib "iio")
     else()
       message(FATAL_ERROR "Invalid platform ${SUFFIX}")
     endif()
@@ -95,8 +96,12 @@ if(NOT Sidekiq_FOUND)
         set(OTHER_LIBS "")
         set(PKGCONFIG_LIBS "")
         mark_as_advanced(Sidekiq_INCLUDE_DIRS Sidekiq_LIBRARIES OTHER_LIBS PKGCONFIG_LIBS) 
-      elseif("${SUFFIX}" STREQUAL "^(z3u|aarch64|aarch64\\.gcc6\\.3|arm_cortex-a9\\.gcc7\\.2\\.1_gnueabihf)$")
+      elseif("${SUFFIX}" MATCHES "^(z3u|aarch64|aarch64\\.gcc6\\.3|arm_cortex-a9\\.gcc7\\.2\\.1_gnueabihf)$")
         message(STATUS "building for aarch")
+
+        set(Sidekiq_PKG_LIBRARY_DIRS "~/sidekiq_sdk_current/lib/support/${SUFFIX}/usr/lib/epiq")
+        set(ENV{Sidekiq_DIR} "~/sidekiq_sdk_current")
+
         find_library(OTHER_LIBS
             NAMES ${otherlib}
             HINTS ${Sidekiq_PKG_LIBRARY_DIRS} $ENV{Sidekiq_DIR}/include
