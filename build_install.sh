@@ -12,11 +12,7 @@ sudo rm -r -f build
 mkdir build
 cd build
 
-if [ -n "$1" ]; then
-    cmake ../ -D$1
-else
-    cmake ../
-fi
+cmake ../
 
 make -j8
 

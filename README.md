@@ -29,10 +29,6 @@ To Build and Install (from the gr-sidekiq directory)
         OR to specify a custom sidekiq sdk location:
 
       > cmake -DSIDEKIQ_SDK_DIR=/opt/sidekiq_sdk_current ../
-        
-        OR if building with a platform like msiq-g20g40
-
-      > cmake -DPLATFORM=msiq-g20g40
 
   4) Build the code
       > make
