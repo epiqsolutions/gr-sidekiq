@@ -322,7 +322,7 @@ void sidekiq_rx_impl::handle_control_message(pmt_t msg)
 
      // Make sure, we use dicts!
      if (!pmt::is_dict(msg)) {
-         d_logger->error("Command message is neither dict nor pair: {}", msg);
+         d_logger->error("Command message is neither dict nor pair: {}", pmt::write_string(msg));
          return;
      }
 
@@ -1128,19 +1128,22 @@ int sidekiq_rx_impl::work(int noutput_items,
                     d_logger->debug("add item: ctr {}, portno {}, samples_written {}, noutput_items {}, buffer_size {}", 
                             debug_ctr, portno, samples_written[portno], noutput_items, DATA_MAX_BUFFER_SIZE);
                     d_logger->debug("key {}, value {}, abs_tag_index {}",
-                            last_tag_index[portno], curr_rf_block_tag.key, curr_rf_block_tag.value);
+                            last_tag_index[portno], pmt::write_string(curr_rf_block_tag.key), pmt::write_string(curr_rf_block_tag.value));
                 }
             }
         }
 
-        /* update the absolute index into the stream */
-        last_tag_index[portno] = last_tag_index[portno] + samples_written[portno];
 
         /* determine if we are done with this work() call */
         looping = determine_if_done(samples_written, noutput_items, &portno);
 
     }
 
+    for (int i = 0; i < MAX_PORT; i++)
+    {
+        /* update the absolute index into the stream */
+        last_tag_index[i] += samples_written[i];
+    }
 
     if (curr_block_samples_left[portno] == 0)
     {
