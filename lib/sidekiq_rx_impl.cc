@@ -134,7 +134,7 @@ sidekiq_rx_impl::sidekiq_rx_impl(
 
     }
 
-    d_logger->debug("trigger {}, pps_source {}", this->trigger_src, this->pps_source);
+    d_logger->debug("trigger {}, pps_source {}", static_cast<int>(this->trigger_src), static_cast<int>(this->pps_source));
 
     /* determine if we are in dual port */
     if (port2_handle < skiq_rx_hdl_end)
@@ -183,7 +183,7 @@ sidekiq_rx_impl::sidekiq_rx_impl(
         }
         else
         {
-            d_logger->info("Info: configured 1PPS source to {}", pps_source);
+            d_logger->info("Info: configured 1PPS source to {}", static_cast<int>(pps_source));
         }
       }
 
@@ -591,7 +591,7 @@ void sidekiq_rx_impl::set_rx_gain_mode(double value)
         }
     }
 
-    d_logger->info("Info: gain_mode set to {}", gain_mode);
+    d_logger->info("Info: gain_mode set to {}", static_cast<int>(gain_mode));
 
     this->gain_mode = gain_mode;
     
@@ -697,7 +697,7 @@ void sidekiq_rx_impl::set_rx_cal_mode(int value)
             }
             else
             {
-                d_logger->warn("Warning: calibration mode {} unsupported with product", cmode);
+                d_logger->warn("Warning: calibration mode {} unsupported with product", static_cast<int>(cmode));
             }
         }
 
@@ -713,13 +713,13 @@ void sidekiq_rx_impl::set_rx_cal_mode(int value)
                 }
                 else
                 {
-                    d_logger->warn("Warning: calibration mode {} unsupported with product", cmode);
+                    d_logger->warn("Warning: calibration mode {} unsupported with product", static_cast<int>(cmode));
                 }
             }
         }
 
         this->cal_mode = cmode;
-        d_logger->info("Info: cal_mode set to {}", cmode);
+        d_logger->info("Info: cal_mode set to {}", static_cast<int>(cmode));
     }
 
 }
@@ -792,7 +792,7 @@ void sidekiq_rx_impl::set_rx_cal_type(int value)
             }
         }
 
-        d_logger->info("Info: rx cal_mask 0x{:02X}, written successfully", cal_mask);
+        d_logger->info("Info: rx cal_mask 0x{:02X}, written successfully", static_cast<int>(cal_mask));
 
     }
 
@@ -869,7 +869,7 @@ uint32_t sidekiq_rx_impl::get_new_block(uint32_t portno)
             }
             else
             {
-              d_logger->error( "Error : invalid hdl received {}", tmp_hdl);
+              d_logger->error( "Error : invalid hdl received {}", static_cast<int>(tmp_hdl));
               throw std::runtime_error("Failure:  invalid handle");
             }
 
