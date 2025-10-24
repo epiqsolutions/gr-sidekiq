@@ -255,22 +255,25 @@ blocks:
     bandwidth: samp_rate * .8
     cal_mode: '0'
     cal_type: '0'
-    card: card
+    card: '0'
     comment: ''
     frequency: frequency
-    gain_index: '10'
-    gain_mode: '0'
+    gain_index: '0'
+    gain_mode: '1'
     handle1: '0'
     handle2: '100'
     maxoutbuf: '32000'
     minoutbuf: '0'
+    pps_source: '0'
     run_cal: '0'
     sample_rate: samp_rate
+    timestamp_tags: '0'
+    trigger_src: '0'
   states:
     bus_sink: false
     bus_source: false
     bus_structure: null
-    coordinate: [496, 228.0]
+    coordinate: [504, 228.0]
     rotation: 0
     state: true
 - name: sidekiq_sidekiq_tx_0
@@ -283,10 +286,10 @@ blocks:
     buffer_size: '16380'
     burst_tag: ''
     cal_mode: '0'
-    card: card
+    card: '0'
     comment: ''
     frequency: frequency
-    handle: '0'
+    handle: '1'
     run_cal: '0'
     sample_rate: samp_rate
     threads: '6'
@@ -305,4 +308,4 @@ connections:
 
 metadata:
   file_format: 1
-  grc_version: 3.10.5.1
+  grc_version: v3.11.0.0git-605-g9b22fd38

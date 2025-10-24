@@ -330,9 +330,9 @@ blocks:
     affinity: ''
     alias: ''
     bandwidth: bandwidth
-    cal_mode: '0'
-    cal_type: '2'
-    card: '1'
+    cal_mode: '1'
+    cal_type: '0'
+    card: '0'
     comment: ''
     frequency: frequency
     gain_index: gain_index
@@ -344,7 +344,7 @@ blocks:
     pps_source: '0'
     run_cal: run_rx_calibration
     sample_rate: sample_rate
-    timestamp_tags: '0'
+    timestamp_tags: '1'
     trigger_src: '0'
   states:
     bus_sink: false
@@ -360,4 +360,4 @@ connections:
 
 metadata:
   file_format: 1
-  grc_version: v3.11.0.0git-375-ge2af6089
+  grc_version: v3.11.0.0git-605-g9b22fd38
