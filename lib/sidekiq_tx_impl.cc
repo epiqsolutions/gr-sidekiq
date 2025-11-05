@@ -343,15 +343,15 @@ void sidekiq_tx_impl::handle_control_message(pmt_t msg)
     if (!(pmt::is_dict(msg)) && pmt::is_pair(msg)) {
         d_logger->debug(
             "Command message is pair, converting to dict: '{}': car({}), cdr({})",
-            msg,
-            pmt::car(msg),
-            pmt::cdr(msg));
+            pmt::write_string(msg),
+            pmt::write_string(pmt::car(msg)),
+            pmt::write_string(pmt::cdr(msg)));
         msg = pmt::dict_add(pmt::make_dict(), pmt::car(msg), pmt::cdr(msg));
      }
 
      // Make sure, we use dicts!
      if (!pmt::is_dict(msg)) {
-         d_logger->error("Command message is neither dict nor pair: {}", msg);
+         d_logger->error("Command message is neither dict nor pair: {}", pmt::write_string(msg));
          return;
      }
 
