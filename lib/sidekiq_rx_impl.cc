@@ -937,6 +937,7 @@ int sidekiq_rx_impl::work(int noutput_items,
         if (overrun_counter > 0)
         {
             d_logger->info("Overruns detected: {}", overrun_counter);
+            overrun_counter = 0;
         }
 
 #ifdef DEBUG
