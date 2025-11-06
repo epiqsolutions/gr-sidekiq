@@ -1,5 +1,5 @@
 /*
- * Copyright 2023 Free Software Foundation, Inc.
+ * Copyright 2025 Free Software Foundation, Inc.
  *
  * This file is part of GNU Radio
  *
@@ -14,7 +14,7 @@
 /* BINDTOOL_GEN_AUTOMATIC(0)                                                       */
 /* BINDTOOL_USE_PYGCCXML(0)                                                        */
 /* BINDTOOL_HEADER_FILE(sidekiq_rx.h)                                        */
-/* BINDTOOL_HEADER_FILE_HASH(c82ab397b04e68a633a84776a624894e)                     */
+/* BINDTOOL_HEADER_FILE_HASH(7cdef1b6d234458d669a96e4372ec5ae)                     */
 /***********************************************************************************/
 
 #include <pybind11/complex.h>
@@ -40,6 +40,8 @@ void bind_sidekiq_rx(py::module& m)
            py::arg("input_card"),
            py::arg("port1_handle"),
            py::arg("port2_handle"),
+           py::arg("port3_handle"),
+           py::arg("port4_handle"),
            py::arg("sample_rate"),
            py::arg("bandwidth"),
            py::arg("frequency"),

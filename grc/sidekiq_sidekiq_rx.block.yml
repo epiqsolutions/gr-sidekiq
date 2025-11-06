@@ -5,7 +5,7 @@ category: '[sidekiq]'
 
 templates:
   imports: from gnuradio import sidekiq
-  make: sidekiq.sidekiq_rx(${card}, ${handle1}, ${handle2}, ${sample_rate}, ${bandwidth}, ${frequency}, ${gain_mode}, ${gain_index}, ${trigger_src}, ${pps_source}, ${timestamp_tags}, ${cal_mode}, ${cal_type})
+  make: sidekiq.sidekiq_rx(${card}, ${handle1}, ${handle2}, ${handle3}, ${handle4}, ${sample_rate}, ${bandwidth}, ${frequency}, ${gain_mode}, ${gain_index}, ${trigger_src}, ${pps_source}, ${timestamp_tags}, ${cal_mode}, ${cal_type})
   callbacks:
   - set_rx_sample_rate(${sample_rate})
   - set_rx_bandwidth(${bandwidth})
@@ -43,6 +43,19 @@ parameters:
   option_labels: ['None', 'RxA1', 'RxA2', 'RxB1', 'RxB2', 'RxC1', 'RxD1']
   default: 100
 
+- id: handle3
+  label: Handle Id3
+  dtype: enum
+  options: ['100', '0', '1', '2', '3', '4', '5']
+  option_labels: ['None', 'RxA1', 'RxA2', 'RxB1', 'RxB2', 'RxC1', 'RxD1']
+  default: 100
+
+- id: handle4
+  label: Handle Id4
+  dtype: enum
+  options: ['100', '0', '1', '2', '3', '4', '5']
+  option_labels: ['None', 'RxA1', 'RxA2', 'RxB1', 'RxB2', 'RxC1', 'RxD1']
+  default: 100
 - id: sample_rate
   label: Sample Rate
   dtype: real
@@ -137,8 +150,7 @@ outputs:
 - label: Samples
   domain: stream
   dtype: complex
-  multiplicity: ${ (2 if (handle2 != '100') else 1) }
-  #  multiplicity: 2
+  multiplicity: ${ 1 + (handle2 != '100') + (handle3 != '100') + (handle4 != '100') }
   optional: false
 
 #- label: ...

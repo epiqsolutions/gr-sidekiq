@@ -13,7 +13,7 @@
 #include <sidekiq_api.h>
 #include <chrono>
 
-#define MAX_PORT                2        // max ports allowed
+#define MAX_PORT                4        // max ports allowed
 #define IQ_SHORT_COUNT          2        // number of shorts in a sample
 
 /* calibration modes */
@@ -57,6 +57,8 @@ public:
           int input_card,
           int port1_handle,
           int port2_handle,
+          int port3_handle,
+          int port4_handle,
           double sample_rate,
           double bandwidth,
           double frequency,
@@ -98,14 +100,13 @@ public:
 
 private:
     /* private methods */
-    uint32_t get_new_block(uint32_t portno);
-    bool determine_if_done(int32_t *samples_written, int32_t noutput_items, uint32_t *portno);
+    uint32_t get_new_block(void);
+    bool determine_if_done(int32_t *samples_written, int32_t noutput_items);
     double get_double_from_pmt_dict(pmt_t dict, pmt_t key, pmt_t not_found );
 
     /* passed in parameters */
     uint8_t card{};
-    skiq_rx_hdl_t hdl1{};
-    skiq_rx_hdl_t hdl2{};
+    skiq_rx_hdl_t handles[skiq_rx_hdl_end];
     uint32_t sample_rate{};
     uint32_t bandwidth{};
     uint64_t frequency{};
@@ -122,7 +123,7 @@ private:
     bool libsidekiq_init{};
     bool rx_streaming{};
     bool cal_enabled{};
-    bool dual_port{};
+    uint32_t  num_ports{};
     bool rx_second{};
 
     /* work parameters */

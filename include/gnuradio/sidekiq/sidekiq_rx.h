@@ -25,6 +25,8 @@ public:
           int input_card,
           int port1_handle,
           int port2_handle,
+          int port3_handle,
+          int port4_handle,
           double sample_rate,
           double bandwidth,
           double frequency,
