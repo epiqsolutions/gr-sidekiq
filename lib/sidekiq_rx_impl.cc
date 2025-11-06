@@ -257,20 +257,32 @@ sidekiq_rx_impl::sidekiq_rx_impl(
         }
     }
 
-    /* always assume unpacked */
+    /* always assume unpacked; tolerate Z4 EOPNOTSUPP (-95) */
     status = skiq_write_iq_pack_mode(card, SIDEKIQ_IQ_PACK_MODE_UNPACKED);
-    if (status != 0)
+    if (status == -95 /* EOPNOTSUPP on Z4 */)
+    {
+        d_logger->warn("Z4: IQ pack mode not supported (-95); leaving device default");
+        // continue without throwing
+    }
+    else if (status != 0)
     {
         d_logger->error( "Error: unable to set iq pack mode to unpacked with status {}", status);
         throw std::runtime_error("Failure: skiq_write_iq_pack_mode");
     }
 
-    /* by default all cards are in Q/I order we want it to be I/Q so switch it */
+    /* by default all cards are in Q/I order we want it to be I/Q so switch it;
+       tolerate Z4 EOPNOTSUPP (-95) and enable software swap */
     status = skiq_write_iq_order_mode(card, skiq_iq_order_iq) ;
-    if (status != 0)
+    if (status == -95 /* EOPNOTSUPP on Z4 */)
+    {
+        d_logger->warn("Z4: IQ order mode not supported (-95); enabling software I/Q swap");
+        this->swap_in_software_ = true;  // enable software swap in work()
+        // do not throw
+    }
+    else if (status != 0)
     {
           d_logger->error( "Error: unable to set iq order mode to iq with status {} ", status);
-          throw std::runtime_error("Failure: skiq_write_iq_pack_mode");
+          throw std::runtime_error("Failure: skiq_write_iq_order_mode");
     }
 
     /* support two messages */
@@ -407,7 +419,7 @@ bool sidekiq_rx_impl::start()
     /* tag indexes are absolute starting from the first sample out
      * so they must be reset when starting a stream
      */
-    for (uint32_t i = 0; i <this->num_ports; i++)
+    for (uint32_t i = 0; i < this->num_ports; i++)
     {
         last_tag_index[i] = 0;
     }
@@ -465,6 +477,11 @@ void sidekiq_rx_impl::set_rx_sample_rate(double value)
         status = skiq_write_rx_sample_rate_and_bandwidth(card, this->handles[i], rate, bw); 
         if (status != 0) 
         {
+            /* Z4: A2/B2 may return -33 for RFIC-wide writes; log and continue */
+            if (status == -33) {
+                d_logger->warn( "Warning: set sample_rate on hdl {} returned -33 (A2/B2 not primary); continuing", i);
+                continue;
+            }
             d_logger->error( "Error: could not set sample_rate on hdl {}, status {}, {}", 
                     i, status, strerror(abs(status)) );
             throw std::runtime_error("Failure: set samplerate");
@@ -495,6 +512,11 @@ void sidekiq_rx_impl::set_rx_bandwidth(double value)
         status = skiq_write_rx_sample_rate_and_bandwidth(card, this->handles[i], rate, bw); 
         if (status != 0) 
         {
+            /* Z4: A2/B2 may return -33 for RFIC-wide writes; log and continue */
+            if (status == -33) {
+                d_logger->warn( "Warning: set bandwidth on hdl {} returned -33 (A2/B2 not primary); continuing", i);
+                continue;
+            }
             d_logger->error( "Error: could not set bandwidth on hdl {}, status {}, {}", 
                     i, status, strerror(abs(status)) );
             throw std::runtime_error("Failure: set bandwidth");
@@ -524,6 +546,12 @@ void sidekiq_rx_impl::set_rx_frequency(double value)
         status = skiq_write_rx_LO_freq(card, this->handles[i], freq);
         if (status != 0) 
         {
+            /* Z4: A2/B2 may return -33 (EDOM) for LO write; log and continue */
+            if (status == -33) {
+                d_logger->warn("Warning: could not set LO {} on hdl {} (-33, likely A2/B2 not primary); continuing", 
+                               freq, i);
+                continue;
+            }
             d_logger->error("Error: could not set frequency {} on hdl {}, status {}, {}", 
                     freq, i, status, strerror(abs(status)) );
             throw std::runtime_error("Failure: set frequency");
@@ -919,8 +947,10 @@ int sidekiq_rx_impl::work(int noutput_items,
         curr_out_ptr[i] = out[i];
     }
 
-    first_block[0]  = true;
-    first_block[1]  = true;
+    /* initialize first_block[] for all active ports */
+    for (uint32_t i = 0; i < this->num_ports; ++i) {
+        first_block[i] = true;
+    }
 
     /* We told gnuradio to not call us with a buffer size smaller than our block, so error out. */
     if (noutput_items < DATA_MAX_BUFFER_SIZE)
@@ -1013,6 +1043,16 @@ int sidekiq_rx_impl::work(int noutput_items,
                   (const int16_t *) curr_block_ptr[portno],
                   adc_scaling,
                   (samples_to_write[portno] * IQ_SHORT_COUNT ));
+
+            /* If Z4 couldn't set I/Q order, swap I<->Q in software for this just-written segment */
+            if (this->swap_in_software_)
+            {
+                gr_complex* seg = curr_out_ptr[portno];
+                for (uint32_t i = 0; i < samples_to_write[portno]; ++i) {
+                    const gr_complex s = seg[i];
+                    seg[i] = gr_complex(s.imag(), s.real()); // swap (I,Q) -> (Q,I)
+                }
+            }
 
             /* increment all the pointers and counters */
             samples_written[portno] += samples_to_write[portno];
