@@ -238,7 +238,7 @@ sidekiq_rx_impl::sidekiq_rx_impl(
         }
     }
 
-    if (mode == 2)
+  /*  if (mode == 2)
     {
         status = skiq_write_chan_mode(card, skiq_chan_mode_dual);
         if (status != 0)
@@ -256,7 +256,7 @@ sidekiq_rx_impl::sidekiq_rx_impl(
             throw std::runtime_error("Failure: skiq_write_chan_mode");
         }
     }
-
+*/
     /* always assume unpacked; tolerate Z4 EOPNOTSUPP (-95) */
     status = skiq_write_iq_pack_mode(card, SIDEKIQ_IQ_PACK_MODE_UNPACKED);
     if (status == -95 /* EOPNOTSUPP on Z4 */)
