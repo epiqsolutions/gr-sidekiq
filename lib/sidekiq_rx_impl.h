@@ -125,6 +125,7 @@ private:
     bool cal_enabled{};
     uint32_t  num_ports{};
     bool rx_second{};
+    bool swap_in_software_ = false;   // Z4: if IQ order mode not supported, swap I/Q in software
 
     /* work parameters */
     uint64_t last_status_update_sample{};
