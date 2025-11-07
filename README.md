@@ -2,7 +2,16 @@ notes z4 testing
 
 ---
 To build and Install
-export SDK_ROOT=$HOME/sidekiq_sdk_current export EPIQ_LIB=$SDK_ROOT/lib/support/z4/usr/lib/epiq cmake -S . -B build \ -DSidekiq_ROOT="$SDK_ROOT" \ -DCMAKE_PREFIX_PATH="$SDK_ROOT;$EPIQ_LIB" \ -DCMAKE_BUILD_RPATH="$EPIQ_LIB;/usr/local/lib/aarch64-linux-gnu;\$ORIGIN" \ -DCMAKE_INSTALL_RPATH="$EPIQ_LIB;/usr/local/lib/aarch64-linux-gnu;\$ORIGIN" cmake --build build -j"$(nproc)" sudo cmake --install build
+
+export SDK_ROOT=$HOME/sidekiq_sdk_current 
+
+export EPIQ_LIB=$SDK_ROOT/lib/support/z4/usr/lib/epiq 
+
+cmake -S . -B build \ -DSidekiq_ROOT="$SDK_ROOT" \ -DCMAKE_PREFIX_PATH="$SDK_ROOT;$EPIQ_LIB" \ -DCMAKE_BUILD_RPATH="$EPIQ_LIB;/usr/local/lib/aarch64-linux-gnu;\$ORIGIN" \ -DCMAKE_INSTALL_RPATH="$EPIQ_LIB;/usr/local/lib/aarch64-linux-gnu;\$ORIGIN" 
+
+cmake --build build -j"$(nproc)" 
+
+sudo cmake --install build
 
 ---
 
