@@ -96,7 +96,7 @@ blocks:
     coordinate: [696, 60.0]
     rotation: 0
     state: true
-- name: min_output_buffer
+- name: min_buffer
   id: variable
   parameters:
     comment: ''
@@ -176,17 +176,18 @@ blocks:
     comment: ''
     freq: tone_freq
     maxoutbuf: '0'
-    minoutbuf: min_output_buffer
+    minoutbuf: min_buffer
     offset: '0'
     phase: '0'
     samp_rate: sample_rate
+    showports: 'False'
     type: complex
     waveform: analog.GR_COS_WAVE
   states:
     bus_sink: false
     bus_source: false
     bus_structure: null
-    coordinate: [256, 292.0]
+    coordinate: [264, 292.0]
     rotation: 0
     state: true
 - name: sidekiq_sidekiq_tx_0
@@ -219,4 +220,4 @@ connections:
 
 metadata:
   file_format: 1
-  grc_version: v3.11.0.0git-375-ge2af6089
+  grc_version: v3.11.0.0git-605-g9b22fd38
