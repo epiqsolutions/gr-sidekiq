@@ -29,6 +29,16 @@ parameters:
   dtype: int
   default: 0
 
+- id: sample_rate
+  label: Sample Rate
+  dtype: real
+  default: 20e6
+
+- id: bandwidth
+  label: Bandwidth
+  default: 1e6
+  dtype: real
+  default: 18e6
 
 - id: num_handles
   label: num handle
@@ -97,16 +107,6 @@ parameters:
   default: 1000e6
   hide: ${ 'all' if int(num_handles < 4) else 'none' }
 
-- id: sample_rate
-  label: Sample Rate
-  dtype: real
-  default: 20e6
-
-- id: bandwidth
-  label: Bandwidth
-  default: 1e6
-  dtype: real
-  default: 18e6
 
 - id: gain_mode
   label: Gain Mode
@@ -117,9 +117,9 @@ parameters:
 
 - id: gain_index
   label: Gain Index
-  hide: ${ ('all' if (gain_mode == '1') else 'part') }
   dtype: int
   default: 1
+  hide: ${ ('all' if (gain_mode == '1') else 'none') }
 
 - id: timestamp_tags
   label: Timestamp Tags 
@@ -127,6 +127,7 @@ parameters:
   options: ['0', '1']
   option_labels: ['Disabled', 'Enabled']
   default: 0
+  hide: ${ ('part' if (timestamp_tags == '0') else 'none') }
 
 - id: trigger_src
   label: Streaming Trigger
@@ -134,6 +135,7 @@ parameters:
   options: ['0', '1', '2']
   option_labels: ['Immediate', '1pps', 'Synced']
   default: 0
+  hide: ${ ('part' if (trigger_src == '0') else 'none') }
 
 - id: pps_source
   label: 1PPS Source
@@ -141,6 +143,7 @@ parameters:
   options: ['0', '1']
   option_labels: ['Host', 'External']
   default: 0
+  hide: ${ ('all' if (trigger_src == '0') else 'none') }
 
 - id: cal_mode
   category: Calibration
@@ -149,6 +152,7 @@ parameters:
   options: ['0', '1', '2']
   option_labels: ['Auto', 'Manual', 'Off']
   default: 0
+  hide: ${ ('part' if (cal_mode == '0') else 'none') }
 
 - id: cal_type
   category: Calibration
@@ -156,6 +160,7 @@ parameters:
   dtype: enum
   options: ['0', '1', '2']
   option_labels: ['DC offset', 'Quadrature', 'Both']
+  hide: ${ ('all' if (cal_mode == '0') else 'part') }
   default: 0
 
 - id: run_cal
