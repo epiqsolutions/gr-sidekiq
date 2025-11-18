@@ -25,13 +25,12 @@ namespace sidekiq {
 using output_type = float;
 sidekiq_rx::sptr sidekiq_rx::make(
         int input_card,
-        int port1_handle,
-        int port2_handle,
-        int port3_handle,
-        int port4_handle,
+        int port1_handle, double frequency1,
+        int port2_handle, double frequency2,
+        int port3_handle, double frequency3,
+        int port4_handle, double frequency4,
         double sample_rate,
         double bandwidth,
-        double frequency,
         uint8_t gain_mode,
         int gain_index,
         int timestamp_tags,
@@ -42,13 +41,12 @@ sidekiq_rx::sptr sidekiq_rx::make(
 {
   return gnuradio::make_block_sptr<sidekiq_rx_impl>(
           input_card,
-          port1_handle,
-          port2_handle,
-          port3_handle,
-          port4_handle,
+          port1_handle, frequency1,
+          port2_handle, frequency2,
+          port3_handle, frequency3,
+          port4_handle, frequency4,
           sample_rate,
           bandwidth,
-          frequency,
           gain_mode,
           gain_index,
           timestamp_tags,
@@ -60,13 +58,12 @@ sidekiq_rx::sptr sidekiq_rx::make(
 
 sidekiq_rx_impl::sidekiq_rx_impl(
         int input_card,
-        int port1_handle,
-        int port2_handle,
-        int port3_handle,
-        int port4_handle,
+        int port1_handle, double frequency1,
+        int port2_handle, double frequency2,
+        int port3_handle, double frequency3,
+        int port4_handle, double frequency4,
         double sample_rate,
         double bandwidth,
-        double frequency,
         uint8_t gain_mode,
         int gain_index,
         int timestamp_tags,
@@ -86,8 +83,6 @@ sidekiq_rx_impl::sidekiq_rx_impl(
     d_logger->get_level(str);
 
     printf("in constructor RX, debug level: %s\n", str.c_str());
-    d_logger->info("info leaving constructor RX, debug level: %s\n", str.c_str());
-    d_logger->debug("debug leaving constructor RX, debug level: %s\n", str.c_str());
 
     int status = 0;
     uint8_t iq_resolution = 0;
@@ -194,6 +189,7 @@ sidekiq_rx_impl::sidekiq_rx_impl(
         d_logger->info("Info: libsidkiq initialized successfully");
     }
 
+    this->bandwidth = bandwidth;
     set_rx_sample_rate(sample_rate);
     set_rx_bandwidth(bandwidth);
 
@@ -278,7 +274,7 @@ sidekiq_rx_impl::sidekiq_rx_impl(
     set_msg_handler(CONTROL_MESSAGE_PORT, [this](pmt::pmt_t msg) { this->handle_control_message(msg); });
 
     /* set the rest of the parameters */
-    set_rx_frequency(frequency);
+    set_rx_frequency(frequency1);
     set_rx_gain_mode(gain_mode);
 
     if (gain_mode == skiq_rx_gain_manual)
@@ -455,23 +451,27 @@ void sidekiq_rx_impl::set_rx_sample_rate(double value)
 {
 
     int status = 0;
-    d_logger->debug("in set_rx_sample_rate");
+    d_logger->debug("in set_rx_sample_rate, {}", value);
 
     auto rate = static_cast<uint32_t>(value);
     auto bw = static_cast<uint32_t>(this->bandwidth);
 
-    for (uint32_t i = 0; i < this->num_ports; i++)
+    if (this->sample_rate != rate)
     {
-        status = skiq_write_rx_sample_rate_and_bandwidth(card, this->handles[i], rate, bw); 
-        if (status != 0) 
-        {
-            d_logger->error( "Error: could not set sample_rate on hdl {}, status {}, {}", 
-                    i, status, strerror(abs(status)) );
-            throw std::runtime_error("Failure: set samplerate");
-        }
-    }
-    d_logger->info("Info: sample_rate set to {}", rate);
 
+        for (uint32_t i = 0; i < this->num_ports; i++)
+        {
+            status = skiq_write_rx_sample_rate_and_bandwidth(card, this->handles[i], rate, bw); 
+            if (status != 0) 
+            {
+                d_logger->error( "Error: could not set sample_rate on hdl {}, status {}, {}", 
+                        i, status, strerror(abs(status)) );
+                throw std::runtime_error("Failure: set samplerate");
+            }
+        }
+        d_logger->info("Info: sample_rate set to {}", rate);
+
+    }
     this->sample_rate = rate;
     this->bandwidth = bw;
 }
@@ -490,18 +490,20 @@ void sidekiq_rx_impl::set_rx_bandwidth(double value)
     auto rate = static_cast<uint32_t>(this->sample_rate);
     auto bw = static_cast<uint32_t>(value);
 
-    for (uint32_t i = 0; i < this->num_ports; i++)
+    if (this->bandwidth != bw)
     {
-        status = skiq_write_rx_sample_rate_and_bandwidth(card, this->handles[i], rate, bw); 
-        if (status != 0) 
+        for (uint32_t i = 0; i < this->num_ports; i++)
         {
-            d_logger->error( "Error: could not set bandwidth on hdl {}, status {}, {}", 
-                    i, status, strerror(abs(status)) );
-            throw std::runtime_error("Failure: set bandwidth");
+            status = skiq_write_rx_sample_rate_and_bandwidth(card, this->handles[i], rate, bw); 
+            if (status != 0) 
+            {
+                d_logger->error( "Error: could not set bandwidth on hdl {}, status {}, {}", 
+                        i, status, strerror(abs(status)) );
+                throw std::runtime_error("Failure: set bandwidth");
+            }
         }
+        d_logger->info("Info: bandwidth set to {}", bw);
     }
-    d_logger->info("Info: bandwidth set to {}", bw);
-
     this->sample_rate = rate;
     this->bandwidth = bw;
 }
@@ -947,8 +949,8 @@ int sidekiq_rx_impl::work(int noutput_items,
         d_logger->debug("delta time {}, noutput_items {}, nitems_written {}, last_update {} update_rate {}, work calls {}",
                ms.count(), noutput_items, nitems_written(0), last_status_update_sample, status_update_rate_in_samples, debug_ctr );
 #else
-        d_logger->debug("noutput_items {}, nitems_written {}, last_update {}",
-               noutput_items, nitems_written(0), last_status_update_sample);
+//        d_logger->debug("noutput_items {}, nitems_written {}, last_update {}",
+//               noutput_items, nitems_written(0), last_status_update_sample);
 #endif
 
         last_status_update_sample = nitems_written(0);

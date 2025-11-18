@@ -14,7 +14,7 @@
 /* BINDTOOL_GEN_AUTOMATIC(0)                                                       */
 /* BINDTOOL_USE_PYGCCXML(0)                                                        */
 /* BINDTOOL_HEADER_FILE(sidekiq_rx.h)                                        */
-/* BINDTOOL_HEADER_FILE_HASH(7cdef1b6d234458d669a96e4372ec5ae)                     */
+/* BINDTOOL_HEADER_FILE_HASH(b45dd666e6d478ce04a20af70a30315c)                     */
 /***********************************************************************************/
 
 #include <pybind11/complex.h>
@@ -39,12 +39,15 @@ void bind_sidekiq_rx(py::module& m)
         .def(py::init(&sidekiq_rx::make),
            py::arg("input_card"),
            py::arg("port1_handle"),
+           py::arg("frequency1"),
            py::arg("port2_handle"),
+           py::arg("frequency2"),
            py::arg("port3_handle"),
+           py::arg("frequency3"),
            py::arg("port4_handle"),
+           py::arg("frequency4"),
            py::arg("sample_rate"),
            py::arg("bandwidth"),
-           py::arg("frequency"),
            py::arg("gain_mode"),
            py::arg("gain_index"),
            py::arg("timestamp_tags"),

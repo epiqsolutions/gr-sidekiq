@@ -5,7 +5,8 @@ category: '[sidekiq]'
 
 templates:
   imports: from gnuradio import sidekiq
-  make: sidekiq.sidekiq_rx(${card}, ${handle1}, ${handle2}, ${handle3}, ${handle4}, ${sample_rate}, ${bandwidth}, ${frequency1}, ${gain_mode}, ${gain_index}, ${trigger_src}, ${pps_source}, ${timestamp_tags}, ${cal_mode}, ${cal_type})
+  make: sidekiq.sidekiq_rx(${card}, ${handle1}, ${frequency1}, ${handle2}, ${frequency2}, ${handle3}, ${frequency3}, ${handle4}, ${frequency4}, ${sample_rate}, ${bandwidth}, ${gain_mode}, ${gain_index}, ${trigger_src}, ${pps_source}, ${timestamp_tags}, ${cal_mode}, ${cal_type})
+
   callbacks:
   - set_rx_sample_rate(${sample_rate})
   - set_rx_bandwidth(${bandwidth})
@@ -194,7 +195,8 @@ outputs:
 - label: Samples
   domain: stream
   dtype: complex
-  multiplicity: ${ 1 + (handle2 != '100') + (handle3 != '100') + (handle4 != '100') }
+#  multiplicity: ${ 1 + (handle2 != '100') + (handle3 != '100') + (handle4 != '100') }
+  multiplicity: ${num_handles}
   optional: false
 
 #- label: ...

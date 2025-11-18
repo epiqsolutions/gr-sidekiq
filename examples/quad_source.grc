@@ -185,7 +185,7 @@ blocks:
     bus_sink: false
     bus_source: false
     bus_structure: null
-    coordinate: [688, 28.0]
+    coordinate: [680, 28.0]
     rotation: 0
     state: true
 - name: qtgui_freq_sink_x_0
@@ -517,7 +517,7 @@ blocks:
   parameters:
     affinity: ''
     alias: ''
-    bandwidth: 18e6
+    bandwidth: bandwidth
     cal_mode: '0'
     cal_type: '0'
     card: '0'
@@ -526,7 +526,7 @@ blocks:
     frequency2: frequency2
     frequency3: frequency3
     frequency4: frequency4
-    gain_index: '1'
+    gain_index: '200'
     gain_mode: '1'
     handle1: '0'
     handle2: '1'
@@ -537,7 +537,7 @@ blocks:
     num_handles: '4'
     pps_source: '0'
     run_cal: '0'
-    sample_rate: 20e6
+    sample_rate: sample_rate
     timestamp_tags: '0'
     trigger_src: '0'
   states:
