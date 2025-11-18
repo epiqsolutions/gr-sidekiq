@@ -48,6 +48,7 @@ parameters:
   default: 1000e6
 
 - id: handle2
+  category: Other Handles
   label: handle id2
   dtype: enum
   options: ['100', '0', '1', '2', '3', '4', '5']
@@ -56,6 +57,7 @@ parameters:
   hide: ${ 'all' if int(num_handles < 2) else 'none' }
 
 - id: frequency2
+  category: Other Handles
   label: Frequency
   dtype: real
   default: 1000e6
@@ -63,6 +65,7 @@ parameters:
 
 
 - id: handle3
+  category: Other Handles
   label: handle id3
   dtype: enum
   options: ['100', '0', '1', '2', '3', '4', '5']
@@ -71,6 +74,7 @@ parameters:
   hide: ${ 'all' if int(num_handles < 3) else 'none' }
 
 - id: frequency3
+  category: Other Handles
   label: Frequency
   dtype: real
   default: 1000e6
@@ -78,6 +82,7 @@ parameters:
 
 
 - id: handle4
+  category: Other Handles
   label: handle id4
   dtype: enum
   options: ['100', '0', '1', '2', '3', '4', '5']
@@ -86,6 +91,7 @@ parameters:
   hide: ${ 'all' if int(num_handles < 4) else 'none' }
 
 - id: frequency4
+  category: Other Handles
   label: Frequency
   dtype: real
   default: 1000e6
@@ -137,6 +143,7 @@ parameters:
   default: 0
 
 - id: cal_mode
+  category: Calibration
   label: Calibration Mode
   dtype: enum
   options: ['0', '1', '2']
@@ -144,6 +151,7 @@ parameters:
   default: 0
 
 - id: cal_type
+  category: Calibration
   label: Calibration Type
   dtype: enum
   options: ['0', '1', '2']
@@ -151,6 +159,7 @@ parameters:
   default: 0
 
 - id: run_cal
+  category: Calibration
   label: Run Cal 
   hide: ${ ('all' if (cal_mode == '0') else 'part') }
   dtype: int
