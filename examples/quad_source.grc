@@ -454,12 +454,15 @@ blocks:
   parameters:
     affinity: ''
     alias: ''
-    bandwidth: bandwidth
-    cal_mode: '1'
-    cal_type: '2'
+    bandwidth: 18e6
+    cal_mode: '0'
+    cal_type: '0'
     card: '0'
     comment: ''
-    frequency: frequency
+    frequency1: 1000e6
+    frequency2: 1000e6
+    frequency3: 1000e6
+    frequency4: 1000e6
     gain_index: '1'
     gain_mode: '1'
     handle1: '0'
@@ -468,18 +471,19 @@ blocks:
     handle4: '3'
     maxoutbuf: '0'
     minoutbuf: '0'
+    num_handles: '4'
     pps_source: '0'
-    run_cal: run_rx_calibration
-    sample_rate: sample_rate
+    run_cal: '0'
+    sample_rate: 20e6
     timestamp_tags: '0'
     trigger_src: '0'
   states:
     bus_sink: false
     bus_source: false
     bus_structure: null
-    coordinate: [152, 204.0]
+    coordinate: [384, 368.0]
     rotation: 0
-    state: true
+    state: enabled
 
 connections:
 - [sidekiq_sidekiq_rx_0, '0', qtgui_freq_sink_x_0, '0']

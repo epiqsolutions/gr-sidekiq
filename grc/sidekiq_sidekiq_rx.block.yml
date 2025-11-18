@@ -5,11 +5,11 @@ category: '[sidekiq]'
 
 templates:
   imports: from gnuradio import sidekiq
-  make: sidekiq.sidekiq_rx(${card}, ${handle1}, ${handle2}, ${handle3}, ${handle4}, ${sample_rate}, ${bandwidth}, ${frequency}, ${gain_mode}, ${gain_index}, ${trigger_src}, ${pps_source}, ${timestamp_tags}, ${cal_mode}, ${cal_type})
+  make: sidekiq.sidekiq_rx(${card}, ${handle1}, ${handle2}, ${handle3}, ${handle4}, ${sample_rate}, ${bandwidth}, ${frequency1}, ${gain_mode}, ${gain_index}, ${trigger_src}, ${pps_source}, ${timestamp_tags}, ${cal_mode}, ${cal_type})
   callbacks:
   - set_rx_sample_rate(${sample_rate})
   - set_rx_bandwidth(${bandwidth})
-  - set_rx_frequency(${frequency})
+  - set_rx_frequency(${frequency1})
   - set_rx_gain_mode(${gain_mode})
   - set_rx_gain_index(${gain_index})
   - set_rx_cal_mode(${cal_mode})
@@ -29,33 +29,68 @@ parameters:
   dtype: int
   default: 0
 
+
+- id: num_handles
+  label: num handle
+  dtype: int
+  default: 1
+
 - id: handle1
-  label: Handle Id1
+  label: handle id1
   dtype: enum
   options: ['0', '1', '2', '3', '4', '5']
-  option_labels: ['RxA1', 'RxA2', 'RxB1', 'RxB2', 'RxC1', 'RxD1']
+  option_labels: ['RXA1', 'RXA2', 'RXB1', 'RXB2', 'RXC1', 'RXD1']
   default: 0
 
+- id: frequency1
+  label: Frequency
+  dtype: real
+  default: 1000e6
+
 - id: handle2
-  label: Handle Id2
+  label: handle id2
   dtype: enum
   options: ['100', '0', '1', '2', '3', '4', '5']
-  option_labels: ['None', 'RxA1', 'RxA2', 'RxB1', 'RxB2', 'RxC1', 'RxD1']
+  option_labels: ['none', 'RXA1', 'RXA2', 'RXB1', 'RXB2', 'RXC1', 'RXD1']
   default: 100
+  hide: ${ 'all' if int(num_handles < 2) else 'none' }
+
+- id: frequency2
+  label: Frequency
+  dtype: real
+  default: 1000e6
+  hide: ${ 'all' if int(num_handles < 2) else 'none' }
+
 
 - id: handle3
-  label: Handle Id3
+  label: handle id3
   dtype: enum
   options: ['100', '0', '1', '2', '3', '4', '5']
-  option_labels: ['None', 'RxA1', 'RxA2', 'RxB1', 'RxB2', 'RxC1', 'RxD1']
+  option_labels: ['none', 'RXA1', 'RXA2', 'RXB1', 'RXB2', 'RXC1', 'RXD1']
   default: 100
+  hide: ${ 'all' if int(num_handles < 3) else 'none' }
+
+- id: frequency3
+  label: Frequency
+  dtype: real
+  default: 1000e6
+  hide: ${ 'all' if int(num_handles < 3) else 'none' }
+
 
 - id: handle4
-  label: Handle Id4
+  label: handle id4
   dtype: enum
   options: ['100', '0', '1', '2', '3', '4', '5']
-  option_labels: ['None', 'RxA1', 'RxA2', 'RxB1', 'RxB2', 'RxC1', 'RxD1']
+  option_labels: ['none', 'RXA1', 'RXA2', 'RXB1', 'RXB2', 'RXC1', 'RXD1']
   default: 100
+  hide: ${ 'all' if int(num_handles < 4) else 'none' }
+
+- id: frequency4
+  label: Frequency
+  dtype: real
+  default: 1000e6
+  hide: ${ 'all' if int(num_handles < 4) else 'none' }
+
 - id: sample_rate
   label: Sample Rate
   dtype: real
@@ -66,11 +101,6 @@ parameters:
   default: 1e6
   dtype: real
   default: 18e6
-
-- id: frequency
-  label: Frequency
-  dtype: real
-  default: 1000e6
 
 - id: gain_mode
   label: Gain Mode
