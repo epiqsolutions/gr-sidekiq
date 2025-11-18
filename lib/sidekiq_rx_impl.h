@@ -123,6 +123,7 @@ private:
     bool rx_streaming{};
     bool cal_enabled{};
     uint32_t  num_ports{};
+    uint64_t freqs[skiq_rx_hdl_end];
     bool rx_second{};
 
     /* work parameters */

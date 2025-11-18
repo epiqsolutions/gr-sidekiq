@@ -108,7 +108,7 @@ blocks:
     start: 250e6
     step: 1e6
     stop: 6000e6
-    value: 1000e6
+    value: 2000e6
     widget: slider
   states:
     bus_sink: false
@@ -129,7 +129,7 @@ blocks:
     start: 250e6
     step: 1e6
     stop: 6000e6
-    value: 1000e6
+    value: 2000e6
     widget: slider
   states:
     bus_sink: false

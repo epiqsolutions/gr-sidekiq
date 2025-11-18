@@ -140,27 +140,34 @@ sidekiq_rx_impl::sidekiq_rx_impl(
     /* determine how many ports we have */
     if (port1_handle < skiq_rx_hdl_end)
     {
+        this->handles[this->num_ports] = (skiq_rx_hdl_t) port1_handle;
+        this->freqs[this->num_ports] = static_cast<uint64_t>(frequency1);
         this->num_ports++;
-        this->handles[0] = (skiq_rx_hdl_t) port1_handle;
     }
     if (port2_handle < skiq_rx_hdl_end)
     {
+        this->handles[this->num_ports] = (skiq_rx_hdl_t) port2_handle;
+        this->freqs[this->num_ports] = static_cast<uint64_t>(frequency2);
         this->num_ports++;
-        this->handles[1] = (skiq_rx_hdl_t) port2_handle;
     }
     if (port3_handle < skiq_rx_hdl_end)
     {
+        this->handles[this->num_ports] = (skiq_rx_hdl_t) port3_handle;
+        this->freqs[this->num_ports] = static_cast<uint64_t>(frequency3);
         this->num_ports++;
-        this->handles[2] = (skiq_rx_hdl_t) port3_handle;
     }
     if (port4_handle < skiq_rx_hdl_end)
     {
+        this->handles[this->num_ports] = (skiq_rx_hdl_t) port4_handle;
+        this->freqs[this->num_ports] = static_cast<uint64_t>(frequency4);
         this->num_ports++;
-        this->handles[3] = (skiq_rx_hdl_t) port4_handle;
     }
 
-    d_logger->debug("num_ports {}, port1_handle {}, port2 {}. port3 {}, port4 {}",
-            this->num_ports, port1_handle, port2_handle, port3_handle, port4_handle);
+    for (size_t i = 0; i < this->num_ports; i++)
+    {
+        d_logger->debug("port {} handle {}, frequency {}",
+            i, this->handles[i], this->freqs[i]);
+    }
 
     if (this->num_ports < 1)
     {
@@ -523,7 +530,7 @@ void sidekiq_rx_impl::set_rx_frequency(double value)
 
     for (uint32_t i = 0; i < this->num_ports; i++)
     {
-        status = skiq_write_rx_LO_freq(card, this->handles[i], freq);
+        status = skiq_write_rx_LO_freq(card, this->handles[i], this->freqs[i]);
         if (status != 0) 
         {
             d_logger->error("Error: could not set frequency {} on hdl {}, status {}, {}", 
@@ -531,9 +538,10 @@ void sidekiq_rx_impl::set_rx_frequency(double value)
             throw std::runtime_error("Failure: set frequency");
             return;
         }
+        d_logger->info("Info: handle {} frequency set to {}", 
+                this->handles[i], this->freqs[i]);
     }
 
-    d_logger->info("Info: frequency set to {}", freq);
 
     this->frequency = freq;
 }
