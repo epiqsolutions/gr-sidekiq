@@ -23,13 +23,12 @@ public:
 
   static sptr make(
           int input_card,
-          int port1_handle,
-          int port2_handle,
-          int port3_handle,
-          int port4_handle,
+          int port1_handle, double frequency1,
+          int port2_handle, double frequency2,
+          int port3_handle, double frequency3,
+          int port4_handle, double frequency4,
           double sample_rate,
           double bandwidth,
-          double frequency,
           uint8_t gain_mode,
           int gain_index,
           int timestamp_tags,

@@ -5,11 +5,12 @@ category: '[sidekiq]'
 
 templates:
   imports: from gnuradio import sidekiq
-  make: sidekiq.sidekiq_rx(${card}, ${handle1}, ${handle2}, ${handle3}, ${handle4}, ${sample_rate}, ${bandwidth}, ${frequency}, ${gain_mode}, ${gain_index}, ${trigger_src}, ${pps_source}, ${timestamp_tags}, ${cal_mode}, ${cal_type})
+  make: sidekiq.sidekiq_rx(${card}, ${handle1}, ${frequency1}, ${handle2}, ${frequency2}, ${handle3}, ${frequency3}, ${handle4}, ${frequency4}, ${sample_rate}, ${bandwidth}, ${gain_mode}, ${gain_index}, ${trigger_src}, ${pps_source}, ${timestamp_tags}, ${cal_mode}, ${cal_type})
+
   callbacks:
   - set_rx_sample_rate(${sample_rate})
   - set_rx_bandwidth(${bandwidth})
-  - set_rx_frequency(${frequency})
+  - set_rx_frequency(${frequency1})
   - set_rx_gain_mode(${gain_mode})
   - set_rx_gain_index(${gain_index})
   - set_rx_cal_mode(${cal_mode})
@@ -29,33 +30,6 @@ parameters:
   dtype: int
   default: 0
 
-- id: handle1
-  label: Handle Id1
-  dtype: enum
-  options: ['0', '1', '2', '3', '4', '5']
-  option_labels: ['RxA1', 'RxA2', 'RxB1', 'RxB2', 'RxC1', 'RxD1']
-  default: 0
-
-- id: handle2
-  label: Handle Id2
-  dtype: enum
-  options: ['100', '0', '1', '2', '3', '4', '5']
-  option_labels: ['None', 'RxA1', 'RxA2', 'RxB1', 'RxB2', 'RxC1', 'RxD1']
-  default: 100
-
-- id: handle3
-  label: Handle Id3
-  dtype: enum
-  options: ['100', '0', '1', '2', '3', '4', '5']
-  option_labels: ['None', 'RxA1', 'RxA2', 'RxB1', 'RxB2', 'RxC1', 'RxD1']
-  default: 100
-
-- id: handle4
-  label: Handle Id4
-  dtype: enum
-  options: ['100', '0', '1', '2', '3', '4', '5']
-  option_labels: ['None', 'RxA1', 'RxA2', 'RxB1', 'RxB2', 'RxC1', 'RxD1']
-  default: 100
 - id: sample_rate
   label: Sample Rate
   dtype: real
@@ -67,10 +41,73 @@ parameters:
   dtype: real
   default: 18e6
 
-- id: frequency
+- id: num_handles
+  label: num handle
+  dtype: int
+  default: 1
+
+- id: handle1
+  label: handle id1
+  dtype: enum
+  options: ['0', '1', '2', '3', '4', '5', '6']
+  option_labels: ['RXA1', 'RXA2', 'RXB1', 'RXB2', 'RXC1', 'RXD1', "none"]
+  default: 0
+
+- id: frequency1
   label: Frequency
   dtype: real
   default: 1000e6
+
+- id: handle2
+  category: Other Handles
+  label: handle id2
+  dtype: enum
+  options: ['0', '1', '2', '3', '4', '5', '6']
+  option_labels: ['RXA1', 'RXA2', 'RXB1', 'RXB2', 'RXC1', 'RXD1', "none"]
+  default: 6
+  hide: ${ 'all' if int(num_handles < 2) else 'none' }
+
+- id: frequency2
+  category: Other Handles
+  label: Frequency
+  dtype: real
+  default: 1000e6
+  hide: ${ 'all' if int(num_handles < 2) else 'none' }
+
+
+- id: handle3
+  category: Other Handles
+  label: handle id3
+  dtype: enum
+  options: ['0', '1', '2', '3', '4', '5', '6']
+  option_labels: ['RXA1', 'RXA2', 'RXB1', 'RXB2', 'RXC1', 'RXD1', "none"]
+  default: 6
+  hide: ${ 'all' if int(num_handles < 3) else 'none' }
+
+- id: frequency3
+  category: Other Handles
+  label: Frequency
+  dtype: real
+  default: 1000e6
+  hide: ${ 'all' if int(num_handles < 3) else 'none' }
+
+
+- id: handle4
+  category: Other Handles
+  label: handle id4
+  dtype: enum
+  options: ['0', '1', '2', '3', '4', '5', '6']
+  option_labels: ['RXA1', 'RXA2', 'RXB1', 'RXB2', 'RXC1', 'RXD1', "none"]
+  default: 6
+  hide: ${ 'all' if int(num_handles < 4) else 'none' }
+
+- id: frequency4
+  category: Other Handles
+  label: Frequency
+  dtype: real
+  default: 1000e6
+  hide: ${ 'all' if int(num_handles < 4) else 'none' }
+
 
 - id: gain_mode
   label: Gain Mode
@@ -81,9 +118,9 @@ parameters:
 
 - id: gain_index
   label: Gain Index
-  hide: ${ ('all' if (gain_mode == '1') else 'part') }
   dtype: int
   default: 1
+  hide: ${ ('all' if (gain_mode == '1') else 'none') }
 
 - id: timestamp_tags
   label: Timestamp Tags 
@@ -91,6 +128,7 @@ parameters:
   options: ['0', '1']
   option_labels: ['Disabled', 'Enabled']
   default: 0
+  hide: ${ ('part' if (timestamp_tags == '0') else 'none') }
 
 - id: trigger_src
   label: Streaming Trigger
@@ -98,6 +136,7 @@ parameters:
   options: ['0', '1', '2']
   option_labels: ['Immediate', '1pps', 'Synced']
   default: 0
+  hide: ${ ('part' if (trigger_src == '0') else 'none') }
 
 - id: pps_source
   label: 1PPS Source
@@ -105,22 +144,28 @@ parameters:
   options: ['0', '1']
   option_labels: ['Host', 'External']
   default: 0
+  hide: ${ ('all' if (trigger_src == '0') else 'none') }
 
 - id: cal_mode
+  category: Calibration
   label: Calibration Mode
   dtype: enum
   options: ['0', '1', '2']
   option_labels: ['Auto', 'Manual', 'Off']
   default: 0
+  hide: ${ ('part' if (cal_mode == '0') else 'none') }
 
 - id: cal_type
+  category: Calibration
   label: Calibration Type
   dtype: enum
   options: ['0', '1', '2']
   option_labels: ['DC offset', 'Quadrature', 'Both']
+  hide: ${ ('all' if (cal_mode == '0') else 'part') }
   default: 0
 
 - id: run_cal
+  category: Calibration
   label: Run Cal 
   hide: ${ ('all' if (cal_mode == '0') else 'part') }
   dtype: int
@@ -150,7 +195,8 @@ outputs:
 - label: Samples
   domain: stream
   dtype: complex
-  multiplicity: ${ 1 + (handle2 != '100') + (handle3 != '100') + (handle4 != '100') }
+#  multiplicity: ${ 1 + (handle2 != '100') + (handle3 != '100') + (handle4 != '100') }
+  multiplicity: ${num_handles}
   optional: false
 
 #- label: ...

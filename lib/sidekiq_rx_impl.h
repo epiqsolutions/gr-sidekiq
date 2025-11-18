@@ -55,13 +55,12 @@ class sidekiq_rx_impl : public sidekiq_rx {
 public:
   sidekiq_rx_impl(
           int input_card,
-          int port1_handle,
-          int port2_handle,
-          int port3_handle,
-          int port4_handle,
+          int port1_handle, double frequency1,
+          int port2_handle, double frequency2,
+          int port3_handle, double frequency3,
+          int port4_handle, double frequency4,
           double sample_rate,
           double bandwidth,
-          double frequency,
           uint8_t gain_mode,
           int gain_index,
           int timestamp_tags,
@@ -124,6 +123,7 @@ private:
     bool rx_streaming{};
     bool cal_enabled{};
     uint32_t  num_ports{};
+    uint64_t freqs[skiq_rx_hdl_end];
     bool rx_second{};
     bool swap_in_software_ = false;   // Z4: if IQ order mode not supported, swap I/Q in software
 

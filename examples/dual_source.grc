@@ -295,17 +295,22 @@ blocks:
     bandwidth: bandwidth
     cal_mode: '1'
     cal_type: '2'
-    card: '2'
+    card: '0'
     comment: ''
     frequency: frequency
     gain_index: '1'
     gain_mode: '1'
     handle1: '0'
     handle2: '1'
+    handle3: '100'
+    handle4: '100'
     maxoutbuf: '0'
     minoutbuf: '0'
+    pps_source: '0'
     run_cal: run_rx_calibration
     sample_rate: sample_rate
+    timestamp_tags: '0'
+    trigger_src: '0'
   states:
     bus_sink: false
     bus_source: false
@@ -320,4 +325,4 @@ connections:
 
 metadata:
   file_format: 1
-  grc_version: 3.10.5.1
+  grc_version: v3.11.0.0git-605-g9b22fd38

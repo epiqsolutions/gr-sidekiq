@@ -37,7 +37,7 @@ blocks:
   id: variable_qtgui_range
   parameters:
     comment: ''
-    gui_hint: ''
+    gui_hint: 1,0,1,1
     label: ''
     min_len: '200'
     orient: QtCore.Qt.Horizontal
@@ -51,14 +51,14 @@ blocks:
     bus_sink: false
     bus_source: false
     bus_structure: null
-    coordinate: [576, 36.0]
+    coordinate: [856, 28.0]
     rotation: 0
     state: true
-- name: frequency
+- name: frequency1
   id: variable_qtgui_range
   parameters:
     comment: ''
-    gui_hint: ''
+    gui_hint: 3,0,1,1
     label: ''
     min_len: '200'
     orient: QtCore.Qt.Horizontal
@@ -67,19 +67,82 @@ blocks:
     step: 1e6
     stop: 6000e6
     value: 1000e6
-    widget: counter_slider
+    widget: slider
   states:
     bus_sink: false
     bus_source: false
     bus_structure: null
-    coordinate: [784, 36.0]
+    coordinate: [336, 28.0]
+    rotation: 0
+    state: true
+- name: frequency2
+  id: variable_qtgui_range
+  parameters:
+    comment: ''
+    gui_hint: 5,0,1,1
+    label: ''
+    min_len: '200'
+    orient: QtCore.Qt.Horizontal
+    rangeType: float
+    start: 250e6
+    step: 1e6
+    stop: 6000e6
+    value: 1000e6
+    widget: slider
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [480, 28.0]
+    rotation: 0
+    state: true
+- name: frequency3
+  id: variable_qtgui_range
+  parameters:
+    comment: ''
+    gui_hint: 7,0,1,1
+    label: ''
+    min_len: '200'
+    orient: QtCore.Qt.Horizontal
+    rangeType: float
+    start: 250e6
+    step: 1e6
+    stop: 6000e6
+    value: 2000e6
+    widget: slider
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [328, 172.0]
+    rotation: 0
+    state: true
+- name: frequency4
+  id: variable_qtgui_range
+  parameters:
+    comment: ''
+    gui_hint: 9,0,1,1
+    label: ''
+    min_len: '200'
+    orient: QtCore.Qt.Horizontal
+    rangeType: float
+    start: 250e6
+    step: 1e6
+    stop: 6000e6
+    value: 2000e6
+    widget: slider
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [488, 172.0]
     rotation: 0
     state: true
 - name: run_rx_calibration
   id: variable_qtgui_push_button
   parameters:
     comment: ''
-    gui_hint: ''
+    gui_hint: 2,0,1,1
     label: Run RX Calibration
     pressed: '1'
     released: '0'
@@ -89,7 +152,7 @@ blocks:
     bus_sink: false
     bus_source: false
     bus_structure: null
-    coordinate: [1008, 36.0]
+    coordinate: [992, 28.0]
     rotation: 0
     state: true
 - name: samp_rate
@@ -108,7 +171,7 @@ blocks:
   id: variable_qtgui_range
   parameters:
     comment: ''
-    gui_hint: ''
+    gui_hint: 0,0,1,1
     label: ''
     min_len: '200'
     orient: QtCore.Qt.Horizontal
@@ -122,7 +185,7 @@ blocks:
     bus_sink: false
     bus_source: false
     bus_structure: null
-    coordinate: [392, 36.0]
+    coordinate: [680, 28.0]
     rotation: 0
     state: true
 - name: qtgui_freq_sink_x_0
@@ -156,11 +219,11 @@ blocks:
     color9: '"dark green"'
     comment: ''
     ctrlpanel: 'False'
-    fc: frequency
+    fc: frequency1
     fftsize: '1024'
     freqhalf: 'True'
     grid: 'False'
-    gui_hint: ''
+    gui_hint: 4,0,1,1
     label: Relative Gain
     label1: ''
     label10: ''''''
@@ -175,7 +238,7 @@ blocks:
     legend: 'True'
     maxoutbuf: '0'
     minoutbuf: '0'
-    name: '"Channel 0"'
+    name: '"Channel 1"'
     nconnections: '1'
     norm_window: 'False'
     showports: 'False'
@@ -222,7 +285,7 @@ blocks:
     alpha8: '1.0'
     alpha9: '1.0'
     autoscale: 'False'
-    average: '1.0'
+    average: '0.05'
     axislabels: 'True'
     bw: sample_rate
     color1: '"blue"'
@@ -237,11 +300,11 @@ blocks:
     color9: '"dark green"'
     comment: ''
     ctrlpanel: 'False'
-    fc: frequency
+    fc: frequency2
     fftsize: '1024'
     freqhalf: 'True'
     grid: 'False'
-    gui_hint: ''
+    gui_hint: 6,0,1,1
     label: Relative Gain
     label1: ''
     label10: ''''''
@@ -256,7 +319,7 @@ blocks:
     legend: 'True'
     maxoutbuf: '0'
     minoutbuf: '0'
-    name: '"Channel 1"'
+    name: '"Channel 2"'
     nconnections: '1'
     norm_window: 'False'
     showports: 'False'
@@ -318,11 +381,11 @@ blocks:
     color9: '"dark green"'
     comment: ''
     ctrlpanel: 'False'
-    fc: frequency
+    fc: frequency3
     fftsize: '1024'
     freqhalf: 'True'
     grid: 'False'
-    gui_hint: ''
+    gui_hint: 8,0,1,1
     label: Relative Gain
     label1: ''
     label10: ''''''
@@ -337,7 +400,7 @@ blocks:
     legend: 'True'
     maxoutbuf: '0'
     minoutbuf: '0'
-    name: '"Channel 2"'
+    name: '"Channel 3"'
     nconnections: '1'
     norm_window: 'False'
     showports: 'False'
@@ -399,11 +462,11 @@ blocks:
     color9: '"dark green"'
     comment: ''
     ctrlpanel: 'False'
-    fc: frequency
+    fc: frequency4
     fftsize: '1024'
     freqhalf: 'True'
     grid: 'False'
-    gui_hint: ''
+    gui_hint: 10,0,1,1
     label: Relative Gain
     label1: ''
     label10: ''''''
@@ -418,7 +481,7 @@ blocks:
     legend: 'True'
     maxoutbuf: '0'
     minoutbuf: '0'
-    name: '"Channel 3"'
+    name: '"Channel 4"'
     nconnections: '1'
     norm_window: 'False'
     showports: 'False'
@@ -455,12 +518,15 @@ blocks:
     affinity: ''
     alias: ''
     bandwidth: bandwidth
-    cal_mode: '1'
-    cal_type: '2'
+    cal_mode: '0'
+    cal_type: '0'
     card: '0'
     comment: ''
-    frequency: frequency
-    gain_index: '1'
+    frequency1: frequency1
+    frequency2: frequency2
+    frequency3: frequency3
+    frequency4: frequency4
+    gain_index: '200'
     gain_mode: '1'
     handle1: '0'
     handle2: '1'
@@ -468,8 +534,9 @@ blocks:
     handle4: '3'
     maxoutbuf: '0'
     minoutbuf: '0'
+    num_handles: '4'
     pps_source: '0'
-    run_cal: run_rx_calibration
+    run_cal: '0'
     sample_rate: sample_rate
     timestamp_tags: '0'
     trigger_src: '0'
@@ -477,9 +544,9 @@ blocks:
     bus_sink: false
     bus_source: false
     bus_structure: null
-    coordinate: [152, 204.0]
+    coordinate: [384, 368.0]
     rotation: 0
-    state: true
+    state: enabled
 
 connections:
 - [sidekiq_sidekiq_rx_0, '0', qtgui_freq_sink_x_0, '0']
