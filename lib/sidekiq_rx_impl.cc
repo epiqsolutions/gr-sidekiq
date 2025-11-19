@@ -230,13 +230,13 @@ sidekiq_rx_impl::sidekiq_rx_impl(
     d_logger->info("Info: ADC scaling {}", adc_scaling);
 
 
-    int mode = 0;
+    // int mode = 0;
     /* if A2 or B2 is used, we need to set the channel mode to dual */
     for (uint32_t i = 0; i < this->num_ports; i++)
     {
         if (this->handles[i] == skiq_rx_hdl_A2 || this->handles[i] == skiq_rx_hdl_B2)
         {
-            mode = 2;
+            // mode = 2;
             break;
         }
     }
@@ -374,6 +374,26 @@ void sidekiq_rx_impl::handle_control_message(pmt_t msg)
         set_rx_frequency(get_double_from_pmt_dict(msg, LO_FREQ_KEY));
     }
 
+    if (pmt::dict_has_key(msg, LO_FREQ_A1_KEY)) 
+    {
+        set_rx_frequency_for_hdl(0, get_double_from_pmt_dict(msg, LO_FREQ_A1_KEY));
+    }
+
+    if (pmt::dict_has_key(msg, LO_FREQ_A2_KEY)) 
+    {
+        set_rx_frequency_for_hdl(1, get_double_from_pmt_dict(msg, LO_FREQ_A2_KEY));
+    }
+
+    if (pmt::dict_has_key(msg, LO_FREQ_B1_KEY)) 
+    {
+        set_rx_frequency_for_hdl(2, get_double_from_pmt_dict(msg, LO_FREQ_B1_KEY));
+    }
+
+    if (pmt::dict_has_key(msg, LO_FREQ_B2_KEY)) 
+    {
+        set_rx_frequency_for_hdl(3, get_double_from_pmt_dict(msg, LO_FREQ_B2_KEY));
+    }
+
     if (pmt::dict_has_key(msg, RATE_KEY)) 
     {
         set_rx_sample_rate(get_double_from_pmt_dict(msg, RATE_KEY));
@@ -477,22 +497,24 @@ void sidekiq_rx_impl::set_rx_sample_rate(double value)
 
     if (this->sample_rate != rate)
     {
-
-        for (uint32_t i = 0; i < this->num_ports; i++)
+        uint32_t sample_rates[this->num_ports];
+        uint32_t bandwidths[this->num_ports];
+        for (uint8_t i = 0; i < this->num_ports; i++)
         {
-            status = skiq_write_rx_sample_rate_and_bandwidth(card, this->handles[i], rate, bw); 
-            if (status != 0) 
-            {
-                d_logger->error( "Error: could not set sample_rate on hdl {}, status {}, {}", 
-                        i, status, strerror(abs(status)) );
-                throw std::runtime_error("Failure: set samplerate");
-            }
+            sample_rates[i] = rate;
+            bandwidths[i] = bw;
+        }
+        status = skiq_write_rx_sample_rate_and_bandwidth_multi(card, this->handles, this->num_ports, sample_rates, bandwidths);
+        if (status != 0) 
+        {
+            d_logger->error( "Error: could not set sample_rate, status {}, {}", 
+                    status, strerror(abs(status)) );
+            throw std::runtime_error("Failure: set samplerate");
         }
         d_logger->info("Info: sample_rate set to {}", rate);
 
     }
     this->sample_rate = rate;
-    this->bandwidth = bw;
 }
 
 /* 
@@ -511,19 +533,22 @@ void sidekiq_rx_impl::set_rx_bandwidth(double value)
 
     if (this->bandwidth != bw)
     {
-        for (uint32_t i = 0; i < this->num_ports; i++)
+        uint32_t sample_rates[this->num_ports];
+        uint32_t bandwidths[this->num_ports];
+        for (uint8_t i = 0; i < this->num_ports; i++)
         {
-            status = skiq_write_rx_sample_rate_and_bandwidth(card, this->handles[i], rate, bw); 
-            if (status != 0) 
-            {
-                d_logger->error( "Error: could not set bandwidth on hdl {}, status {}, {}", 
-                        i, status, strerror(abs(status)) );
-                throw std::runtime_error("Failure: set bandwidth");
-            }
+            sample_rates[i] = rate;
+            bandwidths[i] = bw;
+        }
+        status = skiq_write_rx_sample_rate_and_bandwidth_multi(card, this->handles, this->num_ports, sample_rates, bandwidths);
+        if (status != 0) 
+        {
+            d_logger->error( "Error: could not set bandwidth, status {}, {}", 
+                    status, strerror(abs(status)) );
+            throw std::runtime_error("Failure: set bandwidth");
         }
         d_logger->info("Info: bandwidth set to {}", bw);
     }
-    this->sample_rate = rate;
     this->bandwidth = bw;
 }
 
@@ -562,6 +587,34 @@ void sidekiq_rx_impl::set_rx_frequency(double value)
 
 
     this->frequency = freq;
+}
+
+/* 
+ * set the LO frequency for a specific Rx handle
+ * this may be called from the generated python code if the user changes the variable
+ *
+ * let libsidekiq determine if the value is valid
+ */
+void sidekiq_rx_impl::set_rx_frequency_for_hdl(int hdl, double value) 
+{
+    int status = 0;
+    d_logger->debug("in set_rx_frequency");
+
+    auto freq = static_cast<uint64_t>(value);
+    if (this->freqs[hdl] != freq)
+    {
+        status = skiq_write_rx_LO_freq(card, static_cast<skiq_rx_hdl_t>(hdl), freq);
+        if (status != 0) 
+        {
+            d_logger->error("Error: could not set frequency {} on hdl {}, status {}, {}", 
+                    freq, hdl, status, strerror(abs(status)) );
+            throw std::runtime_error("Failure: set frequency");
+            return;
+        }
+        this->freqs[hdl] = freq;
+    }
+    d_logger->info("Info: handle {} frequency set to {}", 
+            hdl, freq);
 }
 
 /* 

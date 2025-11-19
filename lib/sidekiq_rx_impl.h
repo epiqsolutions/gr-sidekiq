@@ -45,6 +45,14 @@ namespace sidekiq {
 
     static const pmt_t LO_FREQ_KEY{pmt::string_to_symbol("lo_freq")};
 
+    static const pmt_t LO_FREQ_A1_KEY{pmt::string_to_symbol("lo_freq_rxa1")};
+
+    static const pmt_t LO_FREQ_A2_KEY{pmt::string_to_symbol("lo_freq_rxa2")};
+    
+    static const pmt_t LO_FREQ_B1_KEY{pmt::string_to_symbol("lo_freq_rxb1")};
+    
+    static const pmt_t LO_FREQ_B2_KEY{pmt::string_to_symbol("lo_freq_rxb2")};
+
     static const pmt_t RATE_KEY{pmt::string_to_symbol("rate")};
 
     static const pmt_t BANDWIDTH_KEY{pmt::string_to_symbol("bandwidth")};
@@ -86,6 +94,8 @@ public:
    void set_rx_bandwidth(double value) override;
 
    void set_rx_frequency(double value) override;
+
+   void set_rx_frequency_for_hdl(int hdl, double value) override;
 
    void set_rx_gain_mode(double value) override;
 

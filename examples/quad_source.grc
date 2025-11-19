@@ -37,7 +37,7 @@ blocks:
   id: variable_qtgui_range
   parameters:
     comment: ''
-    gui_hint: 1,0,1,1
+    gui_hint: 1,0,1,2
     label: ''
     min_len: '200'
     orient: QtCore.Qt.Horizontal
@@ -45,8 +45,8 @@ blocks:
     start: 1e6
     step: 1e6
     stop: 250e6
-    value: sample_rate * .8
-    widget: counter_slider
+    value: 18e6
+    widget: counter
   states:
     bus_sink: false
     bus_source: false
@@ -59,15 +59,15 @@ blocks:
   parameters:
     comment: ''
     gui_hint: 3,0,1,1
-    label: ''
-    min_len: '200'
+    label: RxA1 Frequency
+    min_len: '50'
     orient: QtCore.Qt.Horizontal
     rangeType: float
-    start: 250e6
+    start: 30e6
     step: 1e6
     stop: 6000e6
-    value: 1000e6
-    widget: slider
+    value: 98e6
+    widget: eng
   states:
     bus_sink: false
     bus_source: false
@@ -79,16 +79,16 @@ blocks:
   id: variable_qtgui_range
   parameters:
     comment: ''
-    gui_hint: 5,0,1,1
-    label: ''
-    min_len: '200'
+    gui_hint: 3,1,1,1
+    label: RxA2 Frequency
+    min_len: '50'
     orient: QtCore.Qt.Horizontal
     rangeType: float
-    start: 250e6
+    start: 30e6
     step: 1e6
     stop: 6000e6
-    value: 1000e6
-    widget: slider
+    value: 750e6
+    widget: eng
   states:
     bus_sink: false
     bus_source: false
@@ -100,37 +100,37 @@ blocks:
   id: variable_qtgui_range
   parameters:
     comment: ''
-    gui_hint: 7,0,1,1
-    label: ''
-    min_len: '200'
+    gui_hint: 6,0,1,1
+    label: RxB1 Frequency
+    min_len: '50'
     orient: QtCore.Qt.Horizontal
     rangeType: float
-    start: 250e6
+    start: 30e6
     step: 1e6
     stop: 6000e6
-    value: 2000e6
-    widget: slider
+    value: 915e6
+    widget: eng
   states:
     bus_sink: false
     bus_source: false
     bus_structure: null
     coordinate: [328, 172.0]
     rotation: 0
-    state: true
+    state: enabled
 - name: frequency4
   id: variable_qtgui_range
   parameters:
     comment: ''
-    gui_hint: 9,0,1,1
-    label: ''
-    min_len: '200'
+    gui_hint: 6,1,1,1
+    label: RxB2 Frequency
+    min_len: '50'
     orient: QtCore.Qt.Horizontal
     rangeType: float
-    start: 250e6
+    start: 30e6
     step: 1e6
     stop: 6000e6
-    value: 2000e6
-    widget: slider
+    value: 2437e6
+    widget: eng
   states:
     bus_sink: false
     bus_source: false
@@ -138,40 +138,11 @@ blocks:
     coordinate: [488, 172.0]
     rotation: 0
     state: true
-- name: run_rx_calibration
-  id: variable_qtgui_push_button
-  parameters:
-    comment: ''
-    gui_hint: 2,0,1,1
-    label: Run RX Calibration
-    pressed: '1'
-    released: '0'
-    type: int
-    value: '0'
-  states:
-    bus_sink: false
-    bus_source: false
-    bus_structure: null
-    coordinate: [992, 28.0]
-    rotation: 0
-    state: true
-- name: samp_rate
-  id: variable
-  parameters:
-    comment: ''
-    value: '32000'
-  states:
-    bus_sink: false
-    bus_source: false
-    bus_structure: null
-    coordinate: [184, 12]
-    rotation: 0
-    state: enabled
 - name: sample_rate
   id: variable_qtgui_range
   parameters:
     comment: ''
-    gui_hint: 0,0,1,1
+    gui_hint: 0,0,1,2
     label: ''
     min_len: '200'
     orient: QtCore.Qt.Horizontal
@@ -179,8 +150,8 @@ blocks:
     start: 1e6
     step: 1e6
     stop: 250e6
-    value: 50e6
-    widget: counter_slider
+    value: 30.72e6
+    widget: counter
   states:
     bus_sink: false
     bus_source: false
@@ -222,7 +193,7 @@ blocks:
     fc: frequency1
     fftsize: '1024'
     freqhalf: 'True'
-    grid: 'False'
+    grid: 'True'
     gui_hint: 4,0,1,1
     label: Relative Gain
     label1: ''
@@ -235,10 +206,10 @@ blocks:
     label7: ''''''
     label8: ''''''
     label9: ''''''
-    legend: 'True'
+    legend: 'False'
     maxoutbuf: '0'
     minoutbuf: '0'
-    name: '"Channel 1"'
+    name: RxA1
     nconnections: '1'
     norm_window: 'False'
     showports: 'False'
@@ -248,7 +219,7 @@ blocks:
     tr_tag: '""'
     type: complex
     units: dB
-    update_time: '0.10'
+    update_time: '0.1'
     width1: '1'
     width10: '1'
     width2: '1'
@@ -266,7 +237,7 @@ blocks:
     bus_sink: false
     bus_source: false
     bus_structure: null
-    coordinate: [872, 236.0]
+    coordinate: [680, 292.0]
     rotation: 0
     state: true
 - name: qtgui_freq_sink_x_0_0
@@ -303,8 +274,8 @@ blocks:
     fc: frequency2
     fftsize: '1024'
     freqhalf: 'True'
-    grid: 'False'
-    gui_hint: 6,0,1,1
+    grid: 'True'
+    gui_hint: 4,1,1,1
     label: Relative Gain
     label1: ''
     label10: ''''''
@@ -316,10 +287,10 @@ blocks:
     label7: ''''''
     label8: ''''''
     label9: ''''''
-    legend: 'True'
+    legend: 'False'
     maxoutbuf: '0'
     minoutbuf: '0'
-    name: '"Channel 2"'
+    name: RxA2
     nconnections: '1'
     norm_window: 'False'
     showports: 'False'
@@ -329,7 +300,7 @@ blocks:
     tr_tag: '""'
     type: complex
     units: dB
-    update_time: '0.10'
+    update_time: '0.1'
     width1: '1'
     width10: '1'
     width2: '1'
@@ -347,7 +318,7 @@ blocks:
     bus_sink: false
     bus_source: false
     bus_structure: null
-    coordinate: [872, 340.0]
+    coordinate: [672, 396.0]
     rotation: 0
     state: true
 - name: qtgui_freq_sink_x_0_0_0
@@ -384,8 +355,8 @@ blocks:
     fc: frequency3
     fftsize: '1024'
     freqhalf: 'True'
-    grid: 'False'
-    gui_hint: 8,0,1,1
+    grid: 'True'
+    gui_hint: 7,0,1,1
     label: Relative Gain
     label1: ''
     label10: ''''''
@@ -397,10 +368,10 @@ blocks:
     label7: ''''''
     label8: ''''''
     label9: ''''''
-    legend: 'True'
+    legend: 'False'
     maxoutbuf: '0'
     minoutbuf: '0'
-    name: '"Channel 3"'
+    name: RxB1
     nconnections: '1'
     norm_window: 'False'
     showports: 'False'
@@ -410,7 +381,7 @@ blocks:
     tr_tag: '""'
     type: complex
     units: dB
-    update_time: '0.10'
+    update_time: '0.1'
     width1: '1'
     width10: '1'
     width2: '1'
@@ -428,7 +399,7 @@ blocks:
     bus_sink: false
     bus_source: false
     bus_structure: null
-    coordinate: [872, 460.0]
+    coordinate: [672, 500.0]
     rotation: 0
     state: true
 - name: qtgui_freq_sink_x_0_0_1
@@ -465,8 +436,8 @@ blocks:
     fc: frequency4
     fftsize: '1024'
     freqhalf: 'True'
-    grid: 'False'
-    gui_hint: 10,0,1,1
+    grid: 'True'
+    gui_hint: 7,1,1,1
     label: Relative Gain
     label1: ''
     label10: ''''''
@@ -478,10 +449,10 @@ blocks:
     label7: ''''''
     label8: ''''''
     label9: ''''''
-    legend: 'True'
+    legend: 'False'
     maxoutbuf: '0'
     minoutbuf: '0'
-    name: '"Channel 4"'
+    name: RxB2
     nconnections: '1'
     norm_window: 'False'
     showports: 'False'
@@ -491,7 +462,7 @@ blocks:
     tr_tag: '""'
     type: complex
     units: dB
-    update_time: '0.10'
+    update_time: '0.1'
     width1: '1'
     width10: '1'
     width2: '1'
@@ -509,9 +480,253 @@ blocks:
     bus_sink: false
     bus_source: false
     bus_structure: null
-    coordinate: [872, 572.0]
+    coordinate: [664, 604.0]
     rotation: 0
     state: true
+- name: qtgui_waterfall_sink_x_0
+  id: qtgui_waterfall_sink_x
+  parameters:
+    affinity: ''
+    alias: ''
+    alpha1: '1.0'
+    alpha10: '1.0'
+    alpha2: '1.0'
+    alpha3: '1.0'
+    alpha4: '1.0'
+    alpha5: '1.0'
+    alpha6: '1.0'
+    alpha7: '1.0'
+    alpha8: '1.0'
+    alpha9: '1.0'
+    axislabels: 'True'
+    bw: sample_rate
+    color1: '0'
+    color10: '0'
+    color2: '0'
+    color3: '0'
+    color4: '0'
+    color5: '0'
+    color6: '0'
+    color7: '0'
+    color8: '0'
+    color9: '0'
+    comment: ''
+    fc: frequency1
+    fftsize: '1024'
+    freqhalf: 'True'
+    grid: 'False'
+    gui_hint: 5,0,1,1
+    int_max: '10'
+    int_min: '-140'
+    label1: ''
+    label10: ''
+    label2: ''
+    label3: ''
+    label4: ''
+    label5: ''
+    label6: ''
+    label7: ''
+    label8: ''
+    label9: ''
+    legend: 'True'
+    maxoutbuf: '0'
+    minoutbuf: '0'
+    name: '""'
+    nconnections: '1'
+    showports: 'False'
+    type: complex
+    update_time: '0.10'
+    wintype: window.WIN_BLACKMAN_hARRIS
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [880, 300.0]
+    rotation: 0
+    state: enabled
+- name: qtgui_waterfall_sink_x_1
+  id: qtgui_waterfall_sink_x
+  parameters:
+    affinity: ''
+    alias: ''
+    alpha1: '1.0'
+    alpha10: '1.0'
+    alpha2: '1.0'
+    alpha3: '1.0'
+    alpha4: '1.0'
+    alpha5: '1.0'
+    alpha6: '1.0'
+    alpha7: '1.0'
+    alpha8: '1.0'
+    alpha9: '1.0'
+    axislabels: 'True'
+    bw: sample_rate
+    color1: '0'
+    color10: '0'
+    color2: '0'
+    color3: '0'
+    color4: '0'
+    color5: '0'
+    color6: '0'
+    color7: '0'
+    color8: '0'
+    color9: '0'
+    comment: ''
+    fc: frequency2
+    fftsize: '1024'
+    freqhalf: 'True'
+    grid: 'False'
+    gui_hint: 5,1,1,1
+    int_max: '10'
+    int_min: '-140'
+    label1: ''
+    label10: ''
+    label2: ''
+    label3: ''
+    label4: ''
+    label5: ''
+    label6: ''
+    label7: ''
+    label8: ''
+    label9: ''
+    legend: 'True'
+    maxoutbuf: '0'
+    minoutbuf: '0'
+    name: '""'
+    nconnections: '1'
+    showports: 'False'
+    type: complex
+    update_time: '0.10'
+    wintype: window.WIN_BLACKMAN_hARRIS
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [880, 404.0]
+    rotation: 0
+    state: enabled
+- name: qtgui_waterfall_sink_x_2
+  id: qtgui_waterfall_sink_x
+  parameters:
+    affinity: ''
+    alias: ''
+    alpha1: '1.0'
+    alpha10: '1.0'
+    alpha2: '1.0'
+    alpha3: '1.0'
+    alpha4: '1.0'
+    alpha5: '1.0'
+    alpha6: '1.0'
+    alpha7: '1.0'
+    alpha8: '1.0'
+    alpha9: '1.0'
+    axislabels: 'True'
+    bw: sample_rate
+    color1: '0'
+    color10: '0'
+    color2: '0'
+    color3: '0'
+    color4: '0'
+    color5: '0'
+    color6: '0'
+    color7: '0'
+    color8: '0'
+    color9: '0'
+    comment: ''
+    fc: frequency3
+    fftsize: '1024'
+    freqhalf: 'True'
+    grid: 'False'
+    gui_hint: 8,0,1,1
+    int_max: '10'
+    int_min: '-140'
+    label1: ''
+    label10: ''
+    label2: ''
+    label3: ''
+    label4: ''
+    label5: ''
+    label6: ''
+    label7: ''
+    label8: ''
+    label9: ''
+    legend: 'True'
+    maxoutbuf: '0'
+    minoutbuf: '0'
+    name: '""'
+    nconnections: '1'
+    showports: 'False'
+    type: complex
+    update_time: '0.10'
+    wintype: window.WIN_BLACKMAN_hARRIS
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [880, 508.0]
+    rotation: 0
+    state: enabled
+- name: qtgui_waterfall_sink_x_3
+  id: qtgui_waterfall_sink_x
+  parameters:
+    affinity: ''
+    alias: ''
+    alpha1: '1.0'
+    alpha10: '1.0'
+    alpha2: '1.0'
+    alpha3: '1.0'
+    alpha4: '1.0'
+    alpha5: '1.0'
+    alpha6: '1.0'
+    alpha7: '1.0'
+    alpha8: '1.0'
+    alpha9: '1.0'
+    axislabels: 'True'
+    bw: sample_rate
+    color1: '0'
+    color10: '0'
+    color2: '0'
+    color3: '0'
+    color4: '0'
+    color5: '0'
+    color6: '0'
+    color7: '0'
+    color8: '0'
+    color9: '0'
+    comment: ''
+    fc: frequency4
+    fftsize: '1024'
+    freqhalf: 'True'
+    grid: 'False'
+    gui_hint: 8,1,1,1
+    int_max: '10'
+    int_min: '-140'
+    label1: ''
+    label10: ''
+    label2: ''
+    label3: ''
+    label4: ''
+    label5: ''
+    label6: ''
+    label7: ''
+    label8: ''
+    label9: ''
+    legend: 'True'
+    maxoutbuf: '0'
+    minoutbuf: '0'
+    name: '""'
+    nconnections: '1'
+    showports: 'False'
+    type: complex
+    update_time: '0.10'
+    wintype: window.WIN_BLACKMAN_hARRIS
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [880, 612.0]
+    rotation: 0
+    state: enabled
 - name: sidekiq_sidekiq_rx_0
   id: sidekiq_sidekiq_rx
   parameters:
@@ -544,16 +759,20 @@ blocks:
     bus_sink: false
     bus_source: false
     bus_structure: null
-    coordinate: [384, 368.0]
+    coordinate: [312, 372.0]
     rotation: 0
     state: enabled
 
 connections:
 - [sidekiq_sidekiq_rx_0, '0', qtgui_freq_sink_x_0, '0']
+- [sidekiq_sidekiq_rx_0, '0', qtgui_waterfall_sink_x_0, '0']
 - [sidekiq_sidekiq_rx_0, '1', qtgui_freq_sink_x_0_0, '0']
+- [sidekiq_sidekiq_rx_0, '1', qtgui_waterfall_sink_x_1, '0']
 - [sidekiq_sidekiq_rx_0, '2', qtgui_freq_sink_x_0_0_0, '0']
+- [sidekiq_sidekiq_rx_0, '2', qtgui_waterfall_sink_x_2, '0']
 - [sidekiq_sidekiq_rx_0, '3', qtgui_freq_sink_x_0_0_1, '0']
+- [sidekiq_sidekiq_rx_0, '3', qtgui_waterfall_sink_x_3, '0']
 
 metadata:
   file_format: 1
-  grc_version: v3.11.0.0git-605-g9b22fd38
+  grc_version: 3.10.12.0

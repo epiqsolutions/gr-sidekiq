@@ -10,7 +10,10 @@ templates:
   callbacks:
   - set_rx_sample_rate(${sample_rate})
   - set_rx_bandwidth(${bandwidth})
-  - set_rx_frequency(${frequency1})
+  - set_rx_frequency_for_hdl(${handle1}, ${frequency1})
+  - set_rx_frequency_for_hdl(${handle2}, ${frequency2})
+  - set_rx_frequency_for_hdl(${handle3}, ${frequency3})
+  - set_rx_frequency_for_hdl(${handle4}, ${frequency4})
   - set_rx_gain_mode(${gain_mode})
   - set_rx_gain_index(${gain_index})
   - set_rx_cal_mode(${cal_mode})

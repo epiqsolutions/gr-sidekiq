@@ -44,6 +44,8 @@ public:
 
             virtual void set_rx_frequency(double value) = 0;
 
+            virtual void set_rx_frequency_for_hdl(int hdl, double value) = 0;
+
             virtual void set_rx_gain_mode(double value) = 0;
 
             virtual void set_rx_gain_index(int value) = 0;

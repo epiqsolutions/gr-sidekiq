@@ -14,7 +14,7 @@
 /* BINDTOOL_GEN_AUTOMATIC(0)                                                       */
 /* BINDTOOL_USE_PYGCCXML(0)                                                        */
 /* BINDTOOL_HEADER_FILE(sidekiq_rx.h)                                        */
-/* BINDTOOL_HEADER_FILE_HASH(b45dd666e6d478ce04a20af70a30315c)                     */
+/* BINDTOOL_HEADER_FILE_HASH(fae016f147819d18bb6a94e7104c129e)                     */
 /***********************************************************************************/
 
 #include <pybind11/complex.h>
@@ -80,6 +80,14 @@ void bind_sidekiq_rx(py::module& m)
         .def("set_rx_frequency",&sidekiq_rx::set_rx_frequency,       
             py::arg("value"),
             D(sidekiq_rx,set_rx_frequency)
+        )
+
+
+
+        .def("set_rx_frequency_for_hdl",&sidekiq_rx::set_rx_frequency_for_hdl,       
+            py::arg("hdl"),
+            py::arg("value"),
+            D(sidekiq_rx,set_rx_frequency_for_hdl)
         )
 
 
