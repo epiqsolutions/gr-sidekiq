@@ -85,7 +85,7 @@ public:
 
    void set_rx_bandwidth(double value) override;
 
-   void set_rx_frequency(double value) override;
+   void set_rx_frequency(double value1, double value2, double value3, double value4) override;
 
    void set_rx_gain_mode(double value) override;
 
@@ -108,7 +108,6 @@ private:
     skiq_rx_hdl_t handles[skiq_rx_hdl_end];
     uint32_t sample_rate{};
     uint32_t bandwidth{};
-    uint64_t frequency{};
     skiq_rx_gain_t gain_mode{};
     uint8_t gain_index{};
     bool timestamp_tags{};

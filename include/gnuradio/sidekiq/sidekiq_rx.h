@@ -42,7 +42,7 @@ public:
 
             virtual void set_rx_bandwidth(double value) = 0;
 
-            virtual void set_rx_frequency(double value) = 0;
+            virtual void set_rx_frequency(double value1, double value2, double value3, double value4) = 0;
 
             virtual void set_rx_gain_mode(double value) = 0;
 
