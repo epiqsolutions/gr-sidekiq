@@ -45,6 +45,14 @@ namespace sidekiq {
 
     static const pmt_t LO_FREQ_KEY{pmt::string_to_symbol("lo_freq")};
 
+    static const pmt_t LO_FREQ_A1_KEY{pmt::string_to_symbol("lo_freq_rxa1")};
+
+    static const pmt_t LO_FREQ_A2_KEY{pmt::string_to_symbol("lo_freq_rxa2")};
+    
+    static const pmt_t LO_FREQ_B1_KEY{pmt::string_to_symbol("lo_freq_rxb1")};
+    
+    static const pmt_t LO_FREQ_B2_KEY{pmt::string_to_symbol("lo_freq_rxb2")};
+
     static const pmt_t RATE_KEY{pmt::string_to_symbol("rate")};
 
     static const pmt_t BANDWIDTH_KEY{pmt::string_to_symbol("bandwidth")};
@@ -55,13 +63,12 @@ class sidekiq_rx_impl : public sidekiq_rx {
 public:
   sidekiq_rx_impl(
           int input_card,
-          int port1_handle,
-          int port2_handle,
-          int port3_handle,
-          int port4_handle,
+          int port1_handle, double frequency1,
+          int port2_handle, double frequency2,
+          int port3_handle, double frequency3,
+          int port4_handle, double frequency4,
           double sample_rate,
           double bandwidth,
-          double frequency,
           uint8_t gain_mode,
           int gain_index,
           int timestamp_tags,
@@ -87,6 +94,8 @@ public:
    void set_rx_bandwidth(double value) override;
 
    void set_rx_frequency(double value) override;
+
+   void set_rx_frequency_for_hdl(int hdl, double value) override;
 
    void set_rx_gain_mode(double value) override;
 
@@ -124,6 +133,7 @@ private:
     bool rx_streaming{};
     bool cal_enabled{};
     uint32_t  num_ports{};
+    uint64_t freqs[skiq_rx_hdl_end];
     bool rx_second{};
     bool swap_in_software_ = false;   // Z4: if IQ order mode not supported, swap I/Q in software
 

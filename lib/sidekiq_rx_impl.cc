@@ -25,13 +25,12 @@ namespace sidekiq {
 using output_type = float;
 sidekiq_rx::sptr sidekiq_rx::make(
         int input_card,
-        int port1_handle,
-        int port2_handle,
-        int port3_handle,
-        int port4_handle,
+        int port1_handle, double frequency1,
+        int port2_handle, double frequency2,
+        int port3_handle, double frequency3,
+        int port4_handle, double frequency4,
         double sample_rate,
         double bandwidth,
-        double frequency,
         uint8_t gain_mode,
         int gain_index,
         int timestamp_tags,
@@ -42,13 +41,12 @@ sidekiq_rx::sptr sidekiq_rx::make(
 {
   return gnuradio::make_block_sptr<sidekiq_rx_impl>(
           input_card,
-          port1_handle,
-          port2_handle,
-          port3_handle,
-          port4_handle,
+          port1_handle, frequency1,
+          port2_handle, frequency2,
+          port3_handle, frequency3,
+          port4_handle, frequency4,
           sample_rate,
           bandwidth,
-          frequency,
           gain_mode,
           gain_index,
           timestamp_tags,
@@ -60,13 +58,12 @@ sidekiq_rx::sptr sidekiq_rx::make(
 
 sidekiq_rx_impl::sidekiq_rx_impl(
         int input_card,
-        int port1_handle,
-        int port2_handle,
-        int port3_handle,
-        int port4_handle,
+        int port1_handle, double frequency1,
+        int port2_handle, double frequency2,
+        int port3_handle, double frequency3,
+        int port4_handle, double frequency4,
         double sample_rate,
         double bandwidth,
-        double frequency,
         uint8_t gain_mode,
         int gain_index,
         int timestamp_tags,
@@ -86,8 +83,6 @@ sidekiq_rx_impl::sidekiq_rx_impl(
     d_logger->get_level(str);
 
     printf("in constructor RX, debug level: %s\n", str.c_str());
-    d_logger->info("info leaving constructor RX, debug level: %s\n", str.c_str());
-    d_logger->debug("debug leaving constructor RX, debug level: %s\n", str.c_str());
 
     int status = 0;
     uint8_t iq_resolution = 0;
@@ -145,27 +140,34 @@ sidekiq_rx_impl::sidekiq_rx_impl(
     /* determine how many ports we have */
     if (port1_handle < skiq_rx_hdl_end)
     {
+        this->handles[this->num_ports] = (skiq_rx_hdl_t) port1_handle;
+        this->freqs[this->num_ports] = static_cast<uint64_t>(frequency1);
         this->num_ports++;
-        this->handles[0] = (skiq_rx_hdl_t) port1_handle;
     }
     if (port2_handle < skiq_rx_hdl_end)
     {
+        this->handles[this->num_ports] = (skiq_rx_hdl_t) port2_handle;
+        this->freqs[this->num_ports] = static_cast<uint64_t>(frequency2);
         this->num_ports++;
-        this->handles[1] = (skiq_rx_hdl_t) port2_handle;
     }
     if (port3_handle < skiq_rx_hdl_end)
     {
+        this->handles[this->num_ports] = (skiq_rx_hdl_t) port3_handle;
+        this->freqs[this->num_ports] = static_cast<uint64_t>(frequency3);
         this->num_ports++;
-        this->handles[2] = (skiq_rx_hdl_t) port3_handle;
     }
     if (port4_handle < skiq_rx_hdl_end)
     {
+        this->handles[this->num_ports] = (skiq_rx_hdl_t) port4_handle;
+        this->freqs[this->num_ports] = static_cast<uint64_t>(frequency4);
         this->num_ports++;
-        this->handles[3] = (skiq_rx_hdl_t) port4_handle;
     }
 
-    d_logger->debug("num_ports {}, port1_handle {}, port2 {}. port3 {}, port4 {}",
-            this->num_ports, port1_handle, port2_handle, port3_handle, port4_handle);
+    for (size_t i = 0; i < this->num_ports; i++)
+    {
+        d_logger->debug("port {} handle {}, frequency {}",
+            i, this->handles[i], this->freqs[i]);
+    }
 
     if (this->num_ports < 1)
     {
@@ -194,6 +196,7 @@ sidekiq_rx_impl::sidekiq_rx_impl(
         d_logger->info("Info: libsidkiq initialized successfully");
     }
 
+    this->bandwidth = bandwidth;
     set_rx_sample_rate(sample_rate);
     set_rx_bandwidth(bandwidth);
 
@@ -227,13 +230,13 @@ sidekiq_rx_impl::sidekiq_rx_impl(
     d_logger->info("Info: ADC scaling {}", adc_scaling);
 
 
-    int mode = 0;
+    // int mode = 0;
     /* if A2 or B2 is used, we need to set the channel mode to dual */
     for (uint32_t i = 0; i < this->num_ports; i++)
     {
         if (this->handles[i] == skiq_rx_hdl_A2 || this->handles[i] == skiq_rx_hdl_B2)
         {
-            mode = 2;
+            // mode = 2;
             break;
         }
     }
@@ -290,7 +293,7 @@ sidekiq_rx_impl::sidekiq_rx_impl(
     set_msg_handler(CONTROL_MESSAGE_PORT, [this](pmt::pmt_t msg) { this->handle_control_message(msg); });
 
     /* set the rest of the parameters */
-    set_rx_frequency(frequency);
+    set_rx_frequency(frequency1);
     set_rx_gain_mode(gain_mode);
 
     if (gain_mode == skiq_rx_gain_manual)
@@ -369,6 +372,26 @@ void sidekiq_rx_impl::handle_control_message(pmt_t msg)
     if (pmt::dict_has_key(msg, LO_FREQ_KEY)) 
     {
         set_rx_frequency(get_double_from_pmt_dict(msg, LO_FREQ_KEY));
+    }
+
+    if (pmt::dict_has_key(msg, LO_FREQ_A1_KEY)) 
+    {
+        set_rx_frequency_for_hdl(0, get_double_from_pmt_dict(msg, LO_FREQ_A1_KEY));
+    }
+
+    if (pmt::dict_has_key(msg, LO_FREQ_A2_KEY)) 
+    {
+        set_rx_frequency_for_hdl(1, get_double_from_pmt_dict(msg, LO_FREQ_A2_KEY));
+    }
+
+    if (pmt::dict_has_key(msg, LO_FREQ_B1_KEY)) 
+    {
+        set_rx_frequency_for_hdl(2, get_double_from_pmt_dict(msg, LO_FREQ_B1_KEY));
+    }
+
+    if (pmt::dict_has_key(msg, LO_FREQ_B2_KEY)) 
+    {
+        set_rx_frequency_for_hdl(3, get_double_from_pmt_dict(msg, LO_FREQ_B2_KEY));
     }
 
     if (pmt::dict_has_key(msg, RATE_KEY)) 
@@ -467,30 +490,31 @@ void sidekiq_rx_impl::set_rx_sample_rate(double value)
 {
 
     int status = 0;
-    d_logger->debug("in set_rx_sample_rate");
+    d_logger->debug("in set_rx_sample_rate, {}", value);
 
     auto rate = static_cast<uint32_t>(value);
     auto bw = static_cast<uint32_t>(this->bandwidth);
 
-    for (uint32_t i = 0; i < this->num_ports; i++)
+    if (this->sample_rate != rate)
     {
-        status = skiq_write_rx_sample_rate_and_bandwidth(card, this->handles[i], rate, bw); 
+        uint32_t sample_rates[this->num_ports];
+        uint32_t bandwidths[this->num_ports];
+        for (uint8_t i = 0; i < this->num_ports; i++)
+        {
+            sample_rates[i] = rate;
+            bandwidths[i] = bw;
+        }
+        status = skiq_write_rx_sample_rate_and_bandwidth_multi(card, this->handles, this->num_ports, sample_rates, bandwidths);
         if (status != 0) 
         {
-            /* Z4: A2/B2 may return -33 for RFIC-wide writes; log and continue */
-            if (status == -33) {
-                d_logger->warn( "Warning: set sample_rate on hdl {} returned -33 (A2/B2 not primary); continuing", i);
-                continue;
-            }
-            d_logger->error( "Error: could not set sample_rate on hdl {}, status {}, {}", 
-                    i, status, strerror(abs(status)) );
+            d_logger->error( "Error: could not set sample_rate, status {}, {}", 
+                    status, strerror(abs(status)) );
             throw std::runtime_error("Failure: set samplerate");
         }
-    }
-    d_logger->info("Info: sample_rate set to {}", rate);
+        d_logger->info("Info: sample_rate set to {}", rate);
 
+    }
     this->sample_rate = rate;
-    this->bandwidth = bw;
 }
 
 /* 
@@ -507,24 +531,24 @@ void sidekiq_rx_impl::set_rx_bandwidth(double value)
     auto rate = static_cast<uint32_t>(this->sample_rate);
     auto bw = static_cast<uint32_t>(value);
 
-    for (uint32_t i = 0; i < this->num_ports; i++)
+    if (this->bandwidth != bw)
     {
-        status = skiq_write_rx_sample_rate_and_bandwidth(card, this->handles[i], rate, bw); 
+        uint32_t sample_rates[this->num_ports];
+        uint32_t bandwidths[this->num_ports];
+        for (uint8_t i = 0; i < this->num_ports; i++)
+        {
+            sample_rates[i] = rate;
+            bandwidths[i] = bw;
+        }
+        status = skiq_write_rx_sample_rate_and_bandwidth_multi(card, this->handles, this->num_ports, sample_rates, bandwidths);
         if (status != 0) 
         {
-            /* Z4: A2/B2 may return -33 for RFIC-wide writes; log and continue */
-            if (status == -33) {
-                d_logger->warn( "Warning: set bandwidth on hdl {} returned -33 (A2/B2 not primary); continuing", i);
-                continue;
-            }
-            d_logger->error( "Error: could not set bandwidth on hdl {}, status {}, {}", 
-                    i, status, strerror(abs(status)) );
+            d_logger->error( "Error: could not set bandwidth, status {}, {}", 
+                    status, strerror(abs(status)) );
             throw std::runtime_error("Failure: set bandwidth");
         }
+        d_logger->info("Info: bandwidth set to {}", bw);
     }
-    d_logger->info("Info: bandwidth set to {}", bw);
-
-    this->sample_rate = rate;
     this->bandwidth = bw;
 }
 
@@ -543,7 +567,7 @@ void sidekiq_rx_impl::set_rx_frequency(double value)
 
     for (uint32_t i = 0; i < this->num_ports; i++)
     {
-        status = skiq_write_rx_LO_freq(card, this->handles[i], freq);
+        status = skiq_write_rx_LO_freq(card, this->handles[i], this->freqs[i]);
         if (status != 0) 
         {
             /* Z4: A2/B2 may return -33 (EDOM) for LO write; log and continue */
@@ -557,11 +581,40 @@ void sidekiq_rx_impl::set_rx_frequency(double value)
             throw std::runtime_error("Failure: set frequency");
             return;
         }
+        d_logger->info("Info: handle {} frequency set to {}", 
+                this->handles[i], this->freqs[i]);
     }
 
-    d_logger->info("Info: frequency set to {}", freq);
 
     this->frequency = freq;
+}
+
+/* 
+ * set the LO frequency for a specific Rx handle
+ * this may be called from the generated python code if the user changes the variable
+ *
+ * let libsidekiq determine if the value is valid
+ */
+void sidekiq_rx_impl::set_rx_frequency_for_hdl(int hdl, double value) 
+{
+    int status = 0;
+    d_logger->debug("in set_rx_frequency");
+
+    auto freq = static_cast<uint64_t>(value);
+    if (this->freqs[hdl] != freq)
+    {
+        status = skiq_write_rx_LO_freq(card, static_cast<skiq_rx_hdl_t>(hdl), freq);
+        if (status != 0) 
+        {
+            d_logger->error("Error: could not set frequency {} on hdl {}, status {}, {}", 
+                    freq, hdl, status, strerror(abs(status)) );
+            throw std::runtime_error("Failure: set frequency");
+            return;
+        }
+        this->freqs[hdl] = freq;
+    }
+    d_logger->info("Info: handle {} frequency set to {}", 
+            hdl, freq);
 }
 
 /* 
@@ -977,8 +1030,8 @@ int sidekiq_rx_impl::work(int noutput_items,
         d_logger->debug("delta time {}, noutput_items {}, nitems_written {}, last_update {} update_rate {}, work calls {}",
                ms.count(), noutput_items, nitems_written(0), last_status_update_sample, status_update_rate_in_samples, debug_ctr );
 #else
-        d_logger->debug("noutput_items {}, nitems_written {}, last_update {}",
-               noutput_items, nitems_written(0), last_status_update_sample);
+//        d_logger->debug("noutput_items {}, nitems_written {}, last_update {}",
+//               noutput_items, nitems_written(0), last_status_update_sample);
 #endif
 
         last_status_update_sample = nitems_written(0);

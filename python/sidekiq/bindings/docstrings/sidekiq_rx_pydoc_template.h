@@ -37,6 +37,9 @@
  static const char *__doc_gr_sidekiq_sidekiq_rx_set_rx_frequency = R"doc()doc";
 
 
+ static const char *__doc_gr_sidekiq_sidekiq_rx_set_rx_frequency_for_hdl = R"doc()doc";
+
+
  static const char *__doc_gr_sidekiq_sidekiq_rx_set_rx_gain_mode = R"doc()doc";
 
 
