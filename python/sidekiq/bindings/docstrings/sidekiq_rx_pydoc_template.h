@@ -1,5 +1,5 @@
 /*
- * Copyright 2023 Free Software Foundation, Inc.
+ * Copyright 2025 Free Software Foundation, Inc.
  *
  * This file is part of GNU Radio
  *
@@ -35,6 +35,9 @@
 
 
  static const char *__doc_gr_sidekiq_sidekiq_rx_set_rx_frequency = R"doc()doc";
+
+
+ static const char *__doc_gr_sidekiq_sidekiq_rx_set_rx_frequency_for_hdl = R"doc()doc";
 
 
  static const char *__doc_gr_sidekiq_sidekiq_rx_set_rx_gain_mode = R"doc()doc";

@@ -39,3 +39,6 @@ add_custom_target(
   COMMAND ${CMAKE_COMMAND} -E copy_directory ${CMAKE_CURRENT_SOURCE_DIR}
           ${CMAKE_BINARY_DIR}/test_modules/gnuradio/sidekiq/
 )
+
+# --- Minimal addition: ensure bindings .so is built before copying for tests
+add_dependencies(copy_module_for_tests sidekiq_python)

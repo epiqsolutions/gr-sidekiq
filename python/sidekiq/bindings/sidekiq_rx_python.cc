@@ -1,5 +1,5 @@
 /*
- * Copyright 2023 Free Software Foundation, Inc.
+ * Copyright 2025 Free Software Foundation, Inc.
  *
  * This file is part of GNU Radio
  *
@@ -14,7 +14,7 @@
 /* BINDTOOL_GEN_AUTOMATIC(0)                                                       */
 /* BINDTOOL_USE_PYGCCXML(0)                                                        */
 /* BINDTOOL_HEADER_FILE(sidekiq_rx.h)                                        */
-/* BINDTOOL_HEADER_FILE_HASH(c82ab397b04e68a633a84776a624894e)                     */
+/* BINDTOOL_HEADER_FILE_HASH(fae016f147819d18bb6a94e7104c129e)                     */
 /***********************************************************************************/
 
 #include <pybind11/complex.h>
@@ -39,10 +39,15 @@ void bind_sidekiq_rx(py::module& m)
         .def(py::init(&sidekiq_rx::make),
            py::arg("input_card"),
            py::arg("port1_handle"),
+           py::arg("frequency1"),
            py::arg("port2_handle"),
+           py::arg("frequency2"),
+           py::arg("port3_handle"),
+           py::arg("frequency3"),
+           py::arg("port4_handle"),
+           py::arg("frequency4"),
            py::arg("sample_rate"),
            py::arg("bandwidth"),
-           py::arg("frequency"),
            py::arg("gain_mode"),
            py::arg("gain_index"),
            py::arg("timestamp_tags"),
@@ -75,6 +80,14 @@ void bind_sidekiq_rx(py::module& m)
         .def("set_rx_frequency",&sidekiq_rx::set_rx_frequency,       
             py::arg("value"),
             D(sidekiq_rx,set_rx_frequency)
+        )
+
+
+
+        .def("set_rx_frequency_for_hdl",&sidekiq_rx::set_rx_frequency_for_hdl,       
+            py::arg("hdl"),
+            py::arg("value"),
+            D(sidekiq_rx,set_rx_frequency_for_hdl)
         )
 
 
