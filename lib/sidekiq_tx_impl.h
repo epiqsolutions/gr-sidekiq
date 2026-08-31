@@ -44,7 +44,8 @@ class sidekiq_tx_impl : public sidekiq_tx
 {
 public:
     sidekiq_tx_impl(
-                    int card, 
+                    int card,
+                    int topology,
                     int handle,
                     double sample_rate,
                     double bandwidth,
@@ -110,6 +111,9 @@ private:
     bool libsidekiq_init{};
     bool tx_streaming{};
     bool tx_second{};
+
+    /* config */
+    skiq_part_t card_part{};
 
     /* sync/async parameters */
     bool in_async_mode{};

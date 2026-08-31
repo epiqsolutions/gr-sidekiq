@@ -96,7 +96,7 @@ blocks:
     coordinate: [704, 60.0]
     rotation: 0
     state: true
-- name: min_output_buffer
+- name: min_outbuf
   id: variable
   parameters:
     comment: ''
@@ -176,7 +176,7 @@ blocks:
     comment: ''
     freq: tone_freq
     maxoutbuf: '0'
-    minoutbuf: min_output_buffer
+    minoutbuf: min_outbuf
     offset: '0'
     phase: '0'
     samp_rate: sample_rate
@@ -196,7 +196,7 @@ blocks:
     alias: ''
     comment: ''
     maxoutbuf: '0'
-    minoutbuf: min_output_buffer
+    minoutbuf: min_outbuf
     num_inputs: '2'
     type: complex
     vlen: '1'

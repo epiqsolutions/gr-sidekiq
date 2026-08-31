@@ -10,6 +10,7 @@
 #include <boost/foreach.hpp>
 #include <pthread.h>
 
+#include "sidekiq_handle_utils.h"
 #include "sidekiq_tx_impl.h"
 
 
@@ -77,9 +78,35 @@ sidekiq_tx::sptr sidekiq_tx::make(int card,
                                   int buffer_size,
                                   int cal_mode)
 {
+    return sidekiq_tx::make(card,
+                            0,
+                            handle,
+                            sample_rate,
+                            bandwidth,
+                            frequency,
+                            attenuation,
+                            burst_tag,
+                            threads,
+                            buffer_size,
+                            cal_mode);
+}
+
+sidekiq_tx::sptr sidekiq_tx::make(int card,
+                                  int topology,
+                                  int handle,
+                                  double sample_rate,
+                                  double bandwidth,
+                                  double frequency,
+                                  double attenuation,
+                                  std::string burst_tag,
+                                  int threads,
+                                  int buffer_size,
+                                  int cal_mode)
+{
     /* then make instantiates the tx_block */
     return gnuradio::make_block_sptr<sidekiq_tx_impl>(
-                                  card, 
+                                  card,
+                                  topology,
                                   handle,
                                   sample_rate,
                                   bandwidth,
@@ -91,11 +118,61 @@ sidekiq_tx::sptr sidekiq_tx::make(int card,
                                   cal_mode);
 }
 
+sidekiq_tx::sptr sidekiq_tx::make(int card,
+                                  const std::string& handle,
+                                  double sample_rate,
+                                  double bandwidth,
+                                  double frequency,
+                                  double attenuation,
+                                  std::string burst_tag,
+                                  int threads,
+                                  int buffer_size,
+                                  int cal_mode)
+{
+    return sidekiq_tx::make(card,
+                            0,
+                            handle,
+                            sample_rate,
+                            bandwidth,
+                            frequency,
+                            attenuation,
+                            burst_tag,
+                            threads,
+                            buffer_size,
+                            cal_mode);
+}
+
+sidekiq_tx::sptr sidekiq_tx::make(int card,
+                                  int topology,
+                                  const std::string& handle,
+                                  double sample_rate,
+                                  double bandwidth,
+                                  double frequency,
+                                  double attenuation,
+                                  std::string burst_tag,
+                                  int threads,
+                                  int buffer_size,
+                                  int cal_mode)
+{
+    return sidekiq_tx::make(card,
+                            topology,
+                            static_cast<int>(parse_tx_handle(handle)),
+                            sample_rate,
+                            bandwidth,
+                            frequency,
+                            attenuation,
+                            burst_tag,
+                            threads,
+                            buffer_size,
+                            cal_mode);
+}
+
 
 /* constructor 
  * Initialize the card
  */
 sidekiq_tx_impl::sidekiq_tx_impl( int input_card,
+                                  int topology,
                                   int handle,
                                   double sample_rate,
                                   double bandwidth,
@@ -117,6 +194,7 @@ sidekiq_tx_impl::sidekiq_tx_impl( int input_card,
     printf("in TX constructor, debug level:%s\n", str.c_str());
     
     int status = 0;
+    skiq_param_t param;
     uint8_t iq_resolution = 0;
     status_update_rate_in_samples = static_cast<size_t >(sample_rate * STATUS_UPDATE_RATE_SECONDS);
 
@@ -124,7 +202,6 @@ sidekiq_tx_impl::sidekiq_tx_impl( int input_card,
     hdl = (skiq_tx_hdl_t)handle;
     curr_block = 0;
     tx_buffer_size = buffer_size;
-    temp_buffer.resize(tx_buffer_size);
     num_blocks = NUM_BLOCKS;
 
     burst_tag_name = burst_tag;
@@ -160,6 +237,34 @@ sidekiq_tx_impl::sidekiq_tx_impl( int input_card,
 
     }
 
+    status = skiq_read_parameters(card, &param);
+    if (status != 0)
+    {
+        d_logger->error( "Error: unable to read card parameters with status {}", status);
+        throw std::runtime_error("Failure: skiq_read_parameters");
+    }
+    card_part = param.card_param.part_type;
+
+    /* set topology if it has changed from default (0) */
+    if (topology != 0)
+    {
+        if (skiq_is_topology_supported(card))
+        {
+            status = skiq_apply_topology(card, topology);
+            if (status != 0)
+            {
+                d_logger->error( "Error: unable to configure topology %d with status {}",
+                                 topology, status);
+                throw std::runtime_error("Failure: skiq_apply_topology");
+            }
+            d_logger->info("Info: Set topology to {}\n", topology);
+        }
+        else
+        {
+            d_logger->info("Info: Topology is not supported. Ignoring requested topology\n");
+        }
+    }
+
     if (tx_second == false)
     {
         set_tx_sample_rate(sample_rate);
@@ -183,34 +288,47 @@ sidekiq_tx_impl::sidekiq_tx_impl( int input_card,
         throw std::runtime_error("Failure: skiq_write_tx_flow_mode");
     }
 
-    /* if A2 or B2 is used, we need to set the channel mode to dual */
-    if (hdl == skiq_tx_hdl_A2 || hdl == skiq_tx_hdl_B2) 
+    if ( !skiq_is_topology_supported(card) ||
+         card_part == skiq_nv100 || card_part == skiq_nvm2)
     {
-        status = skiq_write_chan_mode(card, skiq_chan_mode_dual);
-        if (status != 0) 
+        /* if A2 or B2 is used, we need to set the channel mode to dual */
+        if (hdl == skiq_tx_hdl_A2 || hdl == skiq_tx_hdl_B2)
         {
-            d_logger->error( "Error: unable to configure TX channel mode with status {}", status);
-            throw std::runtime_error("Failure: skiq_write_chan_mode");
+            status = skiq_write_chan_mode(card, skiq_chan_mode_dual);
+            if (status != 0)
+            {
+                d_logger->error( "Error: unable to configure TX channel mode with status {}", status);
+                throw std::runtime_error("Failure: skiq_write_chan_mode");
+            }
+
+	    /*
+	     * Buffer size was assumed to be single channel (2^n - 4).
+	     * For dual channel, only half the header size (4) applies to each channel
+	     */
+            tx_buffer_size += 2;
         }
-    } 
-    else {
-        status = skiq_write_chan_mode(card, skiq_chan_mode_single);
-        if (status != 0) 
-        {
-            d_logger->error( "Error: unable to configure TX channel mode with status {}", status);
-            throw std::runtime_error("Failure: skiq_write_chan_mode");
+        else {
+            status = skiq_write_chan_mode(card, skiq_chan_mode_single);
+            if (status != 0)
+            {
+                d_logger->error( "Error: unable to configure TX channel mode with status {}", status);
+                throw std::runtime_error("Failure: skiq_write_chan_mode");
+            }
         }
     }
 
     /* write the block size to the passed in amount */
     status = skiq_write_tx_block_size(card, hdl, tx_buffer_size);
-    if (status != 0) 
+    if (status != 0)
     {
         d_logger->error( "Error: unable to configure TX block size: {} with status {}", 
                 tx_buffer_size, status);
         throw std::runtime_error("Failure: skiq_write_tx_block_size");
     }
     d_logger->info("Info: TX block size {}", tx_buffer_size);
+
+    /* Set conversion vector buffer size */
+    temp_buffer.resize(tx_buffer_size);
 
     /* handle sync vs async mode */
     if (threads > 1)
@@ -431,14 +549,55 @@ bool sidekiq_tx_impl::stop()
  */
 void sidekiq_tx_impl::set_tx_sample_rate(double value) 
 {
-
+    double actual_rate;
+    uint32_t requested_rate, requested_bw, actual_bw;
+    auto new_rate = static_cast<uint32_t>(value);
+    uint32_t new_bw = 0;
+    skiq_param_t params;
+    int param_idx = -1;
     int status = 0;
     d_logger->debug("in set_tx_sample_rate() ");
 
-    auto rate = static_cast<uint32_t>(value);
-    auto bw = static_cast<uint32_t>(this->bandwidth);
+    status = skiq_read_parameters(card, &params);
+    if (status != 0)
+    {
+        d_logger->error( "Error: could not read parameters, status {}, {}",
+                status, strerror(abs(status)) );
+        throw std::runtime_error("Failure: set samplerate");
+    }
 
-    status = skiq_write_tx_sample_rate_and_bandwidth(card, hdl, rate, bw); 
+    try
+    {
+        param_idx = find_tx_param_index(params, hdl);
+    }
+    catch (const std::exception& ex)
+    {
+        d_logger->error("Error: {}", ex.what());
+        throw std::runtime_error("Failure: set samplerate");
+    }
+
+    if ((new_rate < params.tx_param[param_idx].sample_rate_min) ||
+        (new_rate > params.tx_param[param_idx].sample_rate_max))
+    {
+        d_logger->error( "Error: Invalid sample rate requested: {}  Must be {} - {} Hz",
+                         new_rate, params.tx_param[param_idx].sample_rate_min,
+			 params.tx_param[param_idx].sample_rate_max);
+        throw std::runtime_error("Failure: set samplerate");
+    }
+
+    status = skiq_read_tx_sample_rate_and_bandwidth(card, hdl,
+		                                    &requested_rate, &actual_rate,
+						    &requested_bw, &actual_bw);
+    if (status != 0)
+    {
+        d_logger->error( "Error: could not read sr/bw on hdl, status {}, {}",
+                status, strerror(abs(status)) );
+        throw std::runtime_error("Failure: set samplerate");
+    }
+
+    new_bw = std::min(actual_bw, new_rate);
+
+    status = skiq_write_tx_sample_rate_and_bandwidth(card, hdl, new_rate, new_bw);
     if (status != 0) 
     {
         d_logger->error( "Error: could not set sample_rate, status {}, {}", 
@@ -446,10 +605,18 @@ void sidekiq_tx_impl::set_tx_sample_rate(double value)
         throw std::runtime_error("Failure: set samplerate");
     }
 
-    this->sample_rate = rate;
-    this->bandwidth = bw;
+    status = skiq_read_tx_sample_rate_and_bandwidth(card, hdl,
+		                                    &requested_rate, &actual_rate,
+						    &requested_bw, &actual_bw);
+    if (status != 0)
+    {
+        d_logger->error( "Error: could not read sr/bw on hdl, status {}, {}",
+                status, strerror(abs(status)) );
+        throw std::runtime_error("Failure: set samplerate");
+    }
 
-
+    this->sample_rate = static_cast<uint32_t>(actual_rate);
+    this->bandwidth = actual_bw;
 }
   
 /* set the bandwidth
@@ -458,23 +625,51 @@ void sidekiq_tx_impl::set_tx_sample_rate(double value)
 void sidekiq_tx_impl::set_tx_bandwidth(double value) 
 {
     int status = 0;
+    double actual_rate;
+    uint32_t requested_rate, requested_bw, actual_bw;
+    auto new_bw = static_cast<uint32_t>(value);
+
     d_logger->debug("in set_tx_bandwidth() ");
 
-    auto rate = static_cast<uint32_t>(this->sample_rate);
-    auto bw = static_cast<uint32_t>(value);
-
-    status = skiq_write_tx_sample_rate_and_bandwidth(card, hdl, rate, bw); 
-    if (status != 0) 
+    status = skiq_read_tx_sample_rate_and_bandwidth(card, hdl,
+		                                    &requested_rate, &actual_rate,
+						    &requested_bw, &actual_bw);
+    if (status != 0)
     {
-        d_logger->error("Error: could not set bandwidth {}, status {}, {}", 
-                bw, status, strerror(abs(status)) );
+        d_logger->error( "Error: could not read sr/bw on hdl, status {}, {}",
+                status, strerror(abs(status)) );
         throw std::runtime_error("Failure: set samplerate");
+    }
+
+    status = skiq_write_tx_sample_rate_and_bandwidth(card, hdl, static_cast<uint32_t>(actual_rate), new_bw);
+    if (status != 0)
+    {
+        d_logger->error("Error: could not set bandwidth {} on hdl, status {}, {}",
+                new_bw, status, strerror(abs(status)) );
+        throw std::runtime_error("Failure: set bandwidth");
         return;
     }
 
-    this->sample_rate = rate;
-    this->bandwidth = bw;
+    status = skiq_read_tx_sample_rate_and_bandwidth(card, hdl,
+		                                    &requested_rate, &actual_rate,
+						    &requested_bw, &actual_bw);
+    if (status != 0)
+    {
+        d_logger->error( "Error: could not read sr/bw on hdl, status {}, {}",
+                status, strerror(abs(status)) );
+        throw std::runtime_error("Failure: set samplerate");
+    }
+    if (new_bw == actual_bw)
+    {
+        d_logger->info("Info: bandwidth set to {}", actual_bw);
+    }
+    else
+    {
+        d_logger->info("Warning: Requested bandwidth {} but actually set to {}", new_bw, actual_bw);
+    }
 
+    this->sample_rate = static_cast<uint32_t>(actual_rate);
+    this->bandwidth = actual_bw;
 }
 
 /* set the LO frequency

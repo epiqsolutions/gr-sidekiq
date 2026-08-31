@@ -4,7 +4,7 @@ category: '[sidekiq]'
 
 templates:
   imports: from gnuradio import sidekiq
-  make: sidekiq.sidekiq_tx(${card}, ${handle}, ${sample_rate}, ${bandwidth}, ${frequency}, ${attenuation}, ${burst_tag}, ${threads}, ${buffer_size}, ${cal_mode})
+  make: sidekiq.sidekiq_tx(${card}, ${topology}, ${handle}, ${sample_rate}, ${bandwidth}, ${frequency}, ${attenuation}, ${burst_tag}, ${threads}, ${buffer_size}, ${cal_mode})
 
   callbacks:
   - set_tx_sample_rate(${sample_rate})
@@ -26,11 +26,16 @@ parameters:
   dtype: int
   default: 0 
 
+- id: topology
+  label: Topology
+  dtype: int
+  default: 0
+
 - id: handle
   label: Handle Id
   dtype: enum
-  options: ['0', '2',]
-  option_labels: ['TxA1', 'TxB1']
+  options: ['0', '1', '2', '3']
+  option_labels: ['TxA1', 'TxA2', 'TxB1', 'TxB2']
   default: 0
 
 - id: sample_rate
@@ -141,6 +146,8 @@ documentation: |-
 
     Parameters:
          Card: The card number of the Sidekiq card.
+
+         Topology: If card supports topologies, this topology will be activated.  Ignored on non-topology capable cards.
 
          Handle: The handle (port) to use.
 

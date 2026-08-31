@@ -81,7 +81,7 @@ class tag_print(gr.top_block, Qt.QWidget):
         self.sample_rate = sample_rate = 10e6
         self.tone_freq = tone_freq = 2e6
         self.run_tx_calibration = run_tx_calibration = 0
-        self.min_output_buffer = min_output_buffer = 32764 *2*2
+        self.min_outbuf = min_outbuf = 32764 *2*2
         self.frequency = frequency = 1000e6
         self.bandwidth = bandwidth = sample_rate * 0.8
         self.attenuation = attenuation = 125
@@ -159,7 +159,7 @@ class tag_print(gr.top_block, Qt.QWidget):
         self.blocks_throttle_0 = blocks.throttle(gr.sizeof_gr_complex*1, sample_rate,True)
         self.blocks_tags_strobe_0 = blocks.tags_strobe(gr.sizeof_gr_complex*1, pmt.to_pmt(5000000), (int(sample_rate * 4)), pmt.intern("test"))
         self.blocks_add_xx_0 = blocks.add_vcc(1)
-        self.blocks_add_xx_0.set_min_output_buffer(min_output_buffer)
+        self.blocks_add_xx_0.set_min_output_buffer(min_outbuf)
         self._bandwidth_range = Range(1000, 250e6, 1e6, sample_rate * 0.8, 200)
         self._bandwidth_win = RangeWidget(self._bandwidth_range, self.set_bandwidth, "'bandwidth'", "counter_slider", float, QtCore.Qt.Horizontal)
         self.top_layout.addWidget(self._bandwidth_win)
@@ -167,7 +167,7 @@ class tag_print(gr.top_block, Qt.QWidget):
         self._attenuation_win = RangeWidget(self._attenuation_range, self.set_attenuation, "'attenuation'", "counter_slider", float, QtCore.Qt.Horizontal)
         self.top_layout.addWidget(self._attenuation_win)
         self.analog_sig_source_x_0 = analog.sig_source_c(sample_rate, analog.GR_COS_WAVE, tone_freq, 1, 0, 0)
-        self.analog_sig_source_x_0.set_min_output_buffer(min_output_buffer)
+        self.analog_sig_source_x_0.set_min_output_buffer(min_outbuf)
 
 
         ##################################################
@@ -213,11 +213,11 @@ class tag_print(gr.top_block, Qt.QWidget):
     def set_run_tx_calibration(self, run_tx_calibration):
         self.run_tx_calibration = run_tx_calibration
 
-    def get_min_output_buffer(self):
-        return self.min_output_buffer
+    def get_min_outbuf(self):
+        return self.min_outbuf
 
-    def set_min_output_buffer(self, min_output_buffer):
-        self.min_output_buffer = min_output_buffer
+    def set_min_outbuf(self, min_outbuf):
+        self.min_outbuf = min_outbuf
 
     def get_frequency(self):
         return self.frequency

@@ -1,6 +1,6 @@
 options:
   parameters:
-    author: ''
+    author: sidekiq
     catch_exceptions: 'True'
     category: '[GRC Hier Blocks]'
     cmake_opt: ''
@@ -11,7 +11,7 @@ options:
     gen_linking: dynamic
     generate_options: qt_gui
     hier_block_src_path: '.:'
-    id: transceive2
+    id: default
     max_nouts: '0'
     output_language: python
     placement: (0,0)
@@ -22,7 +22,7 @@ options:
     run_options: prompt
     sizing_mode: fixed
     thread_safe_setters: ''
-    title: Transceive2
+    title: Not titled yet
     window_size: (1000,1000)
   states:
     bus_sink: false
@@ -33,75 +33,66 @@ options:
     state: enabled
 
 blocks:
-- name: card
+- name: amplitude
   id: variable
   parameters:
     comment: ''
-    value: '3'
+    value: '0.1'
   states:
     bus_sink: false
     bus_source: false
     bus_structure: null
-    coordinate: [848, 52.0]
-    rotation: 0
-    state: true
-- name: frequency
-  id: variable
-  parameters:
-    comment: ''
-    value: 1000e6
-  states:
-    bus_sink: false
-    bus_source: false
-    bus_structure: null
-    coordinate: [536, 72.0]
-    rotation: 0
-    state: true
-- name: min_outbuf
-  id: variable
-  parameters:
-    comment: ''
-    value: 32764 *2*2
-  states:
-    bus_sink: false
-    bus_source: false
-    bus_structure: null
-    coordinate: [136, 116.0]
-    rotation: 0
-    state: true
-- name: sample_rate
-  id: variable
-  parameters:
-    comment: ''
-    value: 50e6
-  states:
-    bus_sink: false
-    bus_source: false
-    bus_structure: null
-    coordinate: [384, 76.0]
+    coordinate: [472, 12.0]
     rotation: 0
     state: enabled
-- name: tone_freq
-  id: variable_qtgui_range
+- name: center_freq
+  id: variable
   parameters:
     comment: ''
-    gui_hint: ''
-    label: ''
-    min_len: '200'
-    orient: QtCore.Qt.Horizontal
-    rangeType: float
-    start: 1e6
-    step: 1e6
-    stop: 25e6
-    value: 2e6
-    widget: counter_slider
+    value: 915e6
   states:
     bus_sink: false
     bus_source: false
     bus_structure: null
-    coordinate: [680, 44.0]
+    coordinate: [560, 12.0]
     rotation: 0
-    state: true
+    state: enabled
+- name: chirp_span
+  id: variable
+  parameters:
+    comment: ''
+    value: 400e3
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [376, 12.0]
+    rotation: 0
+    state: enabled
+- name: samp_rate
+  id: variable
+  parameters:
+    comment: ''
+    value: 1e6
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [184, 12]
+    rotation: 0
+    state: enabled
+- name: sweep_rate
+  id: variable
+  parameters:
+    comment: ''
+    value: '0.2'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [280, 12.0]
+    rotation: 0
+    state: enabled
 - name: analog_sig_source_x_0
   id: analog_sig_source_x
   parameters:
@@ -109,19 +100,74 @@ blocks:
     alias: ''
     amp: '1'
     comment: ''
-    freq: tone_freq
+    freq: sweep_rate
     maxoutbuf: '0'
-    minoutbuf: min_outbuf
+    minoutbuf: '0'
     offset: '0'
     phase: '0'
-    samp_rate: sample_rate
-    type: complex
-    waveform: analog.GR_COS_WAVE
+    samp_rate: samp_rate
+    showports: 'False'
+    type: float
+    waveform: analog.GR_TRI_WAVE
   states:
     bus_sink: false
     bus_source: false
     bus_structure: null
-    coordinate: [640, 212.0]
+    coordinate: [80, 180.0]
+    rotation: 0
+    state: true
+- name: blocks_add_const_vxx_0
+  id: blocks_add_const_vxx
+  parameters:
+    affinity: ''
+    alias: ''
+    comment: ''
+    const: '-0.5'
+    maxoutbuf: '0'
+    minoutbuf: '0'
+    type: float
+    vlen: '1'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [312, 220.0]
+    rotation: 0
+    state: true
+- name: blocks_multiply_const_vxx_0
+  id: blocks_multiply_const_vxx
+  parameters:
+    affinity: ''
+    alias: ''
+    comment: ''
+    const: amplitude
+    maxoutbuf: '0'
+    minoutbuf: '0'
+    type: complex
+    vlen: '1'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [696, 220.0]
+    rotation: 0
+    state: true
+- name: blocks_vco_c_0
+  id: blocks_vco_c
+  parameters:
+    affinity: ''
+    alias: ''
+    amplitude: '1'
+    comment: ''
+    maxoutbuf: '0'
+    minoutbuf: '0'
+    samp_rate: samp_rate
+    sensitivity: 2*3.14159*(chirp_span/2)
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [496, 204.0]
     rotation: 0
     state: true
 - name: qtgui_freq_sink_x_0
@@ -142,7 +188,7 @@ blocks:
     autoscale: 'False'
     average: '1.0'
     axislabels: 'True'
-    bw: sample_rate
+    bw: samp_rate
     color1: '"blue"'
     color10: '"dark blue"'
     color2: '"red"'
@@ -155,7 +201,7 @@ blocks:
     color9: '"dark green"'
     comment: ''
     ctrlpanel: 'False'
-    fc: frequency
+    fc: '0'
     fftsize: '1024'
     freqhalf: 'True'
     grid: 'False'
@@ -202,7 +248,68 @@ blocks:
     bus_sink: false
     bus_source: false
     bus_structure: null
-    coordinate: [792, 436.0]
+    coordinate: [416, 388.0]
+    rotation: 0
+    state: true
+- name: qtgui_waterfall_sink_x_0
+  id: qtgui_waterfall_sink_x
+  parameters:
+    affinity: ''
+    alias: ''
+    alpha1: '1.0'
+    alpha10: '1.0'
+    alpha2: '1.0'
+    alpha3: '1.0'
+    alpha4: '1.0'
+    alpha5: '1.0'
+    alpha6: '1.0'
+    alpha7: '1.0'
+    alpha8: '1.0'
+    alpha9: '1.0'
+    axislabels: 'True'
+    bw: samp_rate
+    color1: '0'
+    color10: '0'
+    color2: '0'
+    color3: '0'
+    color4: '0'
+    color5: '0'
+    color6: '0'
+    color7: '0'
+    color8: '0'
+    color9: '0'
+    comment: ''
+    fc: '0'
+    fftsize: '1024'
+    freqhalf: 'True'
+    grid: 'False'
+    gui_hint: ''
+    int_max: '10'
+    int_min: '-140'
+    label1: ''
+    label10: ''
+    label2: ''
+    label3: ''
+    label4: ''
+    label5: ''
+    label6: ''
+    label7: ''
+    label8: ''
+    label9: ''
+    legend: 'True'
+    maxoutbuf: '0'
+    minoutbuf: '0'
+    name: '""'
+    nconnections: '1'
+    showports: 'False'
+    type: complex
+    update_time: '0.10'
+    wintype: window.WIN_BLACKMAN_hARRIS
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [416, 484.0]
     rotation: 0
     state: true
 - name: sidekiq_sidekiq_rx_0
@@ -210,25 +317,29 @@ blocks:
   parameters:
     affinity: ''
     alias: ''
-    bandwidth: sample_rate * .8
+    bandwidth: samp_rate
     cal_mode: '0'
     cal_type: '0'
-    card: card
+    card: '0'
     comment: ''
-    frequency: frequency
-    gain_index: '10'
-    gain_mode: '1'
-    handle1: '0'
+    frequency: center_freq
+    gain_index: '1'
+    gain_mode: '0'
+    handle1: '1'
     handle2: '100'
     maxoutbuf: '0'
     minoutbuf: '0'
+    pps_source: '0'
     run_cal: '0'
-    sample_rate: sample_rate
+    sample_rate: samp_rate
+    timestamp_tags: '0'
+    topology: '0'
+    trigger_src: '0'
   states:
     bus_sink: false
     bus_source: false
     bus_structure: null
-    coordinate: [344, 388.0]
+    coordinate: [88, 396.0]
     rotation: 0
     state: true
 - name: sidekiq_sidekiq_tx_0
@@ -236,30 +347,35 @@ blocks:
   parameters:
     affinity: ''
     alias: ''
-    attenuation: '100'
-    bandwidth: sample_rate * .8
-    buffer_size: '16380'
+    attenuation: '150'
+    bandwidth: samp_rate
+    buffer_size: '4092'
     burst_tag: ''
     cal_mode: '0'
-    card: card
+    card: '0'
     comment: ''
-    frequency: frequency
+    frequency: center_freq
     handle: '0'
     run_cal: '0'
-    sample_rate: sample_rate
-    threads: '4'
+    sample_rate: samp_rate
+    threads: '0'
+    topology: '0'
   states:
     bus_sink: false
     bus_source: false
     bus_structure: null
-    coordinate: [952, 156.0]
+    coordinate: [960, 124.0]
     rotation: 0
     state: true
 
 connections:
-- [analog_sig_source_x_0, '0', sidekiq_sidekiq_tx_0, '0']
+- [analog_sig_source_x_0, '0', blocks_add_const_vxx_0, '0']
+- [blocks_add_const_vxx_0, '0', blocks_vco_c_0, '0']
+- [blocks_multiply_const_vxx_0, '0', sidekiq_sidekiq_tx_0, '0']
+- [blocks_vco_c_0, '0', blocks_multiply_const_vxx_0, '0']
 - [sidekiq_sidekiq_rx_0, '0', qtgui_freq_sink_x_0, '0']
+- [sidekiq_sidekiq_rx_0, '0', qtgui_waterfall_sink_x_0, '0']
 
 metadata:
   file_format: 1
-  grc_version: v3.11.0.0git-375-ge2af6089
+  grc_version: 3.10.7.0

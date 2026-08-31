@@ -28,4 +28,5 @@ bursting.grc - Shows bursting transmit.  There is a message to stop and start th
 
 tx_message.grc - Shows rate and frequency messages being sent into the tx_block.
 
+tx_cli.py - CLI-only TX example. Uses command-line arguments instead of Qt widgets.
 

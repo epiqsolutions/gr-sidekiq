@@ -1,39 +1,53 @@
-release/V3.0
+# gr-sidekiq
 
-The SIDEKIQ OOT Module
-Basic implementation of source and sink blocks for Sidekiq radios
-- tags: sdr, sidekiq, skiq, epiq
-- copyright_owner: US Naval Research Lab, Epiq Solutions
-- repo: https://github.com/epiqsolutions/gr-sidekiq
-- website: https://epiqsolutions.com/ 
+GNU Radio out-of-tree module that provides Sidekiq source and sink blocks for
+Epiq Solutions radios.
 
----
-Provides receive and transmit functionality for Epiq Solution's Sidekiq radios via
-GNU radio.  Note: availability of libsidekiq is required for use.
+## Requirements
 
-This release requires GNURadio v3.10
+- GNU Radio 3.10 or newer
+- CMake 3.8 or newer
+- Sidekiq SDK v 4.26.0 or newer
 
----
-To Build and Install (from the gr-sidekiq directory)
-  1) Create a build directory
-      > mkdir build
-  2) Change to the build directory
-      > cd build
-  3) Run cmake 
-      > cmake ../
+The build locates the Sidekiq SDK in this order:
 
-        OR if you wish to install to a specific directory:
+1. `-DSIDEKIQ_SDK_DIR=/path/to/sdk`
+2. `SIDEKIQ_SDK_DIR=/path/to/sdk`
+3. `$HOME/sidekiq_sdk_current`
 
-      > cmake -DCMAKE_INSTALL_PREFIX=/my_install_directory ../
+If you are using the Python bindings or GNU Radio Companion blocks, build in an
+environment where the GNU Radio Python components are available.
 
-        OR to specify a custom sidekiq sdk location:
+## Setup
+Check the version of gnuradio available in your distro:
+```bash
+ apt-cache policy gnuradio
+```
 
-      > cmake -DSIDEKIQ_SDK_DIR=/opt/sidekiq_sdk_current ../
+If it's not 3.10 or later, then add a PPA to get the latest version:
+```bash
+sudo apt update && sudo apt install -y software-properties-common
+sudo add-apt-repository ppa:gnuradio/gnuradio-releases
+sudo apt update
+```
 
-  4) Build the code
-      > make
-  5) Install it
-      > sudo make install
-  6) Update dynamic linker for new library (Linux only)
-      > sudo ldconfig
-  7) Refer to examples of sink/source blocks located in examples
+Install build tools and gnuradio:
+```bash
+sudo apt install build-essential cmake gnuradio
+```
+
+## Build And Install
+
+From the repository root:
+
+```bash
+cmake -S . -B build
+cmake --build build
+sudo cmake --install build
+sudo ldconfig
+```
+
+## Examples
+
+The [`examples/`](examples/) directory contains basic receive, transmit, dual
+channel, timestamp, message-control, and burst-mode flowgraphs.

@@ -1,175 +1,97 @@
 # - Try to find Sidekiq
 # Once done this will define
 #  Sidekiq_FOUND - System has Sidekiq
-#  Sidekiq_LIBRARIES - The Sidekiq libraries
+#  Sidekiq_LIBRARIES - The Sidekiq imported target
 #  Sidekiq_INCLUDE_DIRS - The Sidekiq include directories
-#  Sidekiq_LIB_DIRS - The Sidekiq library directories
+#  Sidekiq_PKG_LIBRARY_DIRS - The Sidekiq support library directory
+#  Sidekiq_BUILD_CONFIG - The Sidekiq SDK build config selected by sidekiq-config
 
 if(NOT Sidekiq_FOUND)
 
-    find_path(Sidekiq_INCLUDE_DIR
-            NAMES sidekiq_api.h
-            HINTS ${Sidekiq_PKG_INCLUDE_DIRS} $ENV{Sidekiq_DIR}/include
-            PATHS ~/sidekiq_sdk_current/sidekiq_core/inc/ /usr/local/include /usr/include /opt/include /opt/local/include)
-
-    execute_process (
-        COMMAND uname -m
-        OUTPUT_VARIABLE cpu_arch
-    )
-
-    string(STRIP "${cpu_arch}" cpu_arch)
-
-    message(STATUS "cpu_arch is: '${cpu_arch}'")
-
-    if(NOT DEFINED SUFFIX OR "${SUFFIX}" STREQUAL "")
-        set(SUFFIX "none")  
+    if(DEFINED SIDEKIQ_SDK_DIR AND NOT "${SIDEKIQ_SDK_DIR}" STREQUAL "")
+        get_filename_component(_Sidekiq_SDK_DIR_HINT "${SIDEKIQ_SDK_DIR}" ABSOLUTE)
+    elseif(DEFINED ENV{SIDEKIQ_SDK_DIR} AND NOT "$ENV{SIDEKIQ_SDK_DIR}" STREQUAL "")
+        get_filename_component(_Sidekiq_SDK_DIR_HINT "$ENV{SIDEKIQ_SDK_DIR}" ABSOLUTE)
+    else()
+        get_filename_component(_Sidekiq_SDK_DIR_HINT "$ENV{HOME}/sidekiq_sdk_current" ABSOLUTE)
     endif()
 
-    if (NOT ${cpu_arch} MATCHES "x86_64")
-        set(SDK_DIR "$ENV{HOME}/sidekiq_sdk_current/lib")
-        file(GLOB LIB_FILES "${SDK_DIR}/libsidekiq__*.a")
+    find_program(Sidekiq_CONFIG_EXECUTABLE
+        NAMES sidekiq-config
+        HINTS "${_Sidekiq_SDK_DIR_HINT}/bin"
+        NO_DEFAULT_PATH)
 
-        if(LIB_FILES)
-            list(GET LIB_FILES 0 FOUND_LIB)
-            get_filename_component(LIB_NAME "${FOUND_LIB}" NAME)
-            string(REPLACE "libsidekiq__" "" SUFFIX_WITH_EXT "${LIB_NAME}")
-            string(REPLACE ".a" "" SUFFIX "${SUFFIX_WITH_EXT}")
-            message(STATUS "Detected SDK SUFFIX: ${SUFFIX}")
-        else()
-            message(FATAL_ERROR "No libsidekiq__*.a file found in ${SDK_DIR}")
+    function(_sidekiq_config _out_var _flag)
+        execute_process(
+            COMMAND "${Sidekiq_CONFIG_EXECUTABLE}" "${_flag}"
+            RESULT_VARIABLE _sidekiq_config_result
+            OUTPUT_VARIABLE _sidekiq_config_output
+            ERROR_VARIABLE _sidekiq_config_error
+            OUTPUT_STRIP_TRAILING_WHITESPACE)
+
+        if(NOT _sidekiq_config_result EQUAL 0)
+            message(FATAL_ERROR
+                "Failed to run ${Sidekiq_CONFIG_EXECUTABLE} ${_flag}: "
+                "${_sidekiq_config_error}")
+        endif()
+
+        set(${_out_var} "${_sidekiq_config_output}" PARENT_SCOPE)
+    endfunction()
+
+    if(Sidekiq_CONFIG_EXECUTABLE)
+        _sidekiq_config(Sidekiq_CFLAGS "--cflags")
+        _sidekiq_config(Sidekiq_LINK_FLAGS "--libs-static")
+        _sidekiq_config(Sidekiq_SDK_DIR "--prefix")
+        _sidekiq_config(Sidekiq_PKG_LIBRARY_DIRS "--support-dir")
+        _sidekiq_config(Sidekiq_BUILD_CONFIG "--build-config")
+        _sidekiq_config(Sidekiq_VERSION "--version")
+
+        set(SIDEKIQ_SDK_DIR "${Sidekiq_SDK_DIR}" CACHE PATH "Path to the Sidekiq SDK" FORCE)
+
+        separate_arguments(Sidekiq_CFLAGS_LIST UNIX_COMMAND "${Sidekiq_CFLAGS}")
+        separate_arguments(Sidekiq_LINK_LIBRARIES UNIX_COMMAND "${Sidekiq_LINK_FLAGS}")
+
+        set(Sidekiq_INCLUDE_DIRS "")
+        set(Sidekiq_COMPILE_OPTIONS "")
+        foreach(_Sidekiq_CFLAG IN LISTS Sidekiq_CFLAGS_LIST)
+            if("${_Sidekiq_CFLAG}" MATCHES "^-I(.+)")
+                list(APPEND Sidekiq_INCLUDE_DIRS "${CMAKE_MATCH_1}")
+            else()
+                list(APPEND Sidekiq_COMPILE_OPTIONS "${_Sidekiq_CFLAG}")
+            endif()
+        endforeach()
+
+        set(OTHER_LIBS "")
+        set(PKGCONFIG_LIBS "")
+    endif()
+
+    include(FindPackageHandleStandardArgs)
+    find_package_handle_standard_args(Sidekiq
+        REQUIRED_VARS
+            Sidekiq_CONFIG_EXECUTABLE
+            Sidekiq_INCLUDE_DIRS
+            Sidekiq_LINK_LIBRARIES
+        VERSION_VAR Sidekiq_VERSION)
+
+    if(Sidekiq_FOUND AND NOT TARGET Sidekiq::sidekiq)
+        add_library(Sidekiq::sidekiq INTERFACE IMPORTED)
+        set_target_properties(Sidekiq::sidekiq PROPERTIES
+            INTERFACE_INCLUDE_DIRECTORIES "${Sidekiq_INCLUDE_DIRS}"
+            INTERFACE_LINK_LIBRARIES "${Sidekiq_LINK_LIBRARIES}")
+        if(Sidekiq_COMPILE_OPTIONS)
+            set_target_properties(Sidekiq::sidekiq PROPERTIES
+                INTERFACE_COMPILE_OPTIONS "${Sidekiq_COMPILE_OPTIONS}")
         endif()
     endif()
 
-
-    if("${cpu_arch}" STREQUAL "x86_64")
-        set (libname  "libsidekiq__x86_64.gcc.a")
-        set (otherlib "none")
-      elseif("${SUFFIX}" STREQUAL "msiq-x40")
-        set(otherlib "none")
-        set(libname  "libsidekiq__msiq-x40.a")
-      elseif("${SUFFIX}" STREQUAL "msiq-g20g40")
-        set(otherlib "none")
-        set(libname  "libsidekiq__msiq-g20g40.a")
-      elseif("${SUFFIX}" STREQUAL "z3u")
-        set(otherlib "libiio")
-        set(libname  "libsidekiq__z3u.a")
-      elseif("${SUFFIX}" STREQUAL "aarch64")
-        set (libname  "libsidekiq__aarch64.a")
-        set (otherlib "iio")
-      elseif("${SUFFIX}" STREQUAL "aarch64.gcc6.3")
-        set (libname  "libsidekiq__aarch64.gcc6.3.a")
-        set (otherlib "iio")
-      elseif("${SUFFIX}" STREQUAL "arm_cortex-a9.gcc7.2.1_gnueabihf")
-        set (libname  "libsidekiq__arm_cortex-a9.gcc7.2.1_gnueabihf.a")
-        set (otherlib "iio")
-    else()
-      message(FATAL_ERROR "Invalid platform ${SUFFIX}")
-    endif()
-
-    message(STATUS "library is ${libname} ")
-    message(STATUS "otherlib is ${otherlib} ")
-
-    find_library(Sidekiq_LIBRARY
-        NAMES ${libname}
-        HINTS ${Sidekiq_PKG_LIBRARY_DIRS} $ENV{Sidekiq_DIR}/include
-        PATHS ~/sidekiq_sdk_current/lib/)
-
-
-    #    find_library(Sidekiq_LIBRARY
-    #    NAMES ${libname}
-    #    HINTS ${Sidekiq_PKG_LIBRARY_DIRS} $ENV{Sidekiq_DIR}/include
-    #    PATHS ~/sidekiq_sw)
-
-    set(Sidekiq_PKG_LIBRARY_DIRS "~/sidekiq_sdk_current/lib/support/${SUFFIX}/usr/lib/epiq")
-    set(ENV{Sidekiq_DIR} "~/sidekiq_sdk_current")
-
-    if("${cpu_arch}" STREQUAL "x86_64")
-        message(STATUS "building for x86_64.gcc")
-        include(FindPackageHandleStandardArgs)
-        # handle the QUIETLY and REQUIRED arguments and set LibSidekiq_FOUND to TRUE
-        # if all listed variables are TRUE
-        find_package_handle_standard_args(Sidekiq  DEFAULT_MSG
-            Sidekiq_LIBRARY Sidekiq_INCLUDE_DIR )
-
-        set(OTHER_LIBS "")
-        set(PKGCONFIG_LIBS "")
-        mark_as_advanced(Sidekiq_INCLUDE_DIRS Sidekiq_LIBRARIES OTHER_LIBS PKGCONFIG_LIBS) 
-      elseif("${SUFFIX}" MATCHES "^(z3u|aarch64|aarch64\\.gcc6\\.3|arm_cortex-a9\\.gcc7\\.2\\.1_gnueabihf)$")
-        message(STATUS "building for aarch")
-
-
-        find_library(OTHER_LIBS
-            NAMES ${otherlib}
-            HINTS ${Sidekiq_PKG_LIBRARY_DIRS} $ENV{Sidekiq_DIR}/include
-            PATHS /usr/lib/epiq/ /usr/local/lib /usr/lib /opt/lib /opt/local/lib)
-
-        set(OTHER_LIBS ${OTHER_LIBS})
-
-        include(FindPackageHandleStandardArgs)
-        # handle the QUIETLY and REQUIRED arguments and set LibSidekiq_FOUND to TRUE
-        # if all listed variables are TRUE
-        find_package_handle_standard_args(Sidekiq  DEFAULT_MSG
-            Sidekiq_LIBRARY Sidekiq_INCLUDE_DIR OTHER_LIBS)
-
-        set(PKGCONFIG_LIBS "")
-
-        mark_as_advanced(Sidekiq_INCLUDE_DIRS Sidekiq_LIBRARIES OTHER_LIBS PKGCONFIG_LIBS) 
-      elseif("${SUFFIX}" STREQUAL "msiq-x40")
-        message(STATUS "building for x40")
-
-        # Get home directory
-        get_filename_component(HOME_DIR "$ENV{HOME}" ABSOLUTE)
-
-        # Set the PKG_CONFIG_PATH using the home directory
-        set(ENV{PKG_CONFIG_PATH} "${HOME_DIR}/sidekiq_sdk_current/lib/support/msiq-x40/usr/lib/epiq/pkgconfig")
-
-        message(STATUS "PKG_CONFIG_PATH $ENV{PKG_CONFIG_PATH}")
-
-        execute_process(
-            COMMAND pkg-config --libs grpc++ protobuf
-            OUTPUT_VARIABLE PKG_LIBS
-            OUTPUT_STRIP_TRAILING_WHITESPACE
-        )
-
-        # Convert PKG_LIBS into a list
-        string(REPLACE " " ";" PKG_LIBS_LIST ${PKG_LIBS})
-
-        set (PKGCONFIG_LIBS ${PKG_LIBS_LIST} -lgpiod -lstdc++)
-        message(STATUS "PKGCONFIG ${PKGCONFIG_LIBS}")
-
-        include(FindPackageHandleStandardArgs)
-        # handle the QUIETLY and REQUIRED arguments and set LibSidekiq_FOUND to TRUE
-        # if all listed variables are TRUE
-        find_package_handle_standard_args(Sidekiq  DEFAULT_MSG
-            Sidekiq_LIBRARY Sidekiq_INCLUDE_DIR )
-
-        set(OTHER_LIBS "")
-
-        mark_as_advanced(Sidekiq_INCLUDE_DIRS Sidekiq_LIBRARIES OTHER_LIBS PKGCONFIG_LIBS) 
-    else()
-      message(STATUS "building for ${SUFFIX}")
-        include(FindPackageHandleStandardArgs)
-        # handle the QUIETLY and REQUIRED arguments and set LibSidekiq_FOUND to TRUE
-        # if all listed variables are TRUE
-        find_package_handle_standard_args(Sidekiq  DEFAULT_MSG
-            Sidekiq_LIBRARY Sidekiq_INCLUDE_DIR )
-
-        set(OTHER_LIBS "")
-        set(PKGCONFIG_LIBS "")
-        mark_as_advanced(Sidekiq_INCLUDE_DIRS Sidekiq_LIBRARIES OTHER_LIBS PKGCONFIG_LIBS) 
-    endif()
-
-    if(Sidekiq_FOUND AND NOT TARGET Sidekiq::sidekiq)
-        add_library(Sidekiq::sidekiq STATIC IMPORTED)
-        set_target_properties(Sidekiq::sidekiq PROPERTIES
-          IMPORTED_LOCATION "${Sidekiq_LIBRARY}"
-          INTERFACE_INCLUDE_DIRECTORIES "${Sidekiq_INCLUDE_DIR}"
-        )
-        target_link_libraries(Sidekiq::sidekiq INTERFACE
-          ${PKGCONFIG_LIBS}
-          ${OTHER_LIBS}
-        )
-    endif()
     set(Sidekiq_LIBRARIES Sidekiq::sidekiq)
-    set(Sidekiq_INCLUDE_DIRS "${Sidekiq_INCLUDE_DIR}")
+
+    mark_as_advanced(
+        Sidekiq_CONFIG_EXECUTABLE
+        Sidekiq_INCLUDE_DIRS
+        Sidekiq_LIBRARIES
+        Sidekiq_LINK_LIBRARIES
+        Sidekiq_PKG_LIBRARY_DIRS
+        OTHER_LIBS
+        PKGCONFIG_LIBS)
 endif(NOT Sidekiq_FOUND)

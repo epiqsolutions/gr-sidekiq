@@ -6,5 +6,6 @@ compile_commands.json
 *.swp
 *.swo
 *.bin
-
+__pycache__/
+*.py[cod]
 

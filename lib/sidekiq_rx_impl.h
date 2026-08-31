@@ -55,6 +55,7 @@ class sidekiq_rx_impl : public sidekiq_rx {
 public:
   sidekiq_rx_impl(
           int input_card,
+          int input_topology,
           int port1_handle,
           int port2_handle,
           double sample_rate,

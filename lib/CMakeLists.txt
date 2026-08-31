@@ -12,6 +12,7 @@
 include(GrPlatform) #define LIB_SUFFIX
 
 list(APPEND sidekiq_sources
+    sidekiq_handle_utils.cc
     sidekiq_tx_impl.cc
     sidekiq_rx_impl.cc
 )
@@ -23,13 +24,16 @@ find_package(Sidekiq)
 
 
 if (NOT Sidekiq_FOUND)
-    message(FATAL_ERROR "Sidekiq development files not found...")
+    message(FATAL_ERROR
+        "Sidekiq SDK v4.26 or later not found.  "
+        "Location can be specified with:"
+        "  -DSIDEKIQ_SDK_DIR=/path/to/sidekiq_sdk_current")
 endif ()
 
 message(STATUS "Sidekiq_INCLUDE_DIRS - ${Sidekiq_INCLUDE_DIRS}")
 message(STATUS "Sidekiq_LIBRARIES - ${Sidekiq_LIBRARIES}")
-message(STATUS "OTHER_LIBS - ${OTHER_LIBS}")
-message(STATUS "PKGCONFIG_LIBS - ${PKGCONFIG_LIBS}")
+message(STATUS "Sidekiq_BUILD_CONFIG - ${Sidekiq_BUILD_CONFIG}")
+message(STATUS "Sidekiq_PKG_LIBRARY_DIRS - ${Sidekiq_PKG_LIBRARY_DIRS}")
 
 
 include_directories(${CMAKE_CURRENT_SOURCE_DIR})
@@ -46,7 +50,10 @@ add_library(gnuradio-sidekiq SHARED ${sidekiq_sources})
 
 include_directories(sidekiq_sources)
 
-target_link_libraries(gnuradio-sidekiq gnuradio::gnuradio-runtime ${Sidekiq_LIBRARIES} ${OTHER_LIBS} glib-2.0 usb-1.0)
+target_link_libraries(gnuradio-sidekiq
+    gnuradio::gnuradio-runtime
+    ${Sidekiq_LIBRARIES}
+)
 
 target_include_directories(gnuradio-sidekiq
     PUBLIC $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/../include>
@@ -90,4 +97,3 @@ if(NOT test_sidekiq_sources)
     MESSAGE(STATUS "No C++ unit tests... skipping")
     return()
 endif(NOT test_sidekiq_sources)
-
