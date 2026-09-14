@@ -37,7 +37,7 @@ are in `/home/dhelm/sidekiq_sw/sdk_artifacts/common_files/inc`. The default
 `~/sidekiq_sdk_current` points at an older SDK and cannot compile the current
 repository's topology API calls.
 
-Expected result: **1 CTest test passes**, containing **14 Boost.Test cases**.
+Expected result: **1 CTest test passes**, containing **23 Boost.Test cases**.
 CTest applies a 30-second timeout so a scheduler or callback deadlock fails the
 run rather than hanging indefinitely. Nonzero exit status means failure.
 
@@ -79,8 +79,15 @@ A2 dual-channel payload allocation. Pool-level tests cover late callback lifetim
 completion errors, and restart protection. A2 input occupies the secondary payload;
 the paired primary payload contains zeros.
 
-Burst offsets/partial tails, dual-RX, timestamp tags, and calibration defects are
-reserved for subsequent branches. These tests do not validate timed transmission.
+The `tx_bursts` suite covers exact tag offsets, adjacent and separated bursts,
+fragmentation across scheduler calls, input shorter than one SDK packet, zero
+padding after buffer reuse, queue-full retry, and waiting for async completion.
+It also covers stopping during that wait, signed integer lengths, unrelated tags,
+and restarting after an incomplete burst. Assertions compare both I and Q samples
+against the tagged input ranges and check packet/start/stop counts.
+
+Dual-RX, timestamp tags, and calibration defects remain for subsequent branches.
+These tests do not validate timed transmission.
 
 Run the TX safety cases alone with:
 
@@ -145,3 +152,36 @@ If LeakSanitizer reports that it cannot run under `ptrace`, run CTest in a norma
 terminal outside the debugger/sandbox. This is an instrumentation restriction,
 not a failed sample assertion. The development run passed with leak checking
 enabled outside the sandbox.
+
+## Existing burst interface: hardware validation
+
+Build and install the normal module with `SIDEKIQ_QA_ONLY=OFF` and your real SDK;
+the QA build cannot access a card. Open `examples/bursting.grc` in GNU Radio
+Companion and regenerate it from the GRC source. Select the correct card and A1,
+a supported sample rate, and a suitable RF frequency/attenuation. Use a receiver
+or analyzer connected through appropriate attenuation to capture the TX output.
+The example's GUI sinks observe the input waveform, not the radio output.
+
+The Tags Strobe key must match the TX sink's Bursting Tag Name (`tx_burst`). Its
+value is the number of complex samples to transmit; its interval must be at least
+that length. Start with Threads = 1, then repeat with Threads = 2 and 4.
+
+With A1 Buffer Size = 4092, try lengths 4092, 4093, and 8201. Expect respectively
+1, 2, and 3 SDK packets, with 0, 4091, and 4075 trailing zero IQ samples. Capture
+the burst ending to check for truncation or stale waveform after the valid data.
+Run repeated bursts and stop/restart while active; check for hangs and SDK errors.
+For a stronger data-integrity check, use a changing known waveform and compare
+captured samples after accounting for receiver delay, gain, and phase.
+
+The stream tag offset selects input samples, not a wall-clock transmission time.
+Input gaps are discarded, and each burst starts in immediate mode. The example's
+Throttle paces input but cannot provide precise RF scheduling. Async completion
+means the host buffer can be released; it does not prove the final sample has
+aired. This branch waits for those callbacks before normal burst stop, but actual
+RF tail delivery still requires hardware validation. Explicit flowgraph stop
+remains an abort. If input ends before the declared burst length, any unfinished
+packet is discarded; full packets already submitted cannot be recalled.
+
+Zero, negative, noninteger, duplicate-at-one-offset, and overlapping burst tags
+are rejected with an error rather than replacing an active burst silently.
+No `tx_time`, SOB/EOB interface, or timestamp mode is introduced here.

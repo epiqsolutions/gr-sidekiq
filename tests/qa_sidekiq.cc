@@ -336,3 +336,154 @@ BOOST_AUTO_TEST_CASE(completion_failure_and_restart)
 }
 
 BOOST_AUTO_TEST_SUITE_END()
+
+namespace {
+auto make_burst_tx(int threads = 1)
+{
+    return gr::sidekiq::sidekiq_tx::make(0, "A1", 1e6, 800e3, 915e6,
+                                      100, "burst", threads, tx_samples, 1);
+}
+std::vector<gr::tag_t> burst_tags(const std::vector<std::pair<uint64_t, uint64_t>>& bursts)
+{
+    std::vector<gr::tag_t> tags;
+    for (const auto& b : bursts) {
+        gr::tag_t tag;
+        tag.offset = b.first;
+        tag.key = pmt::intern("burst");
+        tag.value = pmt::from_uint64(b.second);
+        tags.push_back(tag);
+    }
+    return tags;
+}
+void check_bursts(const std::vector<std::pair<uint64_t, uint64_t>>& bursts,
+                  size_t total, int chunk, int threads = 1)
+{
+    std::vector<gr_complex> samples(total);
+    for (size_t i = 0; i < total; ++i)
+        samples[i] = {float(int(i % 31) - 15) / 32, float(int(i % 19) - 9) / 32};
+    auto graph = gr::make_top_block("qa_bursts");
+    auto source = gr::blocks::vector_source_c::make(samples, false, 1, burst_tags(bursts));
+    auto sink = make_burst_tx(threads);
+    graph->connect(source, 0, sink, 0);
+    graph->run(chunk);
+    const auto packets = fake_sidekiq::transmitted();
+    size_t packet = 0;
+    for (const auto& burst : bursts) {
+        for (uint64_t sent = 0; sent < burst.second; sent += tx_samples) {
+            BOOST_REQUIRE_LT(packet, packets.size());
+            const auto& iq = packets[packet++].iq;
+            BOOST_REQUIRE_EQUAL(iq.size(), 2 * tx_samples);
+            const auto valid = std::min<uint64_t>(tx_samples, burst.second - sent);
+            for (size_t i = 0; i < tx_samples; ++i) {
+                const auto expected = i < valid ? samples[burst.first + sent + i] : gr_complex{};
+                BOOST_CHECK_LE(std::abs(iq[2 * i] - expected.real() * 2047), 1.0f);
+                BOOST_CHECK_LE(std::abs(iq[2 * i + 1] - expected.imag() * 2047), 1.0f);
+            }
+        }
+    }
+    BOOST_CHECK_EQUAL(packet, packets.size());
+    BOOST_CHECK_EQUAL(count_calls("skiq_start_tx_streaming"), bursts.size());
+    BOOST_CHECK_EQUAL(count_calls("skiq_stop_tx_streaming"), bursts.size());
+}
+}
+BOOST_FIXTURE_TEST_SUITE(tx_bursts, fixture)
+BOOST_AUTO_TEST_CASE(offset_and_multiple_tags)
+{
+    check_bursts({{17, 53}, {70, 31}, {201, 97}}, tx_samples, tx_samples);
+}
+BOOST_AUTO_TEST_CASE(fragmented_burst_and_short_input)
+{
+    check_bursts({{11, 2 * tx_samples + 23}}, 2 * tx_samples + 34, 257);
+}
+BOOST_AUTO_TEST_CASE(reused_final_packet_is_zero_padded)
+{
+    check_bursts({{0, 20 * tx_samples + 7}}, 21 * tx_samples, tx_samples);
+}
+BOOST_AUTO_TEST_CASE(queue_full_preserves_burst_samples)
+{
+    fake_sidekiq::fail_next("skiq_transmit", SKIQ_TX_ASYNC_SEND_QUEUE_FULL);
+    check_bursts({{0, tx_samples + 11}}, 2 * tx_samples, tx_samples, 2);
+    BOOST_CHECK_EQUAL(count_calls("skiq_transmit"), 3);
+}
+BOOST_AUTO_TEST_CASE(no_tag_transmits_nothing)
+{
+    check_bursts({}, 19, 7);
+}
+BOOST_AUTO_TEST_CASE(async_burst_waits_for_completion)
+{
+    fake_sidekiq::set_auto_complete(false);
+    auto graph = gr::make_top_block("qa_burst_drain");
+    auto source = gr::blocks::vector_source_c::make(
+        std::vector<gr_complex>(tx_samples, {0.25f, 0}), false, 1,
+        burst_tags({{0, tx_samples}}));
+    auto sink = make_burst_tx(2);
+    graph->connect(source, 0, sink, 0);
+    graph->start(tx_samples);
+    BOOST_CHECK(wait_until([] { return count_calls("skiq_transmit") != 0; }));
+    BOOST_CHECK_EQUAL(count_calls("skiq_stop_tx_streaming"), 0);
+    BOOST_CHECK(fake_sidekiq::complete_one());
+    graph->wait();
+    BOOST_CHECK_EQUAL(fake_sidekiq::transmitted().size(), 1);
+    BOOST_CHECK_EQUAL(count_calls("skiq_stop_tx_streaming"), 1);
+}
+BOOST_AUTO_TEST_CASE(stop_interrupts_burst_drain)
+{
+    fake_sidekiq::set_auto_complete(false);
+    auto graph = gr::make_top_block("qa_burst_abort");
+    auto source = gr::blocks::vector_source_c::make(
+        std::vector<gr_complex>(tx_samples, {0.25f, 0}), false, 1,
+        burst_tags({{0, tx_samples}}));
+    auto sink = make_burst_tx(2);
+    graph->connect(source, 0, sink, 0);
+    graph->start(tx_samples);
+    BOOST_CHECK(wait_until([] { return fake_sidekiq::pending_count() == 1; }));
+    graph->stop();
+    graph->wait();
+    BOOST_CHECK_EQUAL(fake_sidekiq::pending_count(), 0);
+    BOOST_CHECK_EQUAL(count_calls("skiq_stop_tx_streaming"), 1);
+}
+
+BOOST_AUTO_TEST_CASE(signed_length_and_unrelated_tag)
+{
+    auto tags = burst_tags({{5, 7}});
+    tags[0].value = pmt::from_long(7);
+    auto unrelated = tags[0];
+    unrelated.offset = 0;
+    unrelated.key = pmt::intern("unrelated");
+    unrelated.value = pmt::PMT_NIL;
+    tags.insert(tags.begin(), unrelated);
+    auto graph = gr::make_top_block("qa_signed_burst");
+    auto source = gr::blocks::vector_source_c::make(
+        std::vector<gr_complex>(12, {0.25f, -0.25f}), false, 1, tags);
+    auto sink = make_burst_tx();
+    graph->connect(source, 0, sink, 0);
+    graph->run(3);
+    const auto packets = fake_sidekiq::transmitted();
+    BOOST_REQUIRE_EQUAL(packets.size(), 1);
+    for (size_t i = 0; i < packets[0].iq.size(); ++i) {
+        const float expected = i < 14 ? (i % 2 ? -511.75f : 511.75f) : 0;
+        BOOST_CHECK_LE(std::abs(packets[0].iq[i] - expected), 1.0f);
+    }
+}
+
+BOOST_AUTO_TEST_CASE(restart_after_incomplete_burst)
+{
+    auto sink = make_burst_tx();
+    {
+        auto graph = gr::make_top_block("qa_truncated_burst");
+        auto source = gr::blocks::vector_source_c::make(
+            std::vector<gr_complex>(7, {0.25f, 0}), false, 1, burst_tags({{0, 100}}));
+        graph->connect(source, 0, sink, 0);
+        graph->run(3);
+        graph->disconnect_all();
+    }
+    BOOST_CHECK(fake_sidekiq::transmitted().empty());
+    const auto starts = count_calls("skiq_start_tx_streaming");
+    auto graph = gr::make_top_block("qa_restart_idle");
+    auto source = gr::blocks::vector_source_c::make(std::vector<gr_complex>(11), false);
+    graph->connect(source, 0, sink, 0);
+    graph->run(3);
+    BOOST_CHECK_EQUAL(count_calls("skiq_start_tx_streaming"), starts);
+    BOOST_CHECK(fake_sidekiq::transmitted().empty());
+}
+BOOST_AUTO_TEST_SUITE_END()

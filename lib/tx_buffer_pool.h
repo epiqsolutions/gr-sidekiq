@@ -99,6 +99,17 @@ public:
         check_error();
     }
 
+    bool drain()
+    {
+        std::unique_lock<std::mutex> lock(mutex_);
+        while (occupied_ && !stopping_) {
+            check_error();
+            interruptible_wait(lock);
+        }
+        check_error();
+        return !stopping_;
+    }
+
     bool stopping()
     {
         std::lock_guard<std::mutex> lock(mutex_);
