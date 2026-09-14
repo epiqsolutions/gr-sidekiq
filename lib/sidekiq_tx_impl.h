@@ -11,6 +11,9 @@
 #include <pmt/pmt.h>
 #include <gnuradio/sidekiq/sidekiq_tx.h>
 #include <sidekiq_api.h>
+#include "tx_buffer_pool.h"
+#include <atomic>
+#include <mutex>
 
 #define NUM_BLOCKS              20    // number of tx blocks to allocate and use.
 
@@ -109,7 +112,7 @@ private:
 
     /* flags */
     bool libsidekiq_init{};
-    bool tx_streaming{};
+    std::atomic<bool> tx_streaming{false};
     bool tx_second{};
 
     /* config */
@@ -117,9 +120,9 @@ private:
 
     /* sync/async parameters */
     bool in_async_mode{};
-    skiq_tx_block_t **p_tx_blocks{};
-    skiq_tx_block_t *sync_tx_block{};
-    int32_t *p_tx_status{};
+    std::shared_ptr<tx_buffer_pool> tx_buffers;
+    std::mutex tx_lifecycle_mutex;
+    bool dual_channel_packet = false;
     uint32_t num_blocks{};
 
 

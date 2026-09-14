@@ -31,7 +31,8 @@ std::vector<tx_packet> transmitted();
 // buffer pointer until complete_one(), just as async callers must retain data.
 void set_async_capacity(size_t capacity);
 void set_auto_complete(bool enabled);
-bool complete_one();
+bool complete_one(int32_t status = 0);
+size_t buffer_reuse_count();
 size_t pending_count();
 // Script is replayed cyclically to keep source work() able to return while a
 // downstream Head terminates the graph. Timestamps repeat with the script.

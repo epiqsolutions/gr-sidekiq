@@ -37,7 +37,7 @@ are in `/home/dhelm/sidekiq_sw/sdk_artifacts/common_files/inc`. The default
 `~/sidekiq_sdk_current` points at an older SDK and cannot compile the current
 repository's topology API calls.
 
-Expected result: **1 CTest test passes**, containing **8 Boost.Test cases**.
+Expected result: **1 CTest test passes**, containing **14 Boost.Test cases**.
 CTest applies a 30-second timeout so a scheduler or callback deadlock fails the
 run rather than hanging indefinitely. Nonzero exit status means failure.
 
@@ -73,10 +73,26 @@ VOLK_GENERIC=1 GR_DONT_LOAD_PREFS=1 GR_CONF_CONTROLPORT_ON=False \
   original buffer lifetime, captured timestamps/data, and explicit completion.
 - Fake RX script validation, channel order, timestamps, and packet sizes.
 
-These are passing baseline tests. They **do not** establish that the known async
-ownership, burst, dual-RX, timestamp-tag, or calibration defects are fixed. Add
-regressions for those on their respective branches. Immediate callbacks deliberately
-avoid exercising the existing deferred-buffer-reuse bug in the baseline flowgraph.
+The TX safety regressions also cover deferred buffer ownership, queue-full retry
+without a pending callback, cancellation while the pool is full, and complete
+A2 dual-channel payload allocation. Pool-level tests cover late callback lifetime,
+completion errors, and restart protection. A2 input occupies the secondary payload;
+the paired primary payload contains zeros.
+
+Burst offsets/partial tails, dual-RX, timestamp tags, and calibration defects are
+reserved for subsequent branches. These tests do not validate timed transmission.
+
+Run the TX safety cases alone with:
+
+```bash
+build/qa/tests/qa_sidekiq --run_test=tx_safety --log_level=test_suite
+```
+
+For hardware validation, exercise immediate synchronous and asynchronous TX on A1
+and A2 with a known tone. Check the selected output and that the paired output has
+no waveform, then repeat start/stop under sustained load. Observe sample integrity,
+SDK errors, and hangs. Stop cancels pending transfers; it does not promise to drain
+a final queued waveform. Hardware validation remains required before release.
 
 ## Extending the fake backend
 
@@ -87,9 +103,9 @@ All state access is serialized with a mutex; callbacks execute outside that lock
 - Only card 0 is modeled, with m.2-style A1/A2 capability entries and 12-bit IQ.
 - TX captures the configured payload size, doubled for dual-channel mode. Async
   deferred mode retains the caller's pointer until `complete_one()`: callers must
-  keep buffers alive and unchanged. Complete deferred packets before stopping or
-  destroying a block. The fake rejects stop with pending packets; cancellation
-  semantics must be added and tested with the async lifecycle changes.
+  keep buffers alive and unchanged. Stop cancels pending packets with completion
+  status -2. Use explicit completion before stop when asserting transmitted data.
+  An injected stop failure leaves pending packets available for late completion.
 - RX scripts contain full unpacked packets and replay cyclically so a source can
   return from `work()` while a downstream Head stops the flowgraph. Supply enough
   distinct packets for the asserted output prefix. Timestamps repeat on replay;

@@ -8,58 +8,13 @@
 #include <volk/volk.h>
 #include <boost/algorithm/string.hpp>
 #include <boost/foreach.hpp>
-#include <pthread.h>
+#include <algorithm>
 
 #include "sidekiq_handle_utils.h"
 #include "sidekiq_tx_impl.h"
 
 
 #define DEBUG_LEVEL "debug"  //Can be debug, info, warning, error, critical
-
-/* The tx_complete function needs to be outside the object so it can be registered with libsidekiq 
- * mutex to protect updates to the tx buffer
- * Any parameters it uses also needs to be global and accessible inside and outside the function.
- */
-static pthread_mutex_t tx_buf_mutex;
-  
-static uint32_t complete_count{};
-
-/* mutex and condition variable to signal when the tx queue may have room available */
-static pthread_mutex_t space_avail_mutex;
-static pthread_cond_t space_avail_cond;
-
-/* 
- * When in async mode this is called after each block is completed by libsidekiq 
- *
- * This is outside the class since it is called by libsidekiq
- */
-static void tx_complete( int32_t status, skiq_tx_block_t *p_data, void *p_user )
-{
-    /* -2 happens when there are outstanding buffers and we stop streaming */
-    if( status != 0 && status != -2)
-    {
-        fprintf(stderr, "Error: packet %" PRIu32 " failed with status %d\n",
-                complete_count, status);
-    }
-
-    // increment the packet completed count
-    complete_count++;
-
-    pthread_mutex_lock( &tx_buf_mutex );
-    // update the in use status of the packet just completed
-    if (p_user)
-    {
-        *(int32_t*)p_user = 0;
-    }
-     pthread_mutex_unlock( &tx_buf_mutex );
-
-    // signal to the other thread that there may be space available now that a
-    // packet send has completed
-    pthread_mutex_lock( &space_avail_mutex );
-    pthread_cond_signal(&space_avail_cond);
-    pthread_mutex_unlock( &space_avail_mutex );
-
-}
 
 namespace gr {
 namespace sidekiq {
@@ -306,6 +261,7 @@ sidekiq_tx_impl::sidekiq_tx_impl( int input_card,
 	     * For dual channel, only half the header size (4) applies to each channel
 	     */
             tx_buffer_size += 2;
+            dual_channel_packet = true;
         }
         else {
             status = skiq_write_chan_mode(card, skiq_chan_mode_single);
@@ -331,7 +287,8 @@ sidekiq_tx_impl::sidekiq_tx_impl( int input_card,
     temp_buffer.resize(tx_buffer_size);
 
     /* handle sync vs async mode */
-    if (threads > 1)
+    in_async_mode = threads > 1;
+    if (in_async_mode)
     {  
         status = skiq_write_tx_transfer_mode(card, hdl, skiq_tx_transfer_mode_async);
         if (status != 0) 
@@ -347,7 +304,7 @@ sidekiq_tx_impl::sidekiq_tx_impl( int input_card,
             throw std::runtime_error("Failure: skiq_write_tx_transfer_mode");
         }
         
-        status = skiq_register_tx_complete_callback( card, &tx_complete );
+        status = skiq_register_tx_complete_callback( card, &tx_buffer_pool::complete );
         if (status != 0) 
         {
             d_logger->error( "Error: unable to configure TX callback with status {}", status);
@@ -382,29 +339,10 @@ sidekiq_tx_impl::sidekiq_tx_impl( int input_card,
           throw std::runtime_error("Failure: skiq_write_iq_pack_mode");
     }
 
-    /* allocate memory to hold the pointers for the tx blocks */
-    p_tx_blocks = (skiq_tx_block_t **)calloc( num_blocks, sizeof( skiq_tx_block_t * ));
-    if( p_tx_blocks == NULL )
-    {
-        d_logger->error( "Error: failed to allocate memory for TX blocks.");
-        throw std::runtime_error("Failure: calloc p_tx_blocks");
-    }
-
-    /* allocate memory to hold the status for each block */
-    p_tx_status = (int32_t *)calloc( num_blocks, sizeof(*p_tx_status) );
-    if( p_tx_status == NULL )
-    {
-        d_logger->error( "Error: failed to allocate memory for TX status.");
-        throw std::runtime_error("Failure: calloc p_tx_status");
-    }
-
-    /* ask libsidekiq to allocate each block */ 
-    for (uint32_t i = 0; i < num_blocks; i++)
-    {
-        /* allocate a transmit block by number of words */
-        p_tx_blocks[i] = skiq_tx_block_allocate( tx_buffer_size );
-        p_tx_status[i] = 0;
-    }
+    // The SDK block size is per channel. Dual-channel packets carry two
+    // contiguous payloads; the existing single input feeds the selected A2/B2.
+    tx_buffers = std::make_shared<tx_buffer_pool>(
+        num_blocks, tx_buffer_size * (dual_channel_packet ? 2 : 1));
 
     message_port_register_in(CONTROL_MESSAGE_PORT);
     set_msg_handler(CONTROL_MESSAGE_PORT, [this](pmt::pmt_t msg) { this->handle_control_message(msg); });
@@ -421,21 +359,9 @@ sidekiq_tx_impl::~sidekiq_tx_impl()
 {
     d_logger->debug("in TX destructor");
 
-    for (uint32_t i = 0; i < num_blocks; i++)
-    {
-        /* allocate a transmit block by number of words */
-        skiq_tx_block_free(p_tx_blocks[i]);
-    }
-
-    if (p_tx_blocks != NULL)
-    {
-        free(p_tx_blocks);
-    }
-
-    if (p_tx_status != NULL)
-    {
-        free(p_tx_status);
-    }
+    // Stop/cancel transfers before releasing storage. Callback state is owned
+    // independently by the pool in case a transport completes asynchronously.
+    stop();
 
     /* disable libsidekiq */
     if (libsidekiq_init == true)
@@ -496,52 +422,43 @@ void sidekiq_tx_impl::handle_control_message(pmt_t msg)
 
 
 /* start streaming */
-bool sidekiq_tx_impl::start() 
+bool sidekiq_tx_impl::start()
 {
-    int status = 0;
-
-    d_logger->debug("in start() cmd {}", bursting_cmd);
-
-    if (bursting_cmd == BURSTING_ON || bursting_cmd == NO_BURSTING_ENABLED)
-    {
-        status = skiq_start_tx_streaming(card, hdl);
-        if (status != 0)
-        {
-            d_logger->error( "Error: could not start TX streaming, status {}", status);
+    std::lock_guard<std::mutex> lock(tx_lifecycle_mutex);
+    if (tx_streaming) return block::start();
+    tx_buffers->restart();
+    if (bursting_cmd == BURSTING_ON || bursting_cmd == NO_BURSTING_ENABLED) {
+        const auto status = skiq_start_tx_streaming(card, hdl);
+        if (status != 0) {
+            d_logger->error("Error: could not start TX streaming, status {}", status);
             throw std::runtime_error("Failure: skiq_start_tx_streaming");
         }
-
         tx_streaming = true;
-
         return block::start();
     }
-    else
-    {
-        return false;
-    }
+    return false;
 }
 
-/* stop streaming */
-bool sidekiq_tx_impl::stop() 
+/* Stop is an abort, not a guarantee that queued samples have aired. */
+bool sidekiq_tx_impl::stop()
 {
-    int status = 0;
-    
-    d_logger->debug("in stop() ");
-
-    if (tx_streaming == true)
-    {
-        status = skiq_stop_tx_streaming(card, hdl);
-        if (status != 0)
-        {
-            d_logger->error( "Error: could not stop TX streaming, status {}", status);
-            throw std::runtime_error("Failure: skiq_start_tx_streaming");
+    boost::this_thread::disable_interruption no_interruption;
+    tx_buffers->cancel();
+    std::lock_guard<std::mutex> lock(tx_lifecycle_mutex);
+    if (tx_streaming) {
+        const auto status = skiq_stop_tx_streaming(card, hdl);
+        if (status != 0) {
+            // GNU Radio calls stop from block_executor's destructor. Throwing
+            // here can terminate the process; leave state set for a later retry.
+            d_logger->error("Error: could not stop TX streaming, status {}", status);
+            return false;
         }
         tx_streaming = false;
     }
-
-    
-
-    return block::stop();
+    const auto completion_error = tx_buffers->error();
+    if (completion_error != 0)
+        d_logger->error("Error: asynchronous TX transfer failed, status {}", completion_error);
+    return block::stop() && completion_error == 0;
 }
 
 /* set the sample rate 
@@ -908,6 +825,15 @@ int sidekiq_tx_impl::work(
                 samples_to_write = tx_buffer_size;
             }
 
+            auto buffer = tx_buffers->acquire(curr_block);
+            if (!buffer) return samples_written ? samples_written : WORK_DONE;
+            auto* payload = buffer.block()->data;
+            if (dual_channel_packet) {
+                // Silence the paired A1/B1 channel; the input belongs to A2/B2.
+                std::fill_n(payload, 2 * tx_buffer_size, int16_t{0});
+                payload += 2 * tx_buffer_size;
+            }
+
             /* convert the samples we have received to be within the dac_scaling values */
             volk_32f_s32f_multiply_32f(
                     reinterpret_cast<float *>(&temp_buffer[0]),
@@ -917,40 +843,38 @@ int sidekiq_tx_impl::work(
 
             /* convert those samples from float complex to int16 */
             volk_32fc_convert_16ic(
-                    reinterpret_cast<lv_16sc_t *>(p_tx_blocks[curr_block]->data),
+                    reinterpret_cast<lv_16sc_t *>(payload),
                     reinterpret_cast<const lv_32fc_t*>(&temp_buffer[0]),
                     samples_to_write);
             
 
-            /* transmit the samples */
-            status = skiq_transmit(card, hdl, p_tx_blocks[curr_block], &(p_tx_status[curr_block]));
-
-            /* check to see if the TX queue is full, if so wait for a released buffer */ 
-            if( status == SKIQ_TX_ASYNC_SEND_QUEUE_FULL )
-            {
-                // update the in use status since we didn't actually send it yet
-                pthread_mutex_lock( &tx_buf_mutex );
-                p_tx_status[curr_block] = 0;
-                pthread_mutex_unlock( &tx_buf_mutex );
-
-                pthread_mutex_lock( &space_avail_mutex );
-                pthread_cond_wait( &space_avail_cond, &space_avail_mutex );
-                pthread_mutex_unlock( &space_avail_mutex );
+            // Reserve before calling the SDK, which can invoke the callback
+            // inline. Never hold the pool mutex across that call.
+            for (;;) {
+                boost::this_thread::interruption_point();
+                const auto generation = tx_buffers->generation();
+                {
+                    std::lock_guard<std::mutex> lock(tx_lifecycle_mutex);
+                    if (tx_buffers->stopping())
+                        return samples_written ? samples_written : WORK_DONE;
+                    status = skiq_transmit(card, hdl, buffer.block(),
+                                          in_async_mode ? buffer.context() : nullptr);
+                }
+                if (status == 0) {
+                    if (in_async_mode) buffer.handoff();
+                    break;
+                }
+                if (status != SKIQ_TX_ASYNC_SEND_QUEUE_FULL) {
+                    d_logger->error("Error: sidekiq transmit failed, status {}", status);
+                    throw std::runtime_error("Failure: skiq_transmit");
+                }
+                tx_buffers->wait_for_completion(generation);
             }
-            else if ( status != 0 ) 
-            {
-                d_logger->info("Info: sidekiq transmit failed with error: {}", status);
-                throw std::runtime_error("Failure: skiq_transmit");
-            } 
-            else {
-                samples_written += samples_to_write;
-
-                /* move the pointer */
-                in += samples_to_write;
-
-                /* move to the next block if we are in async mode, otherwise this is always 1 */
-                curr_block = (curr_block + 1) % num_blocks;
-            }
+            // Only accepted samples advance input/burst counters. A rejected
+            // packet is retried unchanged, using the same buffer.
+            samples_written += samples_to_write;
+            in += samples_to_write;
+            curr_block = (curr_block + 1) % num_blocks;
 
             /* if we are bursting, check to see if we are done */
             if (burst_length != 0)

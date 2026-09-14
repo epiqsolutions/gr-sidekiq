@@ -23,6 +23,7 @@ struct state {
     bool rx_started = false;
     bool auto_complete = true;
     size_t capacity = 20;
+    size_t reused_buffers = 0;
     skiq_chan_mode_t channel_mode = skiq_chan_mode_single;
     skiq_tx_callback_t callback = nullptr;
     std::array<bool, skiq_tx_hdl_end> tx_started{};
@@ -80,7 +81,8 @@ void set_rx_script(const std::vector<rx_packet>& packets)
     s.rx_script = packets;
     s.rx_index = 0;
 }
-bool complete_one()
+size_t buffer_reuse_count() { std::lock_guard<std::mutex> lock(mutex); return s.reused_buffers; }
+bool complete_one(int32_t status)
 {
     pending_packet p;
     {
@@ -88,9 +90,9 @@ bool complete_one()
         if (s.pending.empty()) return false;
         p = s.pending.front();
         s.pending.pop_front();
-        capture(p);
+        if (status == 0) capture(p);
     }
-    if (p.callback) p.callback(0, p.block, p.user);
+    if (p.callback) p.callback(status, p.block, p.user);
     return true;
 }
 } // namespace fake_sidekiq
@@ -173,13 +175,22 @@ int32_t skiq_stop_rx_streaming_multi_on_trigger(uint8_t card, skiq_rx_hdl_t hand
 
 int32_t skiq_stop_tx_streaming(uint8_t card, skiq_tx_hdl_t hdl)
 {
-    std::lock_guard<std::mutex> lock(mutex);
-    const auto status = record("skiq_stop_tx_streaming", hdl, 0);
-    if (status) return status;
-    if (card != 0) return -ENODEV;
-    s.tx_started.at(hdl) = false;
-    // Callbacks are completed explicitly in deferred tests before stop.
-    if (!s.pending.empty()) return -EBUSY;
+    std::deque<pending_packet> cancelled;
+    {
+        std::lock_guard<std::mutex> lock(mutex);
+        const auto status = record("skiq_stop_tx_streaming", hdl);
+        if (status) return status;
+        if (card != 0) return -ENODEV;
+        s.tx_started.at(hdl) = false;
+        for (auto it = s.pending.begin(); it != s.pending.end();) {
+            if (it->handle == hdl) {
+                cancelled.push_back(*it);
+                it = s.pending.erase(it);
+            } else ++it;
+        }
+    }
+    for (const auto& p : cancelled)
+        if (p.callback) p.callback(-2, p.block, p.user);
     return 0;
 }
 
@@ -532,6 +543,8 @@ int32_t skiq_transmit(uint8_t card, skiq_tx_hdl_t hdl, skiq_tx_block_t* block, v
         const size_t words = s.block_words.at(hdl) * (s.channel_mode == skiq_chan_mode_dual ? 2 : 1);
         p = {hdl, block, user, words, async ? s.callback : nullptr};
         if (async && !s.auto_complete) {
+            for (const auto& queued : s.pending)
+                if (queued.block == block) ++s.reused_buffers;
             s.pending.push_back(p);
             return 0;
         }
