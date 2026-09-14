@@ -36,6 +36,6 @@ size_t buffer_reuse_count();
 size_t pending_count();
 // Script is replayed cyclically to keep source work() able to return while a
 // downstream Head terminates the graph. Timestamps repeat with the script.
-void set_rx_script(const std::vector<rx_packet>& packets);
+void set_rx_script(const std::vector<rx_packet>& packets, bool repeat = true);
 void fail_next(const std::string& function, int32_t status);
 } // namespace fake_sidekiq
