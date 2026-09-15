@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 #include "fake_sidekiq.h"
+#include "tx_buffer_pool.h"
 #include "sidekiq_handle_utils.h"
 #include <gnuradio/sidekiq/sidekiq_rx.h>
 #include <gnuradio/sidekiq/sidekiq_tx.h>
@@ -9,6 +10,9 @@
 #include <gnuradio/top_block.h>
 #include <boost/test/unit_test.hpp>
 #include <algorithm>
+#include <chrono>
+#include <functional>
+#include <thread>
 #include <cerrno>
 #include <cmath>
 #include <memory>
@@ -177,7 +181,7 @@ BOOST_AUTO_TEST_CASE(deferred_completion_and_queue_full)
     BOOST_CHECK_EQUAL(skiq_stop_tx_streaming(0, skiq_tx_hdl_A1), 0);
     skiq_exit();
 }
-BOOST_AUTO_TEST_CASE(stop_preserves_busy_handle_and_ignores_other_handles)
+BOOST_AUTO_TEST_CASE(stop_failure_preserves_state_and_cancellation_is_per_handle)
 {
     uint8_t card = 0;
     BOOST_REQUIRE_EQUAL(skiq_init(skiq_xport_type_pcie, skiq_xport_init_level_full, &card, 1), 0);
@@ -195,13 +199,17 @@ BOOST_AUTO_TEST_CASE(stop_preserves_busy_handle_and_ignores_other_handles)
     BOOST_CHECK_EQUAL(skiq_stop_tx_streaming(card, skiq_tx_hdl_A2), 0);
     BOOST_CHECK_EQUAL(fake_sidekiq::pending_count(), 1);
     BOOST_CHECK_EQUAL(skiq_transmit(card, skiq_tx_hdl_A2, block.get(), nullptr), -EINVAL);
-    // A rejected stop must leave A1 running and preserve its pending packet.
-    BOOST_CHECK_EQUAL(skiq_stop_tx_streaming(card, skiq_tx_hdl_A1), -EBUSY);
+    // This branch cancels transfers on successful stop. Inject a failure to
+    // verify that an unsuccessful stop still preserves streaming state.
+    fake_sidekiq::fail_next("skiq_stop_tx_streaming", -EIO);
+    BOOST_CHECK_EQUAL(skiq_stop_tx_streaming(card, skiq_tx_hdl_A1), -EIO);
     BOOST_CHECK_EQUAL(fake_sidekiq::pending_count(), 1);
     BOOST_CHECK(fake_sidekiq::complete_one());
     BOOST_CHECK_EQUAL(skiq_transmit(card, skiq_tx_hdl_A1, block.get(), nullptr), 0);
     BOOST_CHECK(fake_sidekiq::complete_one());
+    BOOST_CHECK_EQUAL(skiq_transmit(card, skiq_tx_hdl_A1, block.get(), nullptr), 0);
     BOOST_CHECK_EQUAL(skiq_stop_tx_streaming(card, skiq_tx_hdl_A1), 0);
+    BOOST_CHECK_EQUAL(fake_sidekiq::pending_count(), 0);
     BOOST_CHECK_EQUAL(fake_sidekiq::transmitted().size(), 2);
     BOOST_CHECK_EQUAL(skiq_exit(), 0);
 }
@@ -225,4 +233,187 @@ BOOST_AUTO_TEST_CASE(rx_script_validates_and_preserves_metadata)
         BOOST_CHECK_EQUAL(int16_t(block->data[0]), 321);
     }
 }
+BOOST_AUTO_TEST_SUITE_END()
+
+namespace {
+bool wait_until(const std::function<bool()>& predicate)
+{
+    const auto deadline = std::chrono::steady_clock::now() + std::chrono::seconds(2);
+    while (!predicate()) {
+        if (std::chrono::steady_clock::now() >= deadline) return false;
+        std::this_thread::sleep_for(std::chrono::milliseconds(1));
+    }
+    return true;
+}
+}
+
+BOOST_FIXTURE_TEST_SUITE(tx_safety, fixture)
+BOOST_AUTO_TEST_CASE(secondary_channel_payload)
+{
+    // A2 selects a dual-channel packet with contiguous A1 and A2 payloads.
+    constexpr size_t per_channel = tx_samples + 2;
+    std::vector<gr_complex> samples(per_channel, {0.5f, -0.25f});
+    auto graph = gr::make_top_block("qa_tx_a2");
+    auto source = gr::blocks::vector_source_c::make(samples, false);
+    auto sink = gr::sidekiq::sidekiq_tx::make(
+        0, "A2", 1e6, 800e3, 915e6, 100, "", 1, tx_samples, 1);
+    graph->connect(source, 0, sink, 0);
+    graph->run(per_channel);
+    const auto packets = fake_sidekiq::transmitted();
+    BOOST_REQUIRE_EQUAL(packets.size(), 1);
+    BOOST_REQUIRE_EQUAL(packets[0].iq.size(), 4 * per_channel);
+    for (size_t i = 0; i < 2 * per_channel; ++i) BOOST_CHECK_EQUAL(packets[0].iq[i], 0);
+    for (size_t i = 0; i < per_channel; ++i) {
+        BOOST_CHECK_LE(std::abs(packets[0].iq[2 * per_channel + 2 * i] - 1023.5f), 1.0f);
+        BOOST_CHECK_LE(std::abs(packets[0].iq[2 * per_channel + 2 * i + 1] + 511.75f), 1.0f);
+    }
+}
+
+BOOST_AUTO_TEST_CASE(queue_full_without_a_pending_callback)
+{
+    // A shared SDK queue may be full without an outstanding packet owned by
+    // this sink. Waiting only for our own completion would deadlock.
+    fake_sidekiq::fail_next("skiq_transmit", SKIQ_TX_ASYNC_SEND_QUEUE_FULL);
+    run_tx_flowgraph(2);
+    BOOST_CHECK_EQUAL(count_calls("skiq_transmit"), 5);
+}
+
+BOOST_AUTO_TEST_CASE(deferred_buffers_are_not_reused)
+{
+    fake_sidekiq::set_auto_complete(false);
+    fake_sidekiq::set_async_capacity(64);
+    std::vector<gr_complex> samples(24 * tx_samples);
+    for (size_t i = 0; i < samples.size(); ++i) samples[i] = {float(i / tx_samples) / 32, 0};
+    auto graph = gr::make_top_block("qa_deferred");
+    auto source = gr::blocks::vector_source_c::make(samples, false);
+    auto sink = make_tx(2);
+    graph->connect(source, 0, sink, 0);
+    graph->start(tx_samples);
+    BOOST_CHECK(wait_until([] { return count_calls("skiq_transmit") >= 20; }));
+    // Give a broken implementation the opportunity to submit a 21st packet;
+    // the fixed implementation must be blocked on its 20 occupied buffers.
+    const auto deadline = std::chrono::steady_clock::now() + std::chrono::milliseconds(100);
+    while (count_calls("skiq_transmit") == 20 && std::chrono::steady_clock::now() < deadline)
+        std::this_thread::sleep_for(std::chrono::milliseconds(1));
+    BOOST_CHECK_EQUAL(fake_sidekiq::buffer_reuse_count(), 0);
+    BOOST_CHECK_EQUAL(count_calls("skiq_transmit"), 20);
+    fake_sidekiq::set_auto_complete(true);
+    while (fake_sidekiq::complete_one()) {}
+    graph->wait();
+    const auto packets = fake_sidekiq::transmitted();
+    BOOST_REQUIRE_EQUAL(packets.size(), 24);
+    // Transfers completing inline may interleave with the manually completed
+    // ones; payload identity must still be preserved exactly once.
+    std::vector<int> identities;
+    for (const auto& packet : packets) {
+        BOOST_REQUIRE_EQUAL(packet.iq.size(), 2 * tx_samples);
+        const int id = std::lround(packet.iq[0] * 32.0 / 2047);
+        identities.push_back(id);
+        for (int i = 0; i < tx_samples; ++i)
+            BOOST_CHECK_LE(std::abs(packet.iq[2 * i] - id * 2047.0f / 32), 1.0f);
+    }
+    std::sort(identities.begin(), identities.end());
+    for (int i = 0; i < 24; ++i) BOOST_CHECK_EQUAL(identities[i], i);
+}
+
+BOOST_AUTO_TEST_CASE(stop_interrupts_a_full_pool)
+{
+    fake_sidekiq::set_auto_complete(false);
+    fake_sidekiq::set_async_capacity(64);
+    auto graph = gr::make_top_block("qa_stop");
+    auto source = gr::blocks::vector_source_c::make(std::vector<gr_complex>(tx_samples, {0.25f, 0}), true);
+    auto sink = make_tx(2);
+    graph->connect(source, 0, sink, 0);
+    graph->start(tx_samples);
+    BOOST_CHECK(wait_until([] { return fake_sidekiq::pending_count() >= 20; }));
+    graph->stop();
+    graph->wait();
+    BOOST_CHECK_EQUAL(fake_sidekiq::pending_count(), 0);
+    BOOST_CHECK_EQUAL(count_calls("skiq_stop_tx_streaming"), 1);
+}
+BOOST_AUTO_TEST_CASE(callback_storage_survives_owner)
+{
+    auto pool = std::make_shared<gr::sidekiq::tx_buffer_pool>(1, 32);
+    std::weak_ptr<gr::sidekiq::tx_buffer_pool> lifetime = pool;
+    void* context;
+    skiq_tx_block_t* block;
+    {
+        auto buffer = pool->acquire(0);
+        context = buffer.context();
+        block = buffer.block();
+        buffer.handoff();
+    }
+    pool->cancel();
+    pool.reset();
+    BOOST_CHECK(!lifetime.expired());
+    gr::sidekiq::tx_buffer_pool::complete(-2, block, context);
+    BOOST_CHECK(lifetime.expired());
+}
+
+BOOST_AUTO_TEST_CASE(completion_failure_and_restart)
+{
+    auto pool = std::make_shared<gr::sidekiq::tx_buffer_pool>(1, 32);
+    {
+        auto buffer = pool->acquire(0);
+        BOOST_CHECK_THROW(pool->restart(), std::runtime_error);
+        buffer.handoff();
+        gr::sidekiq::tx_buffer_pool::complete(-EIO, buffer.block(), buffer.context());
+    }
+    BOOST_CHECK_EQUAL(pool->error(), -EIO);
+    BOOST_CHECK_THROW(pool->acquire(0), std::runtime_error);
+    pool->cancel();
+    pool->restart();
+    auto buffer = pool->acquire(0);
+    BOOST_CHECK(bool(buffer));
+    BOOST_CHECK_EQUAL(pool->error(), 0);
+}
+
+BOOST_AUTO_TEST_SUITE_END()
+
+namespace {
+void run_burst_completion_test(int threads, bool abort_burst)
+{
+    auto graph = gr::make_top_block("qa_burst_completion");
+    gr::tag_t tag;
+    tag.offset = 0;
+    tag.key = pmt::intern("burst");
+    tag.value = pmt::from_uint64(2 * tx_samples);
+    auto source = gr::blocks::vector_source_c::make(
+        std::vector<gr_complex>(3 * tx_samples, {0.25f, -0.25f}), false, 1,
+        std::vector<gr::tag_t>{tag});
+    auto sink = gr::sidekiq::sidekiq_tx::make(
+        0, "A1", 1e6, 800e3, 915e6, 100, "burst", threads, tx_samples, 1);
+    graph->connect(source, 0, sink, 0);
+    if (threads > 1) fake_sidekiq::set_auto_complete(false);
+    graph->start(tx_samples);
+    if (threads > 1) {
+        BOOST_CHECK(wait_until([] { return count_calls("skiq_transmit") == 2; }));
+        // Give premature stop a chance to run before inspecting the queue.
+        std::this_thread::sleep_for(std::chrono::milliseconds(50));
+        BOOST_CHECK_EQUAL(count_calls("skiq_stop_tx_streaming"), 0);
+        BOOST_CHECK_EQUAL(fake_sidekiq::pending_count(), 2);
+        if (abort_burst) {
+            graph->stop();
+        } else {
+            BOOST_CHECK(fake_sidekiq::complete_one());
+            BOOST_CHECK_EQUAL(count_calls("skiq_stop_tx_streaming"), 0);
+            BOOST_CHECK(fake_sidekiq::complete_one());
+        }
+    }
+    graph->wait();
+    BOOST_CHECK_EQUAL(fake_sidekiq::pending_count(), 0);
+    BOOST_CHECK_EQUAL(count_calls("skiq_stop_tx_streaming"), 1);
+    const auto packets = fake_sidekiq::transmitted();
+    BOOST_REQUIRE_EQUAL(packets.size(), abort_burst ? 0 : 2);
+    for (const auto& packet : packets)
+        for (int i = 0; i < tx_samples; ++i) {
+            BOOST_CHECK_LE(std::abs(packet.iq[2 * i] - 511.75f), 1.0f);
+            BOOST_CHECK_LE(std::abs(packet.iq[2 * i + 1] + 511.75f), 1.0f);
+        }
+}
+}
+BOOST_FIXTURE_TEST_SUITE(burst_completion, fixture)
+BOOST_AUTO_TEST_CASE(async_waits_for_all_callbacks) { run_burst_completion_test(2, false); }
+BOOST_AUTO_TEST_CASE(sync_releases_reservation_before_drain) { run_burst_completion_test(1, false); }
+BOOST_AUTO_TEST_CASE(explicit_stop_interrupts_drain) { run_burst_completion_test(2, true); }
 BOOST_AUTO_TEST_SUITE_END()

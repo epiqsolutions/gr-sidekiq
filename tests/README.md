@@ -34,7 +34,7 @@ cmake --build build/qa -j4
 ctest --test-dir build/qa --output-on-failure
 ```
 
-Expected result: **1 CTest test passes**, containing **9 Boost.Test cases**.
+Expected result: **1 CTest test passes**, containing **18 Boost.Test cases**.
 CTest applies a 30-second timeout so a scheduler or callback deadlock fails the
 run rather than hanging indefinitely. Nonzero exit status means failure.
 
@@ -69,13 +69,30 @@ VOLK_GENERIC=1 GR_DONT_LOAD_PREFS=1 GR_CONF_CONTROLPORT_ON=False \
 - Fake backend contract: deferred callbacks, capacity-based queue-full rejection,
   original buffer lifetime, captured timestamps/data, and explicit completion.
 - Fake RX script validation, channel order, timestamps, and packet sizes.
-- Fake TX stop leaves a busy handle running and ignores other handles' pending
-  transfers; continued transmission and retry are checked.
+- Fake TX stop preserves streaming state on an injected SDK failure, cancels
+  only the selected handle's pending transfers on success, and leaves other
+  handles' work unaffected.
 
-These are passing baseline tests. They **do not** establish that the known async
-ownership, burst, dual-RX, timestamp-tag, or calibration defects are fixed. Add
-regressions for those on their respective branches. Immediate callbacks deliberately
-avoid exercising the existing deferred-buffer-reuse bug in the baseline flowgraph.
+The TX safety regressions also cover deferred buffer ownership, queue-full retry
+without a pending callback, cancellation while the pool is full, and complete
+A2 dual-channel payload allocation. Pool-level tests cover late callback lifetime,
+completion errors, and restart protection. A2 input occupies the secondary payload;
+the paired primary payload contains zeros.
+
+Burst offsets/partial tails, dual-RX, timestamp tags, and calibration defects are
+reserved for subsequent branches. These tests do not validate timed transmission.
+
+Run the TX safety cases alone with:
+
+```bash
+build/qa/tests/qa_sidekiq --run_test=tx_safety --log_level=test_suite
+```
+
+For hardware validation, exercise immediate synchronous and asynchronous TX on A1
+and A2 with a known tone. Check the selected output and that the paired output has
+no waveform, then repeat start/stop under sustained load. Observe sample integrity,
+SDK errors, and hangs. Stop cancels pending transfers; it does not promise to drain
+a final queued waveform. Hardware validation remains required before release.
 
 ## Extending the fake backend
 
@@ -86,9 +103,9 @@ All state access is serialized with a mutex; callbacks execute outside that lock
 - Only card 0 is modeled, with m.2-style A1/A2 capability entries and 12-bit IQ.
 - TX captures the configured payload size, doubled for dual-channel mode. Async
   deferred mode retains the caller's pointer until `complete_one()`: callers must
-  keep buffers alive and unchanged. Complete deferred packets before stopping or
-  destroying a block. The fake rejects stop with pending packets; cancellation
-  semantics must be added and tested with the async lifecycle changes.
+  keep buffers alive and unchanged. Stop cancels pending packets with completion
+  status -2. Use explicit completion before stop when asserting transmitted data.
+  An injected stop failure leaves pending packets available for late completion.
 - RX scripts contain full unpacked packets and replay cyclically so a source can
   return from `work()` while a downstream Head stops the flowgraph. Supply enough
   distinct packets for the asserted output prefix. Timestamps repeat on replay;
@@ -128,3 +145,19 @@ If LeakSanitizer reports that it cannot run under `ptrace`, run CTest in a norma
 terminal outside the debugger/sandbox. This is an instrumentation restriction,
 not a failed sample assertion. The development run passed with leak checking
 enabled outside the sandbox.
+
+## Normal burst completion versus explicit stop
+
+The `burst_completion` suite verifies that normal length-tag burst completion
+waits for all async transfer callbacks before stopping the SDK, that synchronous
+TX releases its buffer reservation before the wait, and that explicit flowgraph
+stop interrupts the wait and cancels pending packets. Both I/Q payloads are checked
+for completed transfers. Run these cases with:
+
+```bash
+build/qa/tests/qa_sidekiq --run_test=burst_completion --log_level=test_suite
+```
+
+A completed callback permits reuse of the host buffer; it does not establish that
+the final sample has aired. Check RF tail delivery on hardware. This change does
+not add timed TX or fix the separate tag-offset and partial-packet issues.
