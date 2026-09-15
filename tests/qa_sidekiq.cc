@@ -177,6 +177,35 @@ BOOST_AUTO_TEST_CASE(deferred_completion_and_queue_full)
     BOOST_CHECK_EQUAL(skiq_stop_tx_streaming(0, skiq_tx_hdl_A1), 0);
     skiq_exit();
 }
+BOOST_AUTO_TEST_CASE(stop_preserves_busy_handle_and_ignores_other_handles)
+{
+    uint8_t card = 0;
+    BOOST_REQUIRE_EQUAL(skiq_init(skiq_xport_type_pcie, skiq_xport_init_level_full, &card, 1), 0);
+    for (auto handle : {skiq_tx_hdl_A1, skiq_tx_hdl_A2}) {
+        BOOST_REQUIRE_EQUAL(skiq_write_tx_block_size(card, handle, 252), 0);
+        BOOST_REQUIRE_EQUAL(skiq_write_tx_transfer_mode(card, handle, skiq_tx_transfer_mode_async), 0);
+        BOOST_REQUIRE_EQUAL(skiq_start_tx_streaming(card, handle), 0);
+    }
+    fake_sidekiq::set_auto_complete(false);
+    std::unique_ptr<skiq_tx_block_t, decltype(&skiq_tx_block_free)> block(
+        skiq_tx_block_allocate(252), &skiq_tx_block_free);
+    BOOST_REQUIRE(block);
+    BOOST_REQUIRE_EQUAL(skiq_transmit(card, skiq_tx_hdl_A1, block.get(), nullptr), 0);
+    // A2 can stop even though A1 still owns a pending transfer.
+    BOOST_CHECK_EQUAL(skiq_stop_tx_streaming(card, skiq_tx_hdl_A2), 0);
+    BOOST_CHECK_EQUAL(fake_sidekiq::pending_count(), 1);
+    BOOST_CHECK_EQUAL(skiq_transmit(card, skiq_tx_hdl_A2, block.get(), nullptr), -EINVAL);
+    // A rejected stop must leave A1 running and preserve its pending packet.
+    BOOST_CHECK_EQUAL(skiq_stop_tx_streaming(card, skiq_tx_hdl_A1), -EBUSY);
+    BOOST_CHECK_EQUAL(fake_sidekiq::pending_count(), 1);
+    BOOST_CHECK(fake_sidekiq::complete_one());
+    BOOST_CHECK_EQUAL(skiq_transmit(card, skiq_tx_hdl_A1, block.get(), nullptr), 0);
+    BOOST_CHECK(fake_sidekiq::complete_one());
+    BOOST_CHECK_EQUAL(skiq_stop_tx_streaming(card, skiq_tx_hdl_A1), 0);
+    BOOST_CHECK_EQUAL(fake_sidekiq::transmitted().size(), 2);
+    BOOST_CHECK_EQUAL(skiq_exit(), 0);
+}
+
 BOOST_AUTO_TEST_CASE(rx_script_validates_and_preserves_metadata)
 {
     BOOST_CHECK_THROW(fake_sidekiq::set_rx_script({}), std::invalid_argument);

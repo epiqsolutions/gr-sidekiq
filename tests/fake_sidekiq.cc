@@ -177,9 +177,11 @@ int32_t skiq_stop_tx_streaming(uint8_t card, skiq_tx_hdl_t hdl)
     const auto status = record("skiq_stop_tx_streaming", hdl, 0);
     if (status) return status;
     if (card != 0) return -ENODEV;
+    // Only this handle's transfers can prevent its stop. A rejected stop must
+    // preserve streaming state so callers can complete work and retry.
+    for (const auto& packet : s.pending)
+        if (packet.handle == hdl) return -EBUSY;
     s.tx_started.at(hdl) = false;
-    // Callbacks are completed explicitly in deferred tests before stop.
-    if (!s.pending.empty()) return -EBUSY;
     return 0;
 }
 
