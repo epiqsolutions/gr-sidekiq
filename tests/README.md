@@ -34,7 +34,7 @@ cmake --build build/qa -j4
 ctest --test-dir build/qa --output-on-failure
 ```
 
-Expected result: **1 CTest test passes**, containing **15 Boost.Test cases**.
+Expected result: **1 CTest test passes**, containing **18 Boost.Test cases**.
 CTest applies a 30-second timeout so a scheduler or callback deadlock fails the
 run rather than hanging indefinitely. Nonzero exit status means failure.
 
@@ -145,3 +145,19 @@ If LeakSanitizer reports that it cannot run under `ptrace`, run CTest in a norma
 terminal outside the debugger/sandbox. This is an instrumentation restriction,
 not a failed sample assertion. The development run passed with leak checking
 enabled outside the sandbox.
+
+## Normal burst completion versus explicit stop
+
+The `burst_completion` suite verifies that normal length-tag burst completion
+waits for all async transfer callbacks before stopping the SDK, that synchronous
+TX releases its buffer reservation before the wait, and that explicit flowgraph
+stop interrupts the wait and cancels pending packets. Both I/Q payloads are checked
+for completed transfers. Run these cases with:
+
+```bash
+build/qa/tests/qa_sidekiq --run_test=burst_completion --log_level=test_suite
+```
+
+A completed callback permits reuse of the host buffer; it does not establish that
+the final sample has aired. Check RF tail delivery on hardware. This change does
+not add timed TX or fix the separate tag-offset and partial-packet issues.

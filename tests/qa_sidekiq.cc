@@ -369,3 +369,51 @@ BOOST_AUTO_TEST_CASE(completion_failure_and_restart)
 }
 
 BOOST_AUTO_TEST_SUITE_END()
+
+namespace {
+void run_burst_completion_test(int threads, bool abort_burst)
+{
+    auto graph = gr::make_top_block("qa_burst_completion");
+    gr::tag_t tag;
+    tag.offset = 0;
+    tag.key = pmt::intern("burst");
+    tag.value = pmt::from_uint64(2 * tx_samples);
+    auto source = gr::blocks::vector_source_c::make(
+        std::vector<gr_complex>(3 * tx_samples, {0.25f, -0.25f}), false, 1,
+        std::vector<gr::tag_t>{tag});
+    auto sink = gr::sidekiq::sidekiq_tx::make(
+        0, "A1", 1e6, 800e3, 915e6, 100, "burst", threads, tx_samples, 1);
+    graph->connect(source, 0, sink, 0);
+    if (threads > 1) fake_sidekiq::set_auto_complete(false);
+    graph->start(tx_samples);
+    if (threads > 1) {
+        BOOST_CHECK(wait_until([] { return count_calls("skiq_transmit") == 2; }));
+        // Give premature stop a chance to run before inspecting the queue.
+        std::this_thread::sleep_for(std::chrono::milliseconds(50));
+        BOOST_CHECK_EQUAL(count_calls("skiq_stop_tx_streaming"), 0);
+        BOOST_CHECK_EQUAL(fake_sidekiq::pending_count(), 2);
+        if (abort_burst) {
+            graph->stop();
+        } else {
+            BOOST_CHECK(fake_sidekiq::complete_one());
+            BOOST_CHECK_EQUAL(count_calls("skiq_stop_tx_streaming"), 0);
+            BOOST_CHECK(fake_sidekiq::complete_one());
+        }
+    }
+    graph->wait();
+    BOOST_CHECK_EQUAL(fake_sidekiq::pending_count(), 0);
+    BOOST_CHECK_EQUAL(count_calls("skiq_stop_tx_streaming"), 1);
+    const auto packets = fake_sidekiq::transmitted();
+    BOOST_REQUIRE_EQUAL(packets.size(), abort_burst ? 0 : 2);
+    for (const auto& packet : packets)
+        for (int i = 0; i < tx_samples; ++i) {
+            BOOST_CHECK_LE(std::abs(packet.iq[2 * i] - 511.75f), 1.0f);
+            BOOST_CHECK_LE(std::abs(packet.iq[2 * i + 1] + 511.75f), 1.0f);
+        }
+}
+}
+BOOST_FIXTURE_TEST_SUITE(burst_completion, fixture)
+BOOST_AUTO_TEST_CASE(async_waits_for_all_callbacks) { run_burst_completion_test(2, false); }
+BOOST_AUTO_TEST_CASE(sync_releases_reservation_before_drain) { run_burst_completion_test(1, false); }
+BOOST_AUTO_TEST_CASE(explicit_stop_interrupts_drain) { run_burst_completion_test(2, true); }
+BOOST_AUTO_TEST_SUITE_END()

@@ -439,6 +439,19 @@ bool sidekiq_tx_impl::start()
     return false;
 }
 
+void sidekiq_tx_impl::finish_burst()
+{
+    // A normal burst boundary must not cancel outstanding host transfers.
+    // This is a transport drain, not a guarantee of completion at the antenna.
+    if (!tx_buffers->drain()) throw boost::thread_interrupted();
+    std::lock_guard<std::mutex> lock(tx_lifecycle_mutex);
+    if (tx_buffers->stopping()) throw boost::thread_interrupted();
+    const auto status = skiq_stop_tx_streaming(card, hdl);
+    if (status != 0)
+        throw std::runtime_error("Failure: burst stop, status " + std::to_string(status));
+    tx_streaming = false;
+}
+
 /* Stop is an abort, not a guarantee that queued samples have aired. */
 bool sidekiq_tx_impl::stop()
 {
@@ -825,50 +838,54 @@ int sidekiq_tx_impl::work(
                 samples_to_write = tx_buffer_size;
             }
 
-            auto buffer = tx_buffers->acquire(curr_block);
-            if (!buffer) return samples_written ? samples_written : WORK_DONE;
-            auto* payload = buffer.block()->data;
-            if (dual_channel_packet) {
-                // Silence the paired A1/B1 channel; the input belongs to A2/B2.
-                std::fill_n(payload, 2 * tx_buffer_size, int16_t{0});
-                payload += 2 * tx_buffer_size;
-            }
+            // End the synchronous reservation before waiting for an empty pool.
+            // Async reservations remain owned by their completion callbacks.
+            {
+                auto buffer = tx_buffers->acquire(curr_block);
+                if (!buffer) return samples_written ? samples_written : WORK_DONE;
+                auto* payload = buffer.block()->data;
+                if (dual_channel_packet) {
+                    // Silence the paired A1/B1 channel; the input belongs to A2/B2.
+                    std::fill_n(payload, 2 * tx_buffer_size, int16_t{0});
+                    payload += 2 * tx_buffer_size;
+                }
 
-            /* convert the samples we have received to be within the dac_scaling values */
-            volk_32f_s32f_multiply_32f(
-                    reinterpret_cast<float *>(&temp_buffer[0]),
-                    reinterpret_cast<const float *>(in),
-                    dac_scaling,
-                    static_cast<unsigned int>(samples_to_write * 2));
+                /* convert the samples we have received to be within the dac_scaling values */
+                volk_32f_s32f_multiply_32f(
+                        reinterpret_cast<float *>(&temp_buffer[0]),
+                        reinterpret_cast<const float *>(in),
+                        dac_scaling,
+                        static_cast<unsigned int>(samples_to_write * 2));
 
-            /* convert those samples from float complex to int16 */
-            volk_32fc_convert_16ic(
-                    reinterpret_cast<lv_16sc_t *>(payload),
-                    reinterpret_cast<const lv_32fc_t*>(&temp_buffer[0]),
-                    samples_to_write);
+                /* convert those samples from float complex to int16 */
+                volk_32fc_convert_16ic(
+                        reinterpret_cast<lv_16sc_t *>(payload),
+                        reinterpret_cast<const lv_32fc_t*>(&temp_buffer[0]),
+                        samples_to_write);
             
 
-            // Reserve before calling the SDK, which can invoke the callback
-            // inline. Never hold the pool mutex across that call.
-            for (;;) {
-                boost::this_thread::interruption_point();
-                const auto generation = tx_buffers->generation();
-                {
-                    std::lock_guard<std::mutex> lock(tx_lifecycle_mutex);
-                    if (tx_buffers->stopping())
-                        return samples_written ? samples_written : WORK_DONE;
-                    status = skiq_transmit(card, hdl, buffer.block(),
-                                          in_async_mode ? buffer.context() : nullptr);
+                // Reserve before calling the SDK, which can invoke the callback
+                // inline. Never hold the pool mutex across that call.
+                for (;;) {
+                    boost::this_thread::interruption_point();
+                    const auto generation = tx_buffers->generation();
+                    {
+                        std::lock_guard<std::mutex> lock(tx_lifecycle_mutex);
+                        if (tx_buffers->stopping())
+                            return samples_written ? samples_written : WORK_DONE;
+                        status = skiq_transmit(card, hdl, buffer.block(),
+                                              in_async_mode ? buffer.context() : nullptr);
+                    }
+                    if (status == 0) {
+                        if (in_async_mode) buffer.handoff();
+                        break;
+                    }
+                    if (status != SKIQ_TX_ASYNC_SEND_QUEUE_FULL) {
+                        d_logger->error("Error: sidekiq transmit failed, status {}", status);
+                        throw std::runtime_error("Failure: skiq_transmit");
+                    }
+                    tx_buffers->wait_for_completion(generation);
                 }
-                if (status == 0) {
-                    if (in_async_mode) buffer.handoff();
-                    break;
-                }
-                if (status != SKIQ_TX_ASYNC_SEND_QUEUE_FULL) {
-                    d_logger->error("Error: sidekiq transmit failed, status {}", status);
-                    throw std::runtime_error("Failure: skiq_transmit");
-                }
-                tx_buffers->wait_for_completion(generation);
             }
             // Only accepted samples advance input/burst counters. A rejected
             // packet is retried unchanged, using the same buffer.
@@ -885,7 +902,7 @@ int sidekiq_tx_impl::work(
                     d_logger->debug("done bursting, sent {}, length {} stop streaming", burst_samples_sent, burst_length);
                     burst_length = 0;
                     burst_samples_sent = 0;
-                    stop();
+                    finish_burst();
                     bursting_cmd = BURSTING_OFF;
                     break;
                 }

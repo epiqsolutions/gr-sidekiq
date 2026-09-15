@@ -97,6 +97,7 @@ public:
 private:
     /* method prototypes */
     int handle_tx_burst_tag(tag_t tag);
+    void finish_burst();
     void update_tx_error_count();
     double get_double_from_pmt_dict(pmt_t dict, pmt_t key, pmt_t not_found ); 
 
