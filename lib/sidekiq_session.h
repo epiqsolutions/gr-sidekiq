@@ -15,6 +15,8 @@ public:
     ~sidekiq_session();
     sidekiq_session(const sidekiq_session&) = delete;
     sidekiq_session& operator=(const sidekiq_session&) = delete;
+    // True if this acquisition initialized/enabled the card. TX uses this to
+    // preserve its policy of leaving rate/bandwidth unchanged on a shared card.
     bool initialized_card() const { return initialized_card_; }
 
 private:

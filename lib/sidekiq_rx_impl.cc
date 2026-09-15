@@ -5,6 +5,13 @@
  * SPDX-License-Identifier: GPL-3.0-or-later
  */
 
+/*
+ * GNU Radio source backed by libsidekiq RX. Each SDK packet is copied to its
+ * selected output before another receive can reuse the SDK memory. Outputs
+ * advance independently; rf_timestamp tags identify packet starts, not an
+ * automatic alignment between channels. The session member owns SDK lifetime.
+ */
+
 #include "sidekiq_handle_utils.h"
 #include "sidekiq_common.h"
 #include "sidekiq_rx_impl.h"
@@ -873,6 +880,8 @@ int sidekiq_rx_impl::work(int noutput_items,
     if (handle == hdl1) port = 0;
     else if (dual_port && handle == hdl2) port = 1;
     else throw std::runtime_error("Failure: unexpected RX handle");
+    // Unpacked IQ uses one 32-bit word per complex sample. The returned byte
+    // count includes the SDK header; do not treat header bytes as samples.
     const uint32_t header_bytes = SKIQ_RX_HEADER_SIZE_IN_WORDS * sizeof(uint32_t);
     if (!packet || bytes <= header_bytes || bytes > SKIQ_MAX_RX_BLOCK_SIZE_IN_BYTES ||
         (bytes - header_bytes) % sizeof(uint32_t))
@@ -881,6 +890,8 @@ int sidekiq_rx_impl::work(int noutput_items,
     if (samples > static_cast<unsigned>(noutput_items))
         throw std::runtime_error("Failure: RX output buffer too small");
     const uint64_t timestamp = packet->rf_timestamp;
+    // Track each handle across work calls. A gap is reported, not repaired by
+    // inserting samples or moving the other channel's output position.
     if (!first_block[port] && timestamp != expected_timestamp[port]) {
         ++overrun_counter;
         d_logger->warn("RX timestamp discontinuity on port {}: expected {}, received {} (count {})",
@@ -898,6 +909,8 @@ int sidekiq_rx_impl::work(int noutput_items,
     // SDK memory is consumed before the next receive. GNU Radio owns the copy.
     produce(port, samples);
     if (dual_port) produce(1 - port, 0);
+    // A normal positive return would advance every output by the same count.
+    // Explicit produce() advances only the port that actually received data.
     return WORK_CALLED_PRODUCE;
 }
 

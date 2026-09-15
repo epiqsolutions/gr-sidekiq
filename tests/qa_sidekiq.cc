@@ -1,4 +1,11 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
+/*
+ * Regression tests for the actual GNU Radio blocks linked to the fake SDK.
+ * Flowgraphs check sample/tag behavior; focused tests check lifecycle and error
+ * paths. Tests run sequentially with fresh fake state and require no radio.
+ * Passing results do not establish hardware throughput, timing, or RF quality.
+ */
+
 #include "fake_sidekiq.h"
 #include "sidekiq_rx_impl.h"
 #include "sidekiq_tx_impl.h"

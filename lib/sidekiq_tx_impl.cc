@@ -4,6 +4,13 @@
  *
  * SPDX-License-Identifier: GPL-3.0-or-later
  */
+/*
+ * GNU Radio sink backed by libsidekiq TX. Converts complex input into fixed-size
+ * SDK packets for immediate transmission or the existing length-tag bursts.
+ * The buffer pool protects asynchronous transfers; the session protects SDK
+ * lifetime. Length tags select input samples and do not schedule RF timestamps.
+ */
+
 #include <gnuradio/io_signature.h>
 #include <volk/volk.h>
 #include <algorithm>
@@ -665,6 +672,8 @@ void sidekiq_tx_impl::submit_packet(const gr_complex* input, size_t count)
                           reinterpret_cast<const lv_32fc_t*>(temp_buffer.data()), count);
     for (;;) {
         boost::this_thread::interruption_point();
+        // Capture before submission: an async callback may run before the SDK
+        // call returns. Only an accepted packet transfers ownership to the SDK.
         const auto generation = tx_buffers->generation();
         int status;
         {
@@ -700,6 +709,8 @@ void sidekiq_tx_impl::finish_burst()
 int sidekiq_tx_impl::work_bursts(int count, const gr_complex* input)
 {
     std::vector<tag_t> tags;
+    // GNU Radio tag offsets are absolute; consumed is relative to this call.
+    // Persistent burst_packet/burst_remaining bridge scheduler boundaries.
     const auto base = nitems_read(0);
     get_tags_in_range(tags, 0, base, base + count, pmt::intern(burst_tag_name));
     std::stable_sort(tags.begin(), tags.end(), [](const tag_t& a, const tag_t& b) {
@@ -736,6 +747,8 @@ int sidekiq_tx_impl::work_bursts(int count, const gr_complex* input)
             consumed += available; // Samples outside tagged bursts are discarded.
             continue;
         }
+        // Stop at the next tag, the burst end, or the SDK packet boundary.
+        // Padding added by submit_packet must never consume the next input burst.
         const auto take = std::min<uint64_t>(
             std::min<uint64_t>(available, burst_remaining), tx_buffer_size - burst_packet.size());
         burst_packet.insert(burst_packet.end(), input + consumed, input + consumed + take);

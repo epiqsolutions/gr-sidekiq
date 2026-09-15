@@ -1,4 +1,11 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
+/*
+ * Hardware-independent implementation of the SDK calls used by the QA blocks.
+ * Models selected behaviors and failure paths, not FPGA timing or RF operation.
+ * Deferred TX retains caller buffers until completion so ownership bugs remain
+ * visible; RX reuses one storage area to exercise the SDK buffer-lifetime rule.
+ */
+
 #include "fake_sidekiq.h"
 #include <array>
 #include <cerrno>

@@ -112,6 +112,8 @@ private:
     int32_t tx_buffer_size{};
 
     /* bursting */
+    // burst_remaining counts input samples still needed, excluding SDK padding.
+    // burst_packet owns an incomplete packet until more input arrives.
     uint64_t burst_remaining{};
     std::vector<gr_complex> burst_packet;
 

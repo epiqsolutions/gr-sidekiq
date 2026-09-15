@@ -102,6 +102,8 @@ private:
 
     /* work parameters */
     uint64_t overrun_counter{};
+    // Continuity belongs to each handle and survives work() boundaries; start()
+    // resets the epoch. Output positions themselves are maintained by GNU Radio.
     bool first_block[max_port]{};
     uint64_t expected_timestamp[max_port]{};
     double adc_scaling{};
