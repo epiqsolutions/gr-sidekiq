@@ -607,3 +607,102 @@ BOOST_AUTO_TEST_CASE(stop_error_is_reported_without_throwing)
     BOOST_CHECK_EQUAL(count_calls("skiq_stop_rx_streaming_multi_on_trigger"), 2);
 }
 BOOST_AUTO_TEST_SUITE_END()
+
+namespace {
+auto make_cal_rx(const std::string& second = "A2")
+{
+    return gr::sidekiq::sidekiq_rx::make(
+        0, "A1", second, 1e6, 800e3, 915e6, 0, 10, 0, 0, 0, 2, 0);
+}
+std::vector<fake_sidekiq::call> calls_after(const std::string& name, size_t begin)
+{
+    const auto all = fake_sidekiq::calls();
+    std::vector<fake_sidekiq::call> result;
+    for (size_t i = begin; i < all.size(); ++i)
+        if (all[i].name == name) result.push_back(all[i]);
+    return result;
+}
+}
+BOOST_FIXTURE_TEST_SUITE(calibration, fixture)
+BOOST_AUTO_TEST_CASE(manual_runs_each_selected_handle_once)
+{
+    auto source = make_cal_rx();
+    source->set_rx_cal_mode(skiq_rx_cal_mode_manual);
+    auto begin = fake_sidekiq::calls().size();
+    source->run_rx_cal(1);
+    const auto calls = calls_after("skiq_run_rx_cal", begin);
+    BOOST_REQUIRE_EQUAL(calls.size(), 2);
+    BOOST_CHECK_EQUAL(calls[0].handle, skiq_rx_hdl_A1);
+    BOOST_CHECK_EQUAL(calls[1].handle, skiq_rx_hdl_A2);
+}
+BOOST_AUTO_TEST_CASE(requested_subset_is_preserved)
+{
+    auto source = make_cal_rx();
+    source->set_rx_cal_mode(skiq_rx_cal_mode_manual);
+    for (int type : {0, 1}) {
+        const auto begin = fake_sidekiq::calls().size();
+        source->set_rx_cal_type(type);
+        const auto calls = calls_after("skiq_write_rx_cal_type_mask", begin);
+        BOOST_REQUIRE_EQUAL(calls.size(), 2);
+        for (const auto& call : calls)
+            BOOST_CHECK_EQUAL(call.value, type == 0 ? skiq_rx_cal_type_dc_offset : skiq_rx_cal_type_quadrature);
+    }
+}
+BOOST_AUTO_TEST_CASE(capabilities_are_checked_per_handle)
+{
+    auto source = make_cal_rx();
+    source->set_rx_cal_mode(skiq_rx_cal_mode_manual);
+    fake_sidekiq::set_rx_cal_available(skiq_rx_hdl_A1, skiq_rx_cal_type_dc_offset);
+    fake_sidekiq::set_rx_cal_available(skiq_rx_hdl_A2, skiq_rx_cal_type_quadrature);
+    const auto begin = fake_sidekiq::calls().size();
+    source->set_rx_cal_type(2);
+    const auto calls = calls_after("skiq_write_rx_cal_type_mask", begin);
+    BOOST_REQUIRE_EQUAL(calls.size(), 2);
+    BOOST_CHECK_EQUAL(calls[0].value, skiq_rx_cal_type_dc_offset);
+    BOOST_CHECK_EQUAL(calls[1].value, skiq_rx_cal_type_quadrature);
+    BOOST_CHECK_EQUAL(calls_after("skiq_read_rx_cal_types_avail", begin).size(), 2);
+}
+BOOST_AUTO_TEST_CASE(capability_failure_does_not_write_unverified_mask)
+{
+    auto source = make_cal_rx();
+    source->set_rx_cal_mode(skiq_rx_cal_mode_manual);
+    const auto begin = fake_sidekiq::calls().size();
+    fake_sidekiq::fail_next("skiq_read_rx_cal_types_avail", -EIO);
+    BOOST_CHECK_THROW(source->set_rx_cal_type(2), std::runtime_error);
+    BOOST_CHECK(calls_after("skiq_write_rx_cal_type_mask", begin).empty());
+}
+BOOST_AUTO_TEST_CASE(manual_trigger_gating)
+{
+    auto source = make_cal_rx("none");
+    const auto begin = fake_sidekiq::calls().size();
+    source->run_rx_cal(1); // Off.
+    source->set_rx_cal_mode(skiq_rx_cal_mode_auto);
+    source->run_rx_cal(1);
+    source->set_rx_cal_mode(skiq_rx_cal_mode_manual);
+    source->run_rx_cal(0);
+    BOOST_CHECK(calls_after("skiq_run_rx_cal", begin).empty());
+    source->run_rx_cal(1);
+    BOOST_CHECK_EQUAL(calls_after("skiq_run_rx_cal", begin).size(), 1);
+}
+BOOST_AUTO_TEST_CASE(unsupported_request_does_not_enable_other_algorithms)
+{
+    auto source = make_cal_rx();
+    source->set_rx_cal_mode(skiq_rx_cal_mode_manual);
+    fake_sidekiq::set_rx_cal_available(skiq_rx_hdl_A2, skiq_rx_cal_type_quadrature);
+    const auto begin = fake_sidekiq::calls().size();
+    BOOST_CHECK_THROW(source->set_rx_cal_type(0), std::runtime_error);
+    BOOST_CHECK(calls_after("skiq_write_rx_cal_type_mask", begin).empty());
+    BOOST_CHECK_THROW(source->set_rx_cal_type(99), std::invalid_argument);
+}
+BOOST_AUTO_TEST_CASE(calibration_sdk_failures_are_reported)
+{
+    auto source = make_cal_rx();
+    source->set_rx_cal_mode(skiq_rx_cal_mode_manual);
+    fake_sidekiq::fail_next("skiq_write_rx_cal_type_mask", -EIO);
+    BOOST_CHECK_THROW(source->set_rx_cal_type(0), std::runtime_error);
+    BOOST_CHECK_NO_THROW(source->set_rx_cal_type(0));
+    fake_sidekiq::fail_next("skiq_run_rx_cal", -EIO);
+    BOOST_CHECK_THROW(source->run_rx_cal(1), std::runtime_error);
+    BOOST_CHECK_NO_THROW(source->run_rx_cal(1));
+}
+BOOST_AUTO_TEST_SUITE_END()

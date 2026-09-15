@@ -25,6 +25,7 @@ struct rx_packet {
 };
 // Call only when all blocks and scheduler threads from the previous test are gone.
 void reset();
+void set_rx_cal_available(skiq_rx_hdl_t handle, uint32_t mask);
 std::vector<call> calls();
 std::vector<tx_packet> transmitted();
 // Queue-full rejection is deterministic; pending packets retain the original

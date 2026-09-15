@@ -935,106 +935,55 @@ void sidekiq_rx_impl::set_rx_cal_mode(int value)
  *
  * let libsidekiq determine if the value is valid
  */
-void sidekiq_rx_impl::set_rx_cal_type(int value) 
+void sidekiq_rx_impl::set_rx_cal_type(int value)
 {
-    int status = 0;
-    uint32_t cal_mask = (uint32_t)(skiq_rx_cal_type_none);
-
-    d_logger->debug("in set_cal_type");
-
-    /* The cal_mask is a bitmap of the types of calibration */    
-    if (cal_enabled == true)
-    {
-        if (value == CAL_TYPE_BOTH)
-        {
-            cal_mask = skiq_rx_cal_type_dc_offset | skiq_rx_cal_type_quadrature;
-        } 
-        else if (value == CAL_TYPE_DC_OFFSET)
-        {
-            cal_mask = skiq_rx_cal_type_dc_offset;
-        }
-        else if (value == CAL_TYPE_QUADRATURE)
-        {
-            cal_mask = skiq_rx_cal_type_quadrature;
-        }
-
-        /* read in what this card can handle */
-        uint32_t read_cal_mask = 0;
-        if( (status = skiq_read_rx_cal_types_avail( card, hdl1, &read_cal_mask )) == 0 )
-        {
-            if( read_cal_mask != cal_mask )
-            {
-                d_logger->warn("Warning: RX calibration mask available for card is (0x{:02X})" 
-                       " does not match what is desired (0x{:02X})",
-                       read_cal_mask, cal_mask);
-                d_logger->info("Info: Setting cal_mask to 0x{:02X}", read_cal_mask);
-                cal_mask = read_cal_mask;
-            }
-        }
-        else
-        {
-            d_logger->error("Error: unable to read calibration mask (status={})", status);
-        }
-
-        /* write the cal mask */
-        status = skiq_write_rx_cal_type_mask( card, hdl1, cal_mask );
-        if( status != 0 )
-        {
-            d_logger->error( "Error: failed to configure RX calibration type with status {}", status);
-            throw std::runtime_error("Failure: set rx_cal_type");
-        }
-
-        if (dual_port == true)
-        {
-            status = skiq_write_rx_cal_type_mask( card, hdl2, cal_mask );
-            if( status != 0 )
-            {
-                d_logger->error( "Error: failed to configure RX calibration type with status {}", status);
-                throw std::runtime_error("Failure: set rx_cal_type");
-            }
-        }
-
-        d_logger->info("Info: rx cal_mask 0x{:02X}, written successfully", static_cast<int>(cal_mask));
-
+    if (!cal_enabled) return;
+    uint32_t requested;
+    switch (value) {
+    case CAL_TYPE_DC_OFFSET: requested = skiq_rx_cal_type_dc_offset; break;
+    case CAL_TYPE_QUADRATURE: requested = skiq_rx_cal_type_quadrature; break;
+    case CAL_TYPE_BOTH:
+        requested = skiq_rx_cal_type_dc_offset | skiq_rx_cal_type_quadrature;
+        break;
+    default: throw std::invalid_argument("Invalid RX calibration type");
     }
-
+    const skiq_rx_hdl_t handles[] = {hdl1, hdl2};
+    uint32_t masks[MAX_PORT]{};
+    const unsigned count = dual_port ? 2 : 1;
+    // Resolve every handle's capabilities before changing any masks. Never
+    // enable an unrequested algorithm just because the hardware supports it.
+    for (unsigned i = 0; i < count; ++i) {
+        uint32_t available = 0;
+        const auto status = skiq_read_rx_cal_types_avail(card, handles[i], &available);
+        if (status != 0)
+            throw std::runtime_error("Failure: read RX calibration capabilities, status " +
+                                     std::to_string(status));
+        masks[i] = requested & available;
+        if (!masks[i])
+            throw std::runtime_error("Requested RX calibration types unavailable on handle " +
+                                     std::to_string(static_cast<int>(handles[i])));
+        if (masks[i] != requested)
+            d_logger->warn("RX handle {} supports calibration mask 0x{:X} of requested 0x{:X}",
+                           static_cast<int>(handles[i]), masks[i], requested);
+    }
+    for (unsigned i = 0; i < count; ++i) {
+        const auto status = skiq_write_rx_cal_type_mask(card, handles[i], masks[i]);
+        if (status != 0)
+            throw std::runtime_error("Failure: write RX calibration mask, status " +
+                                     std::to_string(status));
+    }
 }
 
-/* run_cal
- *
- * This manually runs the calibration set by the mode and type.
- *
- * this may be called from the generated python if the user changes the variable
- */
-void sidekiq_rx_impl::run_rx_cal(int value) 
+void sidekiq_rx_impl::run_rx_cal(int value)
 {
-    int status = 0;
-
-    d_logger->debug("in run_rx_cal");
-
-    /* only run calibration if calibration is enabled, in manual mode, 
-     * and this call has the right parameter */
-    if ((value == RUN_CAL) && (cal_enabled == true) && (cal_mode == skiq_rx_cal_mode_manual) )
-    {    
-        d_logger->debug("in run_rx_cal() ");
-        status = skiq_run_rx_cal( card, hdl1);
-        if( status != 0 )
-        {
-            d_logger->error( "Error: run_rx_cal failed with status %" PRIi32 "", status);
-            throw std::runtime_error("Failure: set rx_cal_type");
-        }
-
-        if (dual_port == true)
-        {
-            status = skiq_run_rx_cal( card, hdl1);
-            if( status != 0 )
-            {
-                d_logger->error( "Error: run_rx_cal failed with status %" PRIi32 "", status);
-                throw std::runtime_error("Failure: set rx_cal_type");
-            }
-        }
-
-        d_logger->info("Info: run_rx_cal executed");
+    if (value != RUN_CAL || !cal_enabled || cal_mode != skiq_rx_cal_mode_manual) return;
+    const skiq_rx_hdl_t handles[] = {hdl1, hdl2};
+    for (unsigned i = 0; i < (dual_port ? 2u : 1u); ++i) {
+        const auto status = skiq_run_rx_cal(card, handles[i]);
+        if (status != 0)
+            throw std::runtime_error("Failure: run RX calibration on handle " +
+                                     std::to_string(static_cast<int>(handles[i])) +
+                                     ", status " + std::to_string(status));
     }
 }
 

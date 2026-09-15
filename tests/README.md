@@ -37,7 +37,7 @@ are in `/home/dhelm/sidekiq_sw/sdk_artifacts/common_files/inc`. The default
 `~/sidekiq_sdk_current` points at an older SDK and cannot compile the current
 repository's topology API calls.
 
-Expected result: **1 CTest test passes**, containing **27 Boost.Test cases**.
+Expected result: **1 CTest test passes**, containing **34 Boost.Test cases**.
 CTest applies a 30-second timeout so a scheduler or callback deadlock fails the
 run rather than hanging indefinitely. Nonzero exit status means failure.
 
@@ -90,8 +90,10 @@ The `rx_correctness` suite exercises uneven handle arrivals (12 A1 packets then
 12 A2 packets), compares every output I/Q sample, and checks each timestamp at
 its packet's first sample. It also checks idle shutdown, discontinuity diagnostics
 across work calls, restart with a new timestamp epoch, and retry after an SDK stop
-failure. Calibration defects remain for a subsequent branch. These tests do not
-validate timed transmission.
+failure. The `calibration` suite checks selected-handle execution, manual/auto/off
+trigger gating, preservation of requested calibration subsets, per-handle
+capabilities, unsupported requests, and SDK read/write/run errors. These tests
+do not validate RF calibration quality or timed transmission.
 
 Run the TX safety cases alone with:
 
@@ -218,3 +220,28 @@ If using a triggered start, also verify that stopping while awaiting data/trigge
 returns promptly. Start retains the existing SDK timestamp-reset behavior; verify
 its effect in combined RX/TX flowgraphs. Hardware throughput, coherence, and SDK
 blocking behavior are not established by the fake tests.
+
+## Calibration validation
+
+Run only these cases with:
+
+```bash
+build/qa/tests/qa_sidekiq --run_test=calibration --log_level=test_suite
+```
+
+RX calibration masks are resolved independently for each selected handle as
+`requested & available`. A request for DC offset alone never enables quadrature
+calibration. Requesting Both on a handle that supports only one selects that
+supported type with a warning. If no requested type is supported, or capability
+lookup fails, the setter reports an error before writing any masks. A later SDK
+write failure can leave an earlier handle configured; there is no transactional
+rollback across handles. Correct the error and reapply the configuration.
+
+For hardware validation after step 6, use single- and dual-source flowgraphs on
+the M.2. Check Auto and Manual modes, select each supported calibration type,
+and trigger Run Cal in Manual mode. Verify that both selected handles are
+calibrated and that mask readback matches the supported requested subset using
+the SDK. Check SDK errors and RF DC/image performance before and after calibration.
+The fake tests verify calls and masks, not the analog effectiveness of calibration.
+The existing Off option suppresses OOT-module calibration configuration/triggers;
+this change does not redefine it as disabling all calibration inside the radio.
