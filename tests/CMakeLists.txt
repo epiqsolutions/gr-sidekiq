@@ -9,6 +9,7 @@ if(NOT EXISTS "${SIDEKIQ_QA_SDK_INCLUDE_DIR}/sidekiq_api.h")
 endif()
 message(STATUS "QA ONLY: fake Sidekiq backend; no radio access and no install targets")
 add_library(sidekiq_qa_blocks STATIC
+    ../lib/sidekiq_session.cc
     ../lib/sidekiq_handle_utils.cc
     ../lib/sidekiq_tx_impl.cc
     ../lib/sidekiq_rx_impl.cc

@@ -37,7 +37,7 @@ are in `/home/dhelm/sidekiq_sw/sdk_artifacts/common_files/inc`. The default
 `~/sidekiq_sdk_current` points at an older SDK and cannot compile the current
 repository's topology API calls.
 
-Expected result: **1 CTest test passes**, containing **34 Boost.Test cases**.
+Expected result: **1 CTest test passes**, containing **42 Boost.Test cases**.
 CTest applies a 30-second timeout so a scheduler or callback deadlock fails the
 run rather than hanging indefinitely. Nonzero exit status means failure.
 
@@ -245,3 +245,35 @@ the SDK. Check SDK errors and RF DC/image performance before and after calibrati
 The fake tests verify calls and masks, not the analog effectiveness of calibration.
 The existing Off option suppresses OOT-module calibration configuration/triggers;
 this change does not redefine it as disabling all calibration inside the radio.
+
+## C++ cleanup and SDK lifetime
+
+The `sdk_lifetime` suite checks RX/TX destruction in both orders, cleanup after
+constructor failure, sharing an externally initialized SDK, adding another card,
+failure while enabling that card, concurrent lease acquisition, and a failed
+constructor while another block remains alive. Card 1 is modeled only for the
+session enable call; these are not full multi-card RF tests. `command_refactor`
+checks pair/dictionary command forwarding through the actual blocks and that
+invalid message shapes remain ignored.
+
+The module now keeps libsidekiq alive until its last RX/TX block is destroyed.
+Additional cards are enabled through `skiq_enable_cards`, rather than repeated
+SDK initialization. Cards stay enabled until that shared lifetime ends. When
+libsidekiq was initialized externally, the module borrows it and never calls
+`skiq_exit`; the external owner must keep the SDK and required cards initialized.
+Only module lease acquisition/release is serialized. This does not arbitrate
+conflicting rate, topology, timestamp-reset, or channel settings among blocks.
+
+Command keys and defaults, constructor signatures, GRC parameters, and sample
+conversion rules are unchanged. Implementation constants and shared PMT helpers
+are scoped, repeated RX configuration paths use handle loops, and constructor/
+underrun output uses GNU Radio logging. The production target explicitly requires
+C++17 and links its thread and VOLK dependencies. No generated example Python
+files are part of this change.
+
+After step 6, perform the TX, burst, RX, and calibration hardware checks above
+before starting timed TX development. Also exercise combined RX/TX flowgraphs,
+repeat construction/destruction in both orders, and confirm stopping/removing one
+block leaves the other usable. Measure sustained throughput at the intended
+sample rates. SDK shutdown failures are logged; cleanup cannot guarantee recovery
+if the real SDK fails to release hardware.

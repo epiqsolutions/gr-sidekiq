@@ -1,5 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 #include "fake_sidekiq.h"
+#include "sidekiq_rx_impl.h"
+#include "sidekiq_tx_impl.h"
 #include "tx_buffer_pool.h"
 #include "sidekiq_handle_utils.h"
 #include <gnuradio/sidekiq/sidekiq_rx.h>
@@ -704,5 +706,108 @@ BOOST_AUTO_TEST_CASE(calibration_sdk_failures_are_reported)
     fake_sidekiq::fail_next("skiq_run_rx_cal", -EIO);
     BOOST_CHECK_THROW(source->run_rx_cal(1), std::runtime_error);
     BOOST_CHECK_NO_THROW(source->run_rx_cal(1));
+}
+BOOST_AUTO_TEST_SUITE_END()
+
+BOOST_FIXTURE_TEST_SUITE(sdk_lifetime, fixture)
+BOOST_AUTO_TEST_CASE(rx_owner_can_be_destroyed_before_tx)
+{
+    auto rx = make_cal_rx("none");
+    auto tx = make_tx();
+    rx.reset();
+    BOOST_CHECK_EQUAL(count_calls("skiq_exit"), 0);
+    BOOST_CHECK_NO_THROW(tx->set_tx_frequency(920e6));
+    tx.reset();
+    BOOST_CHECK_EQUAL(count_calls("skiq_exit"), 1);
+}
+BOOST_AUTO_TEST_CASE(tx_owner_can_be_destroyed_before_rx)
+{
+    auto tx = make_tx();
+    auto rx = make_cal_rx("none");
+    tx.reset();
+    BOOST_CHECK_EQUAL(count_calls("skiq_exit"), 0);
+    BOOST_CHECK_NO_THROW(rx->set_rx_frequency(920e6));
+    rx.reset();
+    BOOST_CHECK_EQUAL(count_calls("skiq_exit"), 1);
+}
+BOOST_AUTO_TEST_CASE(failed_constructor_releases_sdk)
+{
+    fake_sidekiq::fail_next("skiq_read_parameters", -EIO);
+    BOOST_CHECK_THROW(make_tx(), std::runtime_error);
+    BOOST_CHECK_EQUAL(count_calls("skiq_exit"), 1);
+    auto tx = make_tx();
+    tx.reset();
+    BOOST_CHECK_EQUAL(count_calls("skiq_exit"), 2);
+}
+BOOST_AUTO_TEST_CASE(external_sdk_owner_is_preserved)
+{
+    uint8_t card = 0;
+    BOOST_REQUIRE_EQUAL(skiq_init(skiq_xport_type_pcie, skiq_xport_init_level_full, &card, 1), 0);
+    { auto tx = make_tx(); auto rx = make_cal_rx("none"); }
+    BOOST_CHECK_EQUAL(count_calls("skiq_exit"), 0);
+    BOOST_CHECK_EQUAL(skiq_exit(), 0);
+}
+BOOST_AUTO_TEST_CASE(additional_card_uses_enable_and_preserves_owner_on_failure)
+{
+    auto first = std::make_unique<gr::sidekiq::sidekiq_session>(0);
+    BOOST_CHECK(first->initialized_card());
+    fake_sidekiq::fail_next("skiq_enable_cards", -EIO);
+    BOOST_CHECK_THROW(gr::sidekiq::sidekiq_session(1), std::runtime_error);
+    BOOST_CHECK_EQUAL(count_calls("skiq_exit"), 0);
+    {
+        gr::sidekiq::sidekiq_session second(1);
+        BOOST_CHECK(second.initialized_card());
+        gr::sidekiq::sidekiq_session shared(1);
+        BOOST_CHECK(!shared.initialized_card());
+        BOOST_CHECK_EQUAL(count_calls("skiq_init"), 1);
+        BOOST_CHECK_EQUAL(count_calls("skiq_enable_cards"), 2);
+        first.reset();
+        BOOST_CHECK_EQUAL(count_calls("skiq_exit"), 0);
+    }
+    BOOST_CHECK_EQUAL(count_calls("skiq_exit"), 1);
+}
+BOOST_AUTO_TEST_CASE(concurrent_session_acquisition)
+{
+    auto owner = std::make_unique<gr::sidekiq::sidekiq_session>(0);
+    std::vector<std::thread> threads;
+    for (int i = 0; i < 8; ++i)
+        threads.emplace_back([] { gr::sidekiq::sidekiq_session shared(0); });
+    for (auto& thread : threads) thread.join();
+    BOOST_CHECK_EQUAL(count_calls("skiq_init"), 1);
+    BOOST_CHECK_EQUAL(count_calls("skiq_exit"), 0);
+    owner.reset();
+    BOOST_CHECK_EQUAL(count_calls("skiq_exit"), 1);
+}
+BOOST_AUTO_TEST_CASE(rx_constructor_failure_does_not_release_other_block)
+{
+    auto owner = make_tx();
+    fake_sidekiq::fail_next("skiq_read_parameters", -EIO);
+    BOOST_CHECK_THROW(make_cal_rx("none"), std::runtime_error);
+    BOOST_CHECK_EQUAL(count_calls("skiq_exit"), 0);
+    owner.reset();
+    BOOST_CHECK_EQUAL(count_calls("skiq_exit"), 1);
+}
+BOOST_AUTO_TEST_SUITE_END()
+
+BOOST_FIXTURE_TEST_SUITE(command_refactor, fixture)
+BOOST_AUTO_TEST_CASE(pair_and_dictionary_commands_keep_their_behavior)
+{
+    auto tx = std::dynamic_pointer_cast<gr::sidekiq::sidekiq_tx_impl>(make_tx());
+    auto rx = std::dynamic_pointer_cast<gr::sidekiq::sidekiq_rx_impl>(make_cal_rx("none"));
+    BOOST_REQUIRE(tx);
+    BOOST_REQUIRE(rx);
+    const auto begin = fake_sidekiq::calls().size();
+    tx->handle_control_message(pmt::cons(pmt::intern("lo_freq"), pmt::from_double(920e6)));
+    rx->handle_control_message(pmt::dict_add(pmt::make_dict(), pmt::intern("gain"), pmt::from_double(12)));
+    const auto tx_calls = calls_after("skiq_write_tx_LO_freq", begin);
+    const auto rx_calls = calls_after("skiq_write_rx_gain", begin);
+    BOOST_REQUIRE_EQUAL(tx_calls.size(), 1);
+    BOOST_CHECK_EQUAL(tx_calls[0].value, 920000000);
+    BOOST_REQUIRE_EQUAL(rx_calls.size(), 1);
+    BOOST_CHECK_EQUAL(rx_calls[0].value, 12);
+    const auto end = fake_sidekiq::calls().size();
+    BOOST_CHECK_NO_THROW(tx->handle_control_message(pmt::PMT_NIL));
+    BOOST_CHECK_NO_THROW(rx->handle_control_message(pmt::PMT_NIL));
+    BOOST_CHECK_EQUAL(fake_sidekiq::calls().size(), end);
 }
 BOOST_AUTO_TEST_SUITE_END()

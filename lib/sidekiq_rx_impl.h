@@ -5,49 +5,19 @@
  * SPDX-License-Identifier: GPL-3.0-or-later
  */
 
-#ifndef INCLUDED_SIDEKIQ_SIDEKIQ_RX_IMPL_H
-#define INCLUDED_SIDEKIQ_SIDEKIQ_RX_IMPL_H
+#pragma once
 
 #include <pmt/pmt.h>
 #include <gnuradio/sidekiq/sidekiq_rx.h>
 #include <sidekiq_api.h>
-
-#define MAX_PORT                2        // max ports allowed
-#define IQ_SHORT_COUNT          2        // number of shorts in a sample
+#include "sidekiq_session.h"
+#include <memory>
 
 /* calibration modes */
-#define CAL_OFF                 2
-#define CAL_TYPE_DC_OFFSET      0
-#define CAL_TYPE_QUADRATURE     1
-#define CAL_TYPE_BOTH           2
-
-#define RUN_CAL                 1
-
-#define NO_TRANSCEIVE           0
-#define TRANSCEIVE_ENABLED      1
-
-#define PKT_TIMEOUT             1000000 // 1ms
-
-#define NON_BLOCKING_TIMEOUT    10 // us
-using pmt::pmt_t;
 
 namespace gr {
 namespace sidekiq {
-
-
-    const bool SIDEKIQ_IQ_PACK_MODE_UNPACKED{false}; 
-
-    const int DATA_MAX_BUFFER_SIZE{SKIQ_MAX_RX_BLOCK_SIZE_IN_WORDS - SKIQ_RX_HEADER_SIZE_IN_WORDS};
-
-    const pmt_t CONTROL_MESSAGE_PORT{pmt::string_to_symbol("command")};
-
-    static const pmt_t LO_FREQ_KEY{pmt::string_to_symbol("lo_freq")};
-
-    static const pmt_t RATE_KEY{pmt::string_to_symbol("rate")};
-
-    static const pmt_t BANDWIDTH_KEY{pmt::string_to_symbol("bandwidth")};
-
-    static const pmt_t GAIN_KEY{pmt::string_to_symbol("gain")};
+using pmt::pmt_t;
 
 class sidekiq_rx_impl : public sidekiq_rx {
 public:
@@ -67,7 +37,7 @@ public:
           int cal_mode,
           int cal_type
           );
-  ~sidekiq_rx_impl();
+  ~sidekiq_rx_impl() override;
 
   // Where all the action really happens
   int work(int noutput_items, gr_vector_const_void_star &input_items,
@@ -96,8 +66,18 @@ public:
    void run_rx_cal(int value) override;
 
 private:
+    static constexpr int data_max_buffer_size = SKIQ_MAX_RX_BLOCK_SIZE_IN_WORDS - SKIQ_RX_HEADER_SIZE_IN_WORDS;
+    static constexpr int max_port = 2;
+    static constexpr int iq_short_count = 2;
+    static constexpr int cal_off = 2;
+    static constexpr int cal_type_dc_offset = 0;
+    static constexpr int cal_type_quadrature = 1;
+    static constexpr int cal_type_both = 2;
+    static constexpr int run_cal = 1;
+    static constexpr int non_blocking_timeout = 10;
+    // Declared first so it outlives all other members during destruction.
+    std::unique_ptr<sidekiq_session> session;
     /* private methods */
-    double get_double_from_pmt_dict(pmt_t dict, pmt_t key, pmt_t not_found );
 
     /* passed in parameters */
     uint8_t card{};
@@ -110,27 +90,23 @@ private:
     uint8_t gain_index{};
     bool timestamp_tags{};
     skiq_rx_cal_mode_t cal_mode{};
-    skiq_rx_cal_type_t cal_type{};
 
     skiq_trigger_src_t trigger_src = skiq_trigger_src_immediate;
-    skiq_1pps_source_t pps_source{}; 
+    skiq_1pps_source_t pps_source{};
 
-    /* flags */    
-    bool libsidekiq_init{};
+    /* flags */
+
     bool rx_streaming{};
     bool cal_enabled{};
     bool dual_port{};
-    bool rx_second{};
 
     /* work parameters */
     uint64_t overrun_counter{};
-    bool first_block[MAX_PORT]{};
-    uint64_t expected_timestamp[MAX_PORT]{};
+    bool first_block[max_port]{};
+    uint64_t expected_timestamp[max_port]{};
     double adc_scaling{};
 
 };
 
 } // namespace sidekiq
 } // namespace gr
-
-#endif /* INCLUDED_SIDEKIQ_SIDEKIQ_RX_IMPL_H */

@@ -116,6 +116,15 @@ int32_t skiq_init(skiq_xport_type_t type, skiq_xport_init_level_t level, uint8_t
     return 0;
 }
 
+int32_t skiq_enable_cards(const uint8_t cards[], uint8_t count, skiq_xport_init_level_t)
+{
+    std::lock_guard<std::mutex> lock(mutex);
+    const auto status = record("skiq_enable_cards", count ? cards[0] : -1);
+    if (status) return status;
+    if (!s.initialized) return -EPERM;
+    return count == 1 && cards[0] < 2 ? 0 : -EINVAL;
+}
+
 int32_t skiq_read_parameters(uint8_t card, skiq_param_t* p_param)
 {
     std::lock_guard<std::mutex> lock(mutex);
