@@ -51,3 +51,9 @@ sudo ldconfig
 
 The [`examples/`](examples/) directory contains basic receive, transmit, dual
 channel, timestamp, message-control, and burst-mode flowgraphs.
+
+## Testing and development
+
+See [tests/README.md](tests/README.md) for hardware-independent GNU Radio QA
+build and test instructions. The QA-only build uses SDK headers and a fake
+backend, without linking libsidekiq or accessing a radio.
