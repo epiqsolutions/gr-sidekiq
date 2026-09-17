@@ -85,8 +85,12 @@ It also covers stopping during that wait, signed integer lengths, unrelated tags
 and restarting after an incomplete burst. Assertions compare both I and Q samples
 against the tagged input ranges and check packet/start/stop counts.
 
-Dual-RX, timestamp tags, and calibration defects remain for subsequent branches.
-These tests do not validate timed transmission.
+The `rx_correctness` suite exercises uneven handle arrivals (12 A1 packets then
+12 A2 packets), compares every output I/Q sample, and checks each timestamp at
+its packet's first sample. It also checks idle shutdown, discontinuity diagnostics
+across work calls, restart with a new timestamp epoch, and retry after an SDK stop
+failure. Calibration defects remain for a subsequent branch. These tests do not
+validate timed transmission.
 
 Run the TX safety cases alone with:
 
@@ -112,10 +116,12 @@ All state access is serialized with a mutex; callbacks execute outside that lock
   keep buffers alive and unchanged. Stop cancels pending packets with completion
   status -2. Use explicit completion before stop when asserting transmitted data.
   An injected stop failure leaves pending packets available for late completion.
-- RX scripts contain full unpacked packets and replay cyclically so a source can
+- RX scripts contain full unpacked packets and replay cyclically by default so a source can
   return from `work()` while a downstream Head stops the flowgraph. Supply enough
   distinct packets for the asserted output prefix. Timestamps repeat on replay;
-  this is not a model of a continuously advancing hardware clock.
+  this is not a model of a continuously advancing hardware clock. Pass
+  `repeat=false` to return no-data after the script ends. With no script, RX can
+  start but returns no-data, modeling an idle receiver or pending trigger.
 - Most configuration functions record calls and return success; only the modeled
   modes and selected streaming preconditions are enforced. This is not a complete
   simulator or authoritative hardware validator.
@@ -198,4 +204,32 @@ build/qa/tests/qa_sidekiq --run_test=burst_completion --log_level=test_suite
 ```
 
 A completed callback permits reuse of the host buffer; it does not establish that
-the final sample has aired. Check RF tail delivery on hardware. Timed TX is not implemented in this branch.
+the final sample has aired. Check RF tail delivery on hardware. Timed TX is not
+implemented in this branch.
+
+## RX correctness: hardware validation
+
+Use the normal build linked to libsidekiq. Regenerate `examples/source_test.grc`
+for single-channel checks and `examples/dual_source.grc` for two supported RX
+handles. Select the actual card, frequency, gain, and supported sample rate.
+Feed known signals into the RX ports and check each output for the expected tone
+and amplitude, then repeat start/stop and test at the intended operating rate.
+
+Enable timestamp tags and connect a Tag Debug block to each output (filter key
+`rf_timestamp`). Each tag describes the first sample of its SDK packet and uses
+that output's absolute GNU Radio sample offset. With continuous reception, RF
+timestamps advance by the packet's complex sample count. Deliberately interrupt
+reception or cause a hardware overrun and verify that any timestamp gap is
+reported; the source does not insert replacement samples or realign channels.
+
+For dual RX, capture identifiable sample sequences from both handles and check
+for missing or duplicated sections. Independent production preserves arrival
+order within each handle; it does not promise that equal output offsets represent
+the same RF time. Downstream processing must use the timestamps if alignment is
+required. GNU Radio buffers remain finite, so a stalled downstream consumer can
+still cause hardware overruns. This branch does not add an unlimited RX queue.
+
+If using a triggered start, also verify that stopping while awaiting data/trigger
+returns promptly. Start retains the existing SDK timestamp-reset behavior; verify
+its effect in combined RX/TX flowgraphs. Hardware throughput, coherence, and SDK
+blocking behavior are not established by the fake tests.

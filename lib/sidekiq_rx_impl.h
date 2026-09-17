@@ -11,7 +11,6 @@
 #include <pmt/pmt.h>
 #include <gnuradio/sidekiq/sidekiq_rx.h>
 #include <sidekiq_api.h>
-#include <chrono>
 
 #define MAX_PORT                2        // max ports allowed
 #define IQ_SHORT_COUNT          2        // number of shorts in a sample
@@ -35,7 +34,6 @@ using pmt::pmt_t;
 namespace gr {
 namespace sidekiq {
 
-    static const double STATUS_UPDATE_RATE_SECONDS{2.0};
 
     const bool SIDEKIQ_IQ_PACK_MODE_UNPACKED{false}; 
 
@@ -99,8 +97,6 @@ public:
 
 private:
     /* private methods */
-    uint32_t get_new_block(uint32_t portno);
-    bool determine_if_done(int32_t *samples_written, int32_t noutput_items, uint32_t *portno);
     double get_double_from_pmt_dict(pmt_t dict, pmt_t key, pmt_t not_found );
 
     /* passed in parameters */
@@ -127,24 +123,11 @@ private:
     bool rx_second{};
 
     /* work parameters */
-    uint64_t last_status_update_sample{};
-    uint64_t status_update_rate_in_samples{};
     uint64_t overrun_counter{};
     bool first_block[MAX_PORT]{};
-    uint64_t last_timestamp[MAX_PORT]{};
+    uint64_t expected_timestamp[MAX_PORT]{};
     double adc_scaling{};
-    int16_t *curr_block_ptr[MAX_PORT]{};
-    int32_t curr_block_samples_left[MAX_PORT]{};
 
-    gr::tag_t curr_rf_block_tag{};
-
-    uint64_t last_tag_index[MAX_PORT]{};
-
-    /* used to debug the work function */
-    uint32_t debug_ctr{};
-    typedef std::chrono::high_resolution_clock Clock;
-    typedef std::chrono::milliseconds milliseconds;
-    Clock::time_point last_time{};
 };
 
 } // namespace sidekiq
