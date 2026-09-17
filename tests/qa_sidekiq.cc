@@ -13,6 +13,8 @@
 #include <chrono>
 #include <functional>
 #include <thread>
+#include <sstream>
+#include <spdlog/sinks/ostream_sink.h>
 #include <cerrno>
 #include <cmath>
 #include <memory>
@@ -64,7 +66,7 @@ void run_tx_flowgraph(int threads)
 BOOST_FIXTURE_TEST_SUITE(baseline, fixture)
 BOOST_AUTO_TEST_CASE(tx_immediate_sync) { run_tx_flowgraph(1); }
 // Immediate callbacks are only the baseline. Deferred ownership regressions
-// belong to the next branch; this test does not claim that async is fixed.
+// are covered separately in tx_safety.
 BOOST_AUTO_TEST_CASE(tx_immediate_async) { run_tx_flowgraph(2); }
 
 BOOST_AUTO_TEST_CASE(rx_single_channel_samples)
@@ -566,5 +568,222 @@ BOOST_AUTO_TEST_CASE(restart_after_incomplete_burst)
     graph->run(3);
     BOOST_CHECK_EQUAL(count_calls("skiq_start_tx_streaming"), starts);
     BOOST_CHECK(fake_sidekiq::transmitted().empty());
+}
+BOOST_AUTO_TEST_SUITE_END()
+
+BOOST_FIXTURE_TEST_SUITE(rx_correctness, fixture)
+BOOST_AUTO_TEST_CASE(uneven_handles_preserve_samples_and_tags)
+{
+    std::vector<fake_sidekiq::rx_packet> script;
+    for (int i = 0; i < 24; ++i) {
+        const bool secondary = i >= 12;
+        script.push_back({secondary ? skiq_rx_hdl_A2 : skiq_rx_hdl_A1,
+                          uint64_t((secondary ? 9000 : 1000) + (i % 12) * rx_samples),
+                          std::vector<int16_t>(2 * rx_samples, 100 + i)});
+    }
+    fake_sidekiq::set_rx_script(script);
+    auto graph = gr::make_top_block("qa_rx_uneven");
+    auto source = gr::sidekiq::sidekiq_rx::make(
+        0, "A1", "A2", 1e6, 800e3, 915e6, 0, 10, 1, 0, 0, 2, 0);
+    std::vector<gr::blocks::vector_sink_c::sptr> sinks;
+    for (int port = 0; port < 2; ++port) {
+        auto head = gr::blocks::head::make(sizeof(gr_complex), 12 * rx_samples);
+        auto sink = gr::blocks::vector_sink_c::make();
+        graph->connect(source, port, head, 0);
+        graph->connect(head, 0, sink, 0);
+        sinks.push_back(sink);
+    }
+    graph->run(rx_samples);
+    for (int port = 0; port < 2; ++port) {
+        const auto data = sinks[port]->data();
+        BOOST_REQUIRE_EQUAL(data.size(), 12 * rx_samples);
+        for (size_t i = 0; i < data.size(); ++i) {
+            const float expected = (100 + port * 12 + i / rx_samples) / 2047.0f;
+            BOOST_CHECK_SMALL(data[i].real() - expected, 1e-6f);
+            BOOST_CHECK_SMALL(data[i].imag() - expected, 1e-6f);
+        }
+        const auto tags = sinks[port]->tags();
+        BOOST_REQUIRE_EQUAL(tags.size(), 12);
+        for (size_t i = 0; i < tags.size(); ++i) {
+            BOOST_CHECK_EQUAL(tags[i].offset, i * rx_samples);
+            BOOST_CHECK(pmt::eq(tags[i].key, pmt::intern("rf_timestamp")));
+            BOOST_CHECK_EQUAL(pmt::to_uint64(tags[i].value),
+                              (port ? 9000 : 1000) + i * rx_samples);
+        }
+    }
+}
+BOOST_AUTO_TEST_CASE(stop_without_rx_data)
+{
+    auto graph = gr::make_top_block("qa_rx_idle_stop");
+    auto source = gr::sidekiq::sidekiq_rx::make(
+        0, "A1", "none", 1e6, 800e3, 915e6, 0, 10, 1, 0, 0, 2, 0);
+    auto sink = gr::blocks::vector_sink_c::make();
+    graph->connect(source, 0, sink, 0);
+    graph->start(rx_samples);
+    BOOST_CHECK(wait_until([] { return count_calls("skiq_start_rx_streaming_multi_on_trigger") == 1; }));
+    graph->stop();
+    graph->wait();
+    BOOST_CHECK_EQUAL(count_calls("skiq_stop_rx_streaming_multi_on_trigger"), 1);
+}
+BOOST_AUTO_TEST_CASE(discontinuity_and_restart)
+{
+    // Capture the block's externally visible diagnostic, without adding a
+    // testing-only accessor to the production block.
+    std::ostringstream messages;
+    auto capture = std::make_shared<spdlog::sinks::ostream_sink_mt>(messages);
+    auto backend = std::dynamic_pointer_cast<spdlog::sinks::dist_sink_mt>(
+        gr::logging::singleton().default_backend());
+    BOOST_REQUIRE(backend);
+    backend->add_sink(capture);
+    struct detach {
+        std::shared_ptr<spdlog::sinks::dist_sink_mt> backend;
+        spdlog::sink_ptr sink;
+        ~detach() { backend->remove_sink(sink); }
+    } cleanup{backend, capture};
+    auto source = gr::sidekiq::sidekiq_rx::make(
+        0, "A1", "none", 1e6, 800e3, 915e6, 0, 10, 1, 0, 0, 2, 0);
+    const std::vector<int16_t> iq(2 * rx_samples, 123);
+    auto run = [&](const std::vector<fake_sidekiq::rx_packet>& script) {
+        auto padded_script = script;
+        // Supply contiguous lookahead for scheduler batching and Head shutdown.
+        auto trailing = script.back();
+        for (int i = 0; i < 32; ++i) {
+            trailing.timestamp += rx_samples;
+            padded_script.push_back(trailing);
+        }
+        fake_sidekiq::set_rx_script(padded_script, false);
+        auto graph = gr::make_top_block("qa_rx_gap");
+        auto head = gr::blocks::head::make(sizeof(gr_complex), script.size() * rx_samples);
+        auto sink = gr::blocks::vector_sink_c::make();
+        graph->connect(source, 0, head, 0);
+        graph->connect(head, 0, sink, 0);
+        graph->run(rx_samples);
+        const auto tags = sink->tags();
+        BOOST_REQUIRE_EQUAL(tags.size(), script.size());
+        for (size_t i = 0; i < tags.size(); ++i) {
+            BOOST_CHECK_EQUAL(tags[i].offset, i * rx_samples);
+            BOOST_CHECK_EQUAL(pmt::to_uint64(tags[i].value), script[i].timestamp);
+        }
+        graph->disconnect_all();
+    };
+    run({{skiq_rx_hdl_A1, 100, iq}, {skiq_rx_hdl_A1, 100 + rx_samples + 17, iq}});
+    BOOST_CHECK(messages.str().find("RX timestamp discontinuity") != std::string::npos);
+    messages.str("");
+    messages.clear();
+    run({{skiq_rx_hdl_A1, 90000, iq}, {skiq_rx_hdl_A1, 90000 + rx_samples, iq}});
+    BOOST_CHECK(messages.str().find("RX timestamp discontinuity") == std::string::npos);
+}
+
+BOOST_AUTO_TEST_CASE(stop_error_is_reported_without_throwing)
+{
+    auto source = gr::sidekiq::sidekiq_rx::make(
+        0, "A1", "none", 1e6, 800e3, 915e6, 0, 10, 0, 0, 0, 2, 0);
+    BOOST_CHECK(source->start());
+    BOOST_CHECK(source->start());
+    BOOST_CHECK_EQUAL(count_calls("skiq_start_rx_streaming_multi_on_trigger"), 1);
+    fake_sidekiq::fail_next("skiq_stop_rx_streaming_multi_on_trigger", -EIO);
+    BOOST_CHECK(!source->stop());
+    BOOST_CHECK(source->stop());
+    BOOST_CHECK(source->stop());
+    BOOST_CHECK_EQUAL(count_calls("skiq_stop_rx_streaming_multi_on_trigger"), 2);
+}
+BOOST_AUTO_TEST_SUITE_END()
+
+namespace {
+auto make_cal_rx(const std::string& second = "A2")
+{
+    return gr::sidekiq::sidekiq_rx::make(
+        0, "A1", second, 1e6, 800e3, 915e6, 0, 10, 0, 0, 0, 2, 0);
+}
+std::vector<fake_sidekiq::call> calls_after(const std::string& name, size_t begin)
+{
+    const auto all = fake_sidekiq::calls();
+    std::vector<fake_sidekiq::call> result;
+    for (size_t i = begin; i < all.size(); ++i)
+        if (all[i].name == name) result.push_back(all[i]);
+    return result;
+}
+}
+BOOST_FIXTURE_TEST_SUITE(calibration, fixture)
+BOOST_AUTO_TEST_CASE(manual_runs_each_selected_handle_once)
+{
+    auto source = make_cal_rx();
+    source->set_rx_cal_mode(skiq_rx_cal_mode_manual);
+    auto begin = fake_sidekiq::calls().size();
+    source->run_rx_cal(1);
+    const auto calls = calls_after("skiq_run_rx_cal", begin);
+    BOOST_REQUIRE_EQUAL(calls.size(), 2);
+    BOOST_CHECK_EQUAL(calls[0].handle, skiq_rx_hdl_A1);
+    BOOST_CHECK_EQUAL(calls[1].handle, skiq_rx_hdl_A2);
+}
+BOOST_AUTO_TEST_CASE(requested_subset_is_preserved)
+{
+    auto source = make_cal_rx();
+    source->set_rx_cal_mode(skiq_rx_cal_mode_manual);
+    for (int type : {0, 1}) {
+        const auto begin = fake_sidekiq::calls().size();
+        source->set_rx_cal_type(type);
+        const auto calls = calls_after("skiq_write_rx_cal_type_mask", begin);
+        BOOST_REQUIRE_EQUAL(calls.size(), 2);
+        for (const auto& call : calls)
+            BOOST_CHECK_EQUAL(call.value, type == 0 ? skiq_rx_cal_type_dc_offset : skiq_rx_cal_type_quadrature);
+    }
+}
+BOOST_AUTO_TEST_CASE(capabilities_are_checked_per_handle)
+{
+    auto source = make_cal_rx();
+    source->set_rx_cal_mode(skiq_rx_cal_mode_manual);
+    fake_sidekiq::set_rx_cal_available(skiq_rx_hdl_A1, skiq_rx_cal_type_dc_offset);
+    fake_sidekiq::set_rx_cal_available(skiq_rx_hdl_A2, skiq_rx_cal_type_quadrature);
+    const auto begin = fake_sidekiq::calls().size();
+    source->set_rx_cal_type(2);
+    const auto calls = calls_after("skiq_write_rx_cal_type_mask", begin);
+    BOOST_REQUIRE_EQUAL(calls.size(), 2);
+    BOOST_CHECK_EQUAL(calls[0].value, skiq_rx_cal_type_dc_offset);
+    BOOST_CHECK_EQUAL(calls[1].value, skiq_rx_cal_type_quadrature);
+    BOOST_CHECK_EQUAL(calls_after("skiq_read_rx_cal_types_avail", begin).size(), 2);
+}
+BOOST_AUTO_TEST_CASE(capability_failure_does_not_write_unverified_mask)
+{
+    auto source = make_cal_rx();
+    source->set_rx_cal_mode(skiq_rx_cal_mode_manual);
+    const auto begin = fake_sidekiq::calls().size();
+    fake_sidekiq::fail_next("skiq_read_rx_cal_types_avail", -EIO);
+    BOOST_CHECK_THROW(source->set_rx_cal_type(2), std::runtime_error);
+    BOOST_CHECK(calls_after("skiq_write_rx_cal_type_mask", begin).empty());
+}
+BOOST_AUTO_TEST_CASE(manual_trigger_gating)
+{
+    auto source = make_cal_rx("none");
+    const auto begin = fake_sidekiq::calls().size();
+    source->run_rx_cal(1); // Off.
+    source->set_rx_cal_mode(skiq_rx_cal_mode_auto);
+    source->run_rx_cal(1);
+    source->set_rx_cal_mode(skiq_rx_cal_mode_manual);
+    source->run_rx_cal(0);
+    BOOST_CHECK(calls_after("skiq_run_rx_cal", begin).empty());
+    source->run_rx_cal(1);
+    BOOST_CHECK_EQUAL(calls_after("skiq_run_rx_cal", begin).size(), 1);
+}
+BOOST_AUTO_TEST_CASE(unsupported_request_does_not_enable_other_algorithms)
+{
+    auto source = make_cal_rx();
+    source->set_rx_cal_mode(skiq_rx_cal_mode_manual);
+    fake_sidekiq::set_rx_cal_available(skiq_rx_hdl_A2, skiq_rx_cal_type_quadrature);
+    const auto begin = fake_sidekiq::calls().size();
+    BOOST_CHECK_THROW(source->set_rx_cal_type(0), std::runtime_error);
+    BOOST_CHECK(calls_after("skiq_write_rx_cal_type_mask", begin).empty());
+    BOOST_CHECK_THROW(source->set_rx_cal_type(99), std::invalid_argument);
+}
+BOOST_AUTO_TEST_CASE(calibration_sdk_failures_are_reported)
+{
+    auto source = make_cal_rx();
+    source->set_rx_cal_mode(skiq_rx_cal_mode_manual);
+    fake_sidekiq::fail_next("skiq_write_rx_cal_type_mask", -EIO);
+    BOOST_CHECK_THROW(source->set_rx_cal_type(0), std::runtime_error);
+    BOOST_CHECK_NO_THROW(source->set_rx_cal_type(0));
+    fake_sidekiq::fail_next("skiq_run_rx_cal", -EIO);
+    BOOST_CHECK_THROW(source->run_rx_cal(1), std::runtime_error);
+    BOOST_CHECK_NO_THROW(source->run_rx_cal(1));
 }
 BOOST_AUTO_TEST_SUITE_END()

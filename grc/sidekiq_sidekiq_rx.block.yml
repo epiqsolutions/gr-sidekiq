@@ -158,10 +158,19 @@ documentation: |-
     Block features:
         Dual Port - The Handles define how many ports are used on the card.  
         One or two ports can be used.  If the handle is not available on the card, 
-        an error will occur when run.
+        an error will occur when run. Each output preserves its handle's arrival
+        order independently. Equal output offsets do not guarantee RF-time alignment.
+
+        Timestamp Tags - rf_timestamp is attached to the first sample of each
+        received packet on its own output. Gaps are reported as timestamp
+        discontinuities; missing samples are not inserted. Continuity tracking
+        resets on start, which retains the existing device timestamp reset.
 
         RX Calibration - Set the mode to manual or auto, if manual the block needs 
-        to set run_cal to 1.
+        to set run_cal to 1. Manual calibration runs once on each selected handle.
+        The requested calibration types are restricted to each handle's supported
+        subset; unrequested types are never enabled. A request with no supported
+        types reports an error.
 
         Configuration messages - The block also can receive the "freq", "rate", 
         "bandwidth", and "gain" messages to modify those parameters.

@@ -25,6 +25,7 @@ struct rx_packet {
 };
 // Call only when all blocks and scheduler threads from the previous test are gone.
 void reset();
+void set_rx_cal_available(skiq_rx_hdl_t handle, uint32_t mask);
 std::vector<call> calls();
 std::vector<tx_packet> transmitted();
 // Queue-full rejection is deterministic; pending packets retain the original
@@ -36,6 +37,6 @@ size_t buffer_reuse_count();
 size_t pending_count();
 // Script is replayed cyclically to keep source work() able to return while a
 // downstream Head terminates the graph. Timestamps repeat with the script.
-void set_rx_script(const std::vector<rx_packet>& packets);
+void set_rx_script(const std::vector<rx_packet>& packets, bool repeat = true);
 void fail_next(const std::string& function, int32_t status);
 } // namespace fake_sidekiq

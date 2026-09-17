@@ -36,6 +36,8 @@ struct state {
     std::deque<pending_packet> pending;
     std::vector<fake_sidekiq::rx_packet> rx_script;
     size_t rx_index = 0;
+    bool rx_repeat = true;
+    std::map<skiq_rx_hdl_t, uint32_t> rx_cal_available;
     std::map<std::string, int32_t> failures;
 };
 state s;
@@ -58,6 +60,8 @@ void capture(const pending_packet& p)
 } // namespace
 
 namespace fake_sidekiq {
+void set_rx_cal_available(skiq_rx_hdl_t handle, uint32_t mask)
+{ std::lock_guard<std::mutex> lock(mutex); s.rx_cal_available[handle] = mask; }
 void reset() { std::lock_guard<std::mutex> lock(mutex); s = state{}; }
 std::vector<call> calls() { std::lock_guard<std::mutex> lock(mutex); return s.calls; }
 std::vector<tx_packet> transmitted() { std::lock_guard<std::mutex> lock(mutex); return s.transmitted; }
@@ -69,7 +73,7 @@ void fail_next(const std::string& name, int32_t status)
     std::lock_guard<std::mutex> lock(mutex);
     s.failures[name] = status;
 }
-void set_rx_script(const std::vector<rx_packet>& packets)
+void set_rx_script(const std::vector<rx_packet>& packets, bool repeat)
 {
     constexpr size_t shorts_per_packet = 2 * (SKIQ_MAX_RX_BLOCK_SIZE_IN_WORDS - SKIQ_RX_HEADER_SIZE_IN_WORDS);
     if (packets.empty()) throw std::invalid_argument("RX script must not be empty");
@@ -80,6 +84,7 @@ void set_rx_script(const std::vector<rx_packet>& packets)
     std::lock_guard<std::mutex> lock(mutex);
     s.rx_script = packets;
     s.rx_index = 0;
+    s.rx_repeat = repeat;
 }
 size_t buffer_reuse_count() { std::lock_guard<std::mutex> lock(mutex); return s.reused_buffers; }
 bool complete_one(int32_t status)
@@ -147,7 +152,6 @@ int32_t skiq_start_rx_streaming_multi_on_trigger(uint8_t card, skiq_rx_hdl_t han
     const auto status = record("skiq_start_rx_streaming_multi_on_trigger", -1, 0);
     if (status) return status;
     if (card != 0) return -ENODEV;
-    if (s.rx_script.empty()) return -ENODATA;
     s.rx_started = true;
     return 0;
 }
@@ -484,7 +488,9 @@ int32_t skiq_read_rx_cal_types_avail(uint8_t card, skiq_rx_hdl_t hdl, uint32_t *
     const auto status = record("skiq_read_rx_cal_types_avail", hdl, 0);
     if (status) return status;
     if (card != 0) return -ENODEV;
-    *p_cal_mask = skiq_rx_cal_type_dc_offset | skiq_rx_cal_type_quadrature;
+    const auto it = s.rx_cal_available.find(hdl);
+    *p_cal_mask = it == s.rx_cal_available.end() ?
+        skiq_rx_cal_type_dc_offset | skiq_rx_cal_type_quadrature : it->second;
     return 0;
 }
 
@@ -519,6 +525,7 @@ skiq_rx_status_t skiq_receive(uint8_t card, skiq_rx_hdl_t* handle,
 {
     std::lock_guard<std::mutex> lock(mutex);
     if (card != 0 || !s.rx_started || s.rx_script.empty()) return skiq_rx_status_no_data;
+    if (!s.rx_repeat && s.rx_index >= s.rx_script.size()) return skiq_rx_status_no_data;
     const auto& p = s.rx_script[s.rx_index++ % s.rx_script.size()];
     auto* result = reinterpret_cast<skiq_rx_block_t*>(rx_storage.data());
     result->rf_timestamp = p.timestamp;
