@@ -3,8 +3,9 @@
 This suite builds the **actual repository RX/TX C++ blocks** with a test-only
 Sidekiq implementation, then connects them to GNU Radio Vector Source, Head,
 and Vector Sink blocks. It uses GNU Radio's `GR_ADD_CPP_TEST` integration with
-Boost.Test and CTest. No Sidekiq library, driver, radio, GUI, installation, or
-root access is needed.
+Boost.Test and CTest. Sidekiq SDK headers are required to compile the suite,
+but the compiled libsidekiq library is not linked. No driver, radio, GUI, module
+installation, or root access is needed.
 
 The separate `SIDEKIQ_QA_ONLY` configuration does not build or install a fake
 production module. The default configuration still builds the normal module.
@@ -22,20 +23,16 @@ Do not reuse a production build directory for QA.
 
 ## Configure, build, and test
 
-From the repository root, substitute your SDK header directory:
+From the repository root, use a compatible SDK installed at
+`~/sidekiq_sdk_current`, or substitute your SDK header directory:
 
 ```bash
 cmake -S . -B build/qa \
   -DSIDEKIQ_QA_ONLY=ON \
-  -DSIDEKIQ_QA_SDK_INCLUDE_DIR=/path/to/sdk/sidekiq_core/inc
+  -DSIDEKIQ_QA_SDK_INCLUDE_DIR="$HOME/sidekiq_sdk_current/sidekiq_core/inc"
 cmake --build build/qa -j4
 ctest --test-dir build/qa --output-on-failure
 ```
-
-On the development host used to add this suite, the available compatible headers
-are in `/home/dhelm/sidekiq_sw/sdk_artifacts/common_files/inc`. The default
-`~/sidekiq_sdk_current` points at an older SDK and cannot compile the current
-repository's topology API calls.
 
 Expected result: **1 CTest test passes**, containing **27 Boost.Test cases**.
 CTest applies a 30-second timeout so a scheduler or callback deadlock fails the
@@ -72,6 +69,8 @@ VOLK_GENERIC=1 GR_DONT_LOAD_PREFS=1 GR_CONF_CONTROLPORT_ON=False \
 - Fake backend contract: deferred callbacks, capacity-based queue-full rejection,
   original buffer lifetime, captured timestamps/data, and explicit completion.
 - Fake RX script validation, channel order, timestamps, and packet sizes.
+- Fake TX stop preserves streaming state on an injected SDK failure and cancels
+  only the selected handle's pending transfers on success.
 
 The TX safety regressions also cover deferred buffer ownership, queue-full retry
 without a pending callback, cancellation while the pool is full, and complete
@@ -142,7 +141,7 @@ For buffer-related changes, use a separate AddressSanitizer/UBSan build:
 ```bash
 cmake -S . -B build/qa-asan \
   -DSIDEKIQ_QA_ONLY=ON \
-  -DSIDEKIQ_QA_SDK_INCLUDE_DIR=/path/to/sdk/sidekiq_core/inc \
+  -DSIDEKIQ_QA_SDK_INCLUDE_DIR="$HOME/sidekiq_sdk_current/sidekiq_core/inc" \
   -DCMAKE_BUILD_TYPE=Debug \
   -DCMAKE_CXX_FLAGS="-fsanitize=address,undefined -fno-omit-frame-pointer" \
   -DCMAKE_EXE_LINKER_FLAGS="-fsanitize=address,undefined"
@@ -191,6 +190,22 @@ packet is discarded; full packets already submitted cannot be recalled.
 Zero, negative, noninteger, duplicate-at-one-offset, and overlapping burst tags
 are rejected with an error rather than replacing an active burst silently.
 No `tx_time`, SOB/EOB interface, or timestamp mode is introduced here.
+
+## Normal burst completion versus explicit stop
+
+The `burst_completion` suite verifies that normal length-tag burst completion
+waits for all async transfer callbacks before stopping the SDK, that synchronous
+TX releases its buffer reservation before the wait, and that explicit flowgraph
+stop interrupts the wait and cancels pending packets. Both I/Q payloads are checked
+for completed transfers. Run these cases with:
+
+```bash
+build/qa/tests/qa_sidekiq --run_test=burst_completion --log_level=test_suite
+```
+
+A completed callback permits reuse of the host buffer; it does not establish that
+the final sample has aired. Check RF tail delivery on hardware. Timed TX is not
+implemented in this branch.
 
 ## RX correctness: hardware validation
 
