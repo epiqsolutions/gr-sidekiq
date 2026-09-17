@@ -137,6 +137,15 @@ documentation: |-
         the <burst_tag_name> stream tag.
         If the name is "" then no bursting is enabled.
         It uses the <burst_tag_name> stream tag to indicate the start-of-burst and length.
+        The tag is attached to the first sample and its value is a positive integer
+        count of complex samples. Samples outside bursts are discarded. Bursts may
+        span scheduler calls; adjacent bursts are allowed, overlapping tags are errors.
+        Each final partial SDK packet is padded with zero IQ samples. Padding is
+        transmitted and does not consume input samples from the following burst.
+        Normal burst completion waits for async transfer callbacks before stopping.
+        This does not guarantee completion at the antenna. User stop aborts pending
+        transfers. An incomplete burst at end-of-input is not automatically completed.
+        These are immediate bursts; tx_time and SOB/EOB scheduling are not supported.
 
         Configuration messages - The block also can receive the "lo_freq", "rate", 
         "bandwidth" and "attenuation" messages to modify those parameters.

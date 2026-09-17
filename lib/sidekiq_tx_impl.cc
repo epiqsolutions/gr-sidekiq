@@ -7,7 +7,6 @@
 #include <gnuradio/io_signature.h>
 #include <volk/volk.h>
 #include <boost/algorithm/string.hpp>
-#include <boost/foreach.hpp>
 #include <algorithm>
 
 #include "sidekiq_handle_utils.h"
@@ -161,15 +160,6 @@ sidekiq_tx_impl::sidekiq_tx_impl( int input_card,
 
     burst_tag_name = burst_tag;
     d_logger->debug("burst_tag_name: {}", burst_tag_name);   
-
-    if( 0 == burst_tag_name.compare("") )
-    {
-        bursting_cmd = NO_BURSTING_ENABLED;
-    }
-    else
-    {
-        bursting_cmd = BURSTING_OFF;
-    }
 
     status = skiq_init(skiq_xport_type_pcie, skiq_xport_init_level_full, &card, 1);
     if (status != 0) 
@@ -427,7 +417,9 @@ bool sidekiq_tx_impl::start()
     std::lock_guard<std::mutex> lock(tx_lifecycle_mutex);
     if (tx_streaming) return block::start();
     tx_buffers->restart();
-    if (bursting_cmd == BURSTING_ON || bursting_cmd == NO_BURSTING_ENABLED) {
+    burst_remaining = 0;
+    burst_packet.clear();
+    if (burst_tag_name.empty()) {
         const auto status = skiq_start_tx_streaming(card, hdl);
         if (status != 0) {
             d_logger->error("Error: could not start TX streaming, status {}", status);
@@ -436,20 +428,7 @@ bool sidekiq_tx_impl::start()
         tx_streaming = true;
         return block::start();
     }
-    return false;
-}
-
-void sidekiq_tx_impl::finish_burst()
-{
-    // A normal burst boundary must not cancel outstanding host transfers.
-    // This is a transport drain, not a guarantee of completion at the antenna.
-    if (!tx_buffers->drain()) throw boost::thread_interrupted();
-    std::lock_guard<std::mutex> lock(tx_lifecycle_mutex);
-    if (tx_buffers->stopping()) throw boost::thread_interrupted();
-    const auto status = skiq_stop_tx_streaming(card, hdl);
-    if (status != 0)
-        throw std::runtime_error("Failure: burst stop, status " + std::to_string(status));
-    tx_streaming = false;
+    return block::start();
 }
 
 /* Stop is an abort, not a guarantee that queued samples have aired. */
@@ -700,7 +679,7 @@ void sidekiq_tx_impl::forecast(int noutput_items, gr_vector_int &ninput_items_re
 {
 
     (void)(noutput_items);
-    ninput_items_required[0] = tx_buffer_size;
+    ninput_items_required[0] = burst_tag_name.empty() ? tx_buffer_size : 1;
 }
 
 /* This will determine if we received any more underruns than already reported 
@@ -727,211 +706,128 @@ void sidekiq_tx_impl::update_tx_error_count() {
 	}
 }
 
-int sidekiq_tx_impl::handle_tx_burst_tag(tag_t tag) 
+// Submit one SDK packet. Padding is physical zero IQ, not an empty packet.
+void sidekiq_tx_impl::submit_packet(const gr_complex* input, size_t count)
 {
-    if (bursting_cmd != NO_BURSTING_ENABLED)
-    {
-        /* old way does not compile anymore */
-#ifdef OLDWAY
-        d_logger->debug("in handle_tx_burst_tag, tag offset {}, cmd {}, length {}", 
-                tag.offset, bursting_cmd, tag.value);
-#endif
-        d_logger->debug("in handle_tx_burst_tag, tag offset {:d}, cmd {}, length {:d}", 
-                tag.offset, bursting_cmd, pmt::write_string(tag.value));
-
-        burst_length = pmt::to_uint64(tag.value);
-        burst_samples_sent = 0;
-        bursting_cmd = BURSTING_ON;
-
-        if (tx_streaming == false)
+    auto buffer = tx_buffers->acquire(curr_block);
+    if (!buffer) throw boost::thread_interrupted();
+    auto* payload = buffer.block()->data;
+    std::fill_n(payload, 2 * tx_buffer_size * (dual_channel_packet ? 2 : 1), int16_t{0});
+    if (dual_channel_packet) payload += 2 * tx_buffer_size;
+    volk_32f_s32f_multiply_32f(reinterpret_cast<float*>(temp_buffer.data()),
+                             reinterpret_cast<const float*>(input), dac_scaling,
+                             static_cast<unsigned int>(2 * count));
+    volk_32fc_convert_16ic(reinterpret_cast<lv_16sc_t*>(payload),
+                          reinterpret_cast<const lv_32fc_t*>(temp_buffer.data()), count);
+    for (;;) {
+        boost::this_thread::interruption_point();
+        const auto generation = tx_buffers->generation();
+        int status;
         {
-            start();
+            std::lock_guard<std::mutex> lock(tx_lifecycle_mutex);
+            if (tx_buffers->stopping()) throw boost::thread_interrupted();
+            status = skiq_transmit(card, hdl, buffer.block(),
+                                   in_async_mode ? buffer.context() : nullptr);
         }
-
-        return burst_length;
+        if (status == 0) {
+            if (in_async_mode) buffer.handoff();
+            break;
+        }
+        if (status != SKIQ_TX_ASYNC_SEND_QUEUE_FULL)
+            throw std::runtime_error("Failure: skiq_transmit, status " + std::to_string(status));
+        tx_buffers->wait_for_completion(generation);
     }
-    else
-    {
-        return 0;
-    }
+    curr_block = (curr_block + 1) % num_blocks;
 }
 
-
-
-/* This is called by GNURadio when it has received a buffer of samples to be transmitted. */
-int sidekiq_tx_impl::work(
-		int noutput_items,
-		gr_vector_const_void_star &input_items,
-		gr_vector_void_star &output_items) 
+void sidekiq_tx_impl::finish_burst()
 {
-	int32_t status{};
-	int32_t samples_written{};
-    int32_t ninput_items{};
+    // A normal burst boundary must not cancel outstanding host transfers.
+    // This is a transport drain, not a guarantee of completion at the antenna.
+    if (!tx_buffers->drain()) throw boost::thread_interrupted();
+    std::lock_guard<std::mutex> lock(tx_lifecycle_mutex);
+    if (tx_buffers->stopping()) throw boost::thread_interrupted();
+    const auto status = skiq_stop_tx_streaming(card, hdl);
+    if (status != 0)
+        throw std::runtime_error("Failure: burst stop, status " + std::to_string(status));
+    tx_streaming = false;
+}
+
+int sidekiq_tx_impl::work_bursts(int count, const gr_complex* input)
+{
     std::vector<tag_t> tags;
-
-    (void)(output_items);
-
-    /* get a pointer to the buffer with the samples to be transmitted */
-    auto in = static_cast<const gr_complex *>(input_items[0]);
-
-    /* noutput_items should always be larger than tx_buffer_size 
-     * because we did the "forecast" function */
-    if ( noutput_items >= tx_buffer_size)
-    {
-         /* get the size of the input aligned to our buffer size */
-	     ninput_items = noutput_items - (noutput_items % tx_buffer_size);
-    }
-    else
-    {
-
-        d_logger->error( "Error: noutput_items {} is smaller than tx_buffer_size {}", 
-                noutput_items, tx_buffer_size);
-        throw std::runtime_error("Failure: input items too small");
-    }
-
-    pmt_t tx_burst_key{pmt::string_to_symbol(burst_tag_name)};
-
-    /* see if we received the TX_BURST tag, if so process it */
-    get_tags_in_range(tags, 0, nitems_read(0), nitems_read(0) + ninput_items);
-    if (not tags.empty())
-    {
-        BOOST_FOREACH( const tag_t &tag, tags) 
-        {
-            if (pmt::equal(tag.key, tx_burst_key))
+    const auto base = nitems_read(0);
+    get_tags_in_range(tags, 0, base, base + count, pmt::intern(burst_tag_name));
+    std::stable_sort(tags.begin(), tags.end(), [](const tag_t& a, const tag_t& b) {
+        return a.offset < b.offset;
+    });
+    size_t next = 0;
+    int consumed = 0;
+    while (consumed < count) {
+        boost::this_thread::interruption_point();
+        const auto offset = base + consumed;
+        if (next < tags.size() && tags[next].offset == offset) {
+            if (burst_remaining)
+                throw std::runtime_error("Overlapping TX burst tags");
+            const auto value = tags[next++].value;
+            uint64_t length = 0;
+            if (pmt::is_uint64(value)) length = pmt::to_uint64(value);
+            else if (pmt::is_integer(value) && pmt::to_long(value) > 0)
+                length = static_cast<uint64_t>(pmt::to_long(value));
+            if (!length) throw std::runtime_error("TX burst length must be a positive integer");
+            if (next < tags.size() && tags[next].offset == offset)
+                throw std::runtime_error("Duplicate TX burst tags");
             {
-                handle_tx_burst_tag(tag);
+                std::lock_guard<std::mutex> lock(tx_lifecycle_mutex);
+                if (tx_buffers->stopping()) throw boost::thread_interrupted();
+                const auto status = skiq_start_tx_streaming(card, hdl);
+                if (status != 0) throw std::runtime_error("Failure: burst start");
+                tx_streaming = true;
             }
+            burst_remaining = length;
         }
-    }
-
-    if (bursting_cmd == BURSTING_OFF)
-    {
-        // We are not transmitting yet
-        return noutput_items;
-    }
-
-    int32_t samples_to_write = tx_buffer_size;
-
-    /* if we are streaming in bursts, tx_streaming goes on and off */
-    if (tx_streaming)
-    {
-        /* loop until we have sent the samples we have been given */
-        while (samples_written < ninput_items) 
-        {
-            /* if we are bursting then we need to only send the amount of samples in the burst */
-            if (burst_length != 0)
-            {
-                uint64_t delta = burst_length - burst_samples_sent;
-
-                /* if this number is smaller than our buffer size, we need to send only the delta */
-                if (delta < (uint64_t)tx_buffer_size)
-                {
-                   samples_to_write = delta;
-                }
-                else 
-                {
-                    samples_to_write = tx_buffer_size;
-                }
-            }
-            else
-            {
-                samples_to_write = tx_buffer_size;
-            }
-
-            // End the synchronous reservation before waiting for an empty pool.
-            // Async reservations remain owned by their completion callbacks.
-            {
-                auto buffer = tx_buffers->acquire(curr_block);
-                if (!buffer) return samples_written ? samples_written : WORK_DONE;
-                auto* payload = buffer.block()->data;
-                if (dual_channel_packet) {
-                    // Silence the paired A1/B1 channel; the input belongs to A2/B2.
-                    std::fill_n(payload, 2 * tx_buffer_size, int16_t{0});
-                    payload += 2 * tx_buffer_size;
-                }
-
-                /* convert the samples we have received to be within the dac_scaling values */
-                volk_32f_s32f_multiply_32f(
-                        reinterpret_cast<float *>(&temp_buffer[0]),
-                        reinterpret_cast<const float *>(in),
-                        dac_scaling,
-                        static_cast<unsigned int>(samples_to_write * 2));
-
-                /* convert those samples from float complex to int16 */
-                volk_32fc_convert_16ic(
-                        reinterpret_cast<lv_16sc_t *>(payload),
-                        reinterpret_cast<const lv_32fc_t*>(&temp_buffer[0]),
-                        samples_to_write);
-            
-
-                // Reserve before calling the SDK, which can invoke the callback
-                // inline. Never hold the pool mutex across that call.
-                for (;;) {
-                    boost::this_thread::interruption_point();
-                    const auto generation = tx_buffers->generation();
-                    {
-                        std::lock_guard<std::mutex> lock(tx_lifecycle_mutex);
-                        if (tx_buffers->stopping())
-                            return samples_written ? samples_written : WORK_DONE;
-                        status = skiq_transmit(card, hdl, buffer.block(),
-                                              in_async_mode ? buffer.context() : nullptr);
-                    }
-                    if (status == 0) {
-                        if (in_async_mode) buffer.handoff();
-                        break;
-                    }
-                    if (status != SKIQ_TX_ASYNC_SEND_QUEUE_FULL) {
-                        d_logger->error("Error: sidekiq transmit failed, status {}", status);
-                        throw std::runtime_error("Failure: skiq_transmit");
-                    }
-                    tx_buffers->wait_for_completion(generation);
-                }
-            }
-            // Only accepted samples advance input/burst counters. A rejected
-            // packet is retried unchanged, using the same buffer.
-            samples_written += samples_to_write;
-            in += samples_to_write;
-            curr_block = (curr_block + 1) % num_blocks;
-
-            /* if we are bursting, check to see if we are done */
-            if (burst_length != 0)
-            {
-                burst_samples_sent += samples_to_write;
-                if (burst_samples_sent >= burst_length) 
-                {
-                    d_logger->debug("done bursting, sent {}, length {} stop streaming", burst_samples_sent, burst_length);
-                    burst_length = 0;
-                    burst_samples_sent = 0;
-                    finish_burst();
-                    bursting_cmd = BURSTING_OFF;
-                    break;
-                }
-            }
+        const auto boundary = next < tags.size() ? tags[next].offset : base + count;
+        const auto available = boundary - offset;
+        if (!burst_remaining) {
+            consumed += available; // Samples outside tagged bursts are discarded.
+            continue;
         }
-
-        /* Determine if the time has elapsed and display any underruns we have received */
-        if (nitems_read(0) - last_status_update_sample > status_update_rate_in_samples) 
-        {
-            update_tx_error_count();
-            last_status_update_sample = nitems_read(0);
-
-
-            d_logger->debug("noutput_items {}, tx_buffer_size {}, sample_written {}", 
-                    noutput_items, tx_buffer_size, samples_written);
+        const auto take = std::min<uint64_t>(
+            std::min<uint64_t>(available, burst_remaining), tx_buffer_size - burst_packet.size());
+        burst_packet.insert(burst_packet.end(), input + consumed, input + consumed + take);
+        consumed += take;
+        burst_remaining -= take;
+        if (burst_packet.size() == static_cast<size_t>(tx_buffer_size) || !burst_remaining) {
+            submit_packet(burst_packet.data(), burst_packet.size());
+            burst_packet.clear();
         }
+        if (!burst_remaining) finish_burst();
     }
-
-    /* if we are bursting and we have not written anything we need to lie and say we did.  Otherwise 
-     * the flowchart stops sending samples */
-    if (samples_written == 0)
-    {
-        samples_written = ninput_items;
-    }
-
-	
-	return samples_written;
+    return consumed;
 }
 
+int sidekiq_tx_impl::work(int noutput_items,
+                          gr_vector_const_void_star& input_items,
+                          gr_vector_void_star& output_items)
+{
+    (void)output_items;
+    const auto* input = static_cast<const gr_complex*>(input_items[0]);
+    int consumed = 0;
+    if (!burst_tag_name.empty()) {
+        consumed = work_bursts(noutput_items, input);
+    } else {
+        // Preserve immediate mode's complete-packet consumption contract.
+        while (noutput_items - consumed >= tx_buffer_size) {
+            submit_packet(input + consumed, tx_buffer_size);
+            consumed += tx_buffer_size;
+        }
+    }
+    if (nitems_read(0) - last_status_update_sample > status_update_rate_in_samples) {
+        update_tx_error_count();
+        last_status_update_sample = nitems_read(0);
+    }
+    return consumed;
+}
 
-} /* namespace sidekiq */
-} /* namespace gr */
+} // namespace sidekiq
+} // namespace gr

@@ -19,9 +19,6 @@
 
 #define CAL_ON                  1     // run_cal parameter if a manual calibration is requested
 
-#define BURSTING_OFF            0          
-#define BURSTING_ON             1
-#define NO_BURSTING_ENABLED     2
 
 using pmt::pmt_t;
 
@@ -96,7 +93,8 @@ public:
 
 private:
     /* method prototypes */
-    int handle_tx_burst_tag(tag_t tag);
+    int work_bursts(int count, const gr_complex* input);
+    void submit_packet(const gr_complex* input, size_t count);
     void finish_burst();
     void update_tx_error_count();
     double get_double_from_pmt_dict(pmt_t dict, pmt_t key, pmt_t not_found ); 
@@ -138,11 +136,9 @@ private:
     uint64_t timestamp{};
 
     /* bursting */
-    uint32_t bursting_cmd{};
-    std::vector<tag_t> _tags;    
-    uint64_t burst_length{};
-    uint64_t burst_samples_sent{};
-    uint64_t previous_burst_tag_offset{};
+    uint64_t burst_remaining{};
+    std::vector<gr_complex> burst_packet;
+
 
 
     /* displaying info in work() needs to stop after a few calls */
