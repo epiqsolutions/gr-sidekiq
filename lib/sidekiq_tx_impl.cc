@@ -4,21 +4,24 @@
  *
  * SPDX-License-Identifier: GPL-3.0-or-later
  */
+/*
+ * GNU Radio sink backed by libsidekiq TX. Converts complex input into fixed-size
+ * SDK packets for immediate transmission or the existing length-tag bursts.
+ * The buffer pool protects asynchronous transfers; the session protects SDK
+ * lifetime. Length tags select input samples and do not schedule RF timestamps.
+ */
+
 #include <gnuradio/io_signature.h>
 #include <volk/volk.h>
-#include <boost/algorithm/string.hpp>
 #include <algorithm>
 
 #include "sidekiq_handle_utils.h"
+#include "sidekiq_common.h"
 #include "sidekiq_tx_impl.h"
-
-
-#define DEBUG_LEVEL "debug"  //Can be debug, info, warning, error, critical
 
 namespace gr {
 namespace sidekiq {
 
-using input_type = float;
 
 /* This is the top level class instantiated by gnuradio */
 sidekiq_tx::sptr sidekiq_tx::make(int card,
@@ -121,8 +124,7 @@ sidekiq_tx::sptr sidekiq_tx::make(int card,
                             cal_mode);
 }
 
-
-/* constructor 
+/* constructor
  * Initialize the card
  */
 sidekiq_tx_impl::sidekiq_tx_impl( int input_card,
@@ -134,53 +136,30 @@ sidekiq_tx_impl::sidekiq_tx_impl( int input_card,
                                   double attenuation,
                                   std::string burst_tag,
                                   int threads,
-                                  int buffer_size, 
+                                  int buffer_size,
                                   int cal_mode)
     : gr::sync_block("sidekiq_tx",
                      gr::io_signature::make( 1 /* min inputs */, 1 /* max inputs */, sizeof(gr_complex)),
                      gr::io_signature::make(0, 0, 0))   //sync block
 {
-    std::string str;
 
-    d_logger->set_level(DEBUG_LEVEL);
-    d_logger->get_level(str);
+    d_logger->set_level("debug");
 
-    printf("in TX constructor, debug level:%s\n", str.c_str());
-    
     int status = 0;
     skiq_param_t param;
     uint8_t iq_resolution = 0;
-    status_update_rate_in_samples = static_cast<size_t >(sample_rate * STATUS_UPDATE_RATE_SECONDS);
+    status_update_rate_in_samples = static_cast<size_t >(sample_rate * status_update_interval_seconds);
 
     card = input_card;
-    hdl = (skiq_tx_hdl_t)handle;
+    hdl = static_cast<skiq_tx_hdl_t>(handle);
     curr_block = 0;
     tx_buffer_size = buffer_size;
-    num_blocks = NUM_BLOCKS;
+    num_blocks = default_num_blocks;
 
     burst_tag_name = burst_tag;
-    d_logger->debug("burst_tag_name: {}", burst_tag_name);   
+    d_logger->debug("burst_tag_name: {}", burst_tag_name);
 
-    status = skiq_init(skiq_xport_type_pcie, skiq_xport_init_level_full, &card, 1);
-    if (status != 0) 
-    {
-        if (status != -EEXIST)
-        {
-            d_logger->error( "Error: unable to initialize libsidekiq with status {}", status);
-            throw std::runtime_error("Failure: skiq_init");
-        }
-        else 
-        {
-            d_logger->info("Info: If not running Transceive Mode, then this is an error");
-            tx_second = true;
-        }
-    }
-    else
-    {
-        libsidekiq_init = true;
-        d_logger->info("Info: libsidkiq initialized successfully");
-
-    }
+    session = std::make_unique<sidekiq_session>(card);
 
     status = skiq_read_parameters(card, &param);
     if (status != 0)
@@ -198,7 +177,7 @@ sidekiq_tx_impl::sidekiq_tx_impl( int input_card,
             status = skiq_apply_topology(card, topology);
             if (status != 0)
             {
-                d_logger->error( "Error: unable to configure topology %d with status {}",
+                d_logger->error( "Error: unable to configure topology {} with status {}",
                                  topology, status);
                 throw std::runtime_error("Failure: skiq_apply_topology");
             }
@@ -210,14 +189,14 @@ sidekiq_tx_impl::sidekiq_tx_impl( int input_card,
         }
     }
 
-    if (tx_second == false)
+    if (session->initialized_card())
     {
         set_tx_sample_rate(sample_rate);
         set_tx_bandwidth(bandwidth);
     }
 
     status = skiq_read_tx_iq_resolution(card, &iq_resolution);
-    if (status != 0) 
+    if (status != 0)
     {
         d_logger->error( "Error: unable to get iq resolution with status {}", status);
         throw std::runtime_error("Failure: skiq_read_tx_iq_resolution");
@@ -227,7 +206,7 @@ sidekiq_tx_impl::sidekiq_tx_impl( int input_card,
 
     /* always use immediate mode */
     status = skiq_write_tx_data_flow_mode(card, hdl, skiq_tx_immediate_data_flow_mode);
-    if (status != 0) 
+    if (status != 0)
     {
         d_logger->error( "Error: could not set TX dataflow mode with status {}", status);
         throw std::runtime_error("Failure: skiq_write_tx_flow_mode");
@@ -267,7 +246,7 @@ sidekiq_tx_impl::sidekiq_tx_impl( int input_card,
     status = skiq_write_tx_block_size(card, hdl, tx_buffer_size);
     if (status != 0)
     {
-        d_logger->error( "Error: unable to configure TX block size: {} with status {}", 
+        d_logger->error( "Error: unable to configure TX block size: {} with status {}",
                 tx_buffer_size, status);
         throw std::runtime_error("Failure: skiq_write_tx_block_size");
     }
@@ -279,23 +258,23 @@ sidekiq_tx_impl::sidekiq_tx_impl( int input_card,
     /* handle sync vs async mode */
     in_async_mode = threads > 1;
     if (in_async_mode)
-    {  
+    {
         status = skiq_write_tx_transfer_mode(card, hdl, skiq_tx_transfer_mode_async);
-        if (status != 0) 
+        if (status != 0)
         {
             d_logger->error( "Error: unable to configure TX channel mode with status {}", status);
             throw std::runtime_error("Failure: skiq_write_tx_transfer_mode");
         }
 
         status = skiq_write_num_tx_threads(card, threads);
-        if (status != 0) 
+        if (status != 0)
         {
             d_logger->error("Error: unable to configure TX number of threads with status {}", status);
             throw std::runtime_error("Failure: skiq_write_tx_transfer_mode");
         }
-        
+
         status = skiq_register_tx_complete_callback( card, &tx_buffer_pool::complete );
-        if (status != 0) 
+        if (status != 0)
         {
             d_logger->error( "Error: unable to configure TX callback with status {}", status);
             throw std::runtime_error("Failure: skiq_register_tx_complete_callback");
@@ -304,7 +283,7 @@ sidekiq_tx_impl::sidekiq_tx_impl( int input_card,
     }
     else {
         status = skiq_write_tx_transfer_mode(card, hdl, skiq_tx_transfer_mode_sync);
-        if (status != 0) 
+        if (status != 0)
         {
             d_logger->error( "Error: unable to configure TX channel mode with status {}", status);
             throw std::runtime_error("Failure: skiq_write_tx_transfer_mode");
@@ -313,17 +292,17 @@ sidekiq_tx_impl::sidekiq_tx_impl( int input_card,
         d_logger->info("Info: in sync mode ");
     }
 
-    /* always assume unpacked */ 
-    status = skiq_write_iq_pack_mode(card, SIDEKIQ_IQ_PACK_MODE_UNPACKED);
-    if (status != 0) 
+    /* always assume unpacked */
+    status = skiq_write_iq_pack_mode(card, detail::packed_iq);
+    if (status != 0)
     {
         d_logger->error( "Error: unable to set iq pack mode to unpacked with status {}", status);
         throw std::runtime_error("Failure: skiq_write_iq_pack_mode");
     }
- 
-    /* by default all cards are in Q/I order we want it to be I/Q so switch it */ 
+
+    /* by default all cards are in Q/I order we want it to be I/Q so switch it */
     status = skiq_write_iq_order_mode(card, skiq_iq_order_iq) ;
-    if (status != 0) 
+    if (status != 0)
     {
           d_logger->error( "Error: unable to set iq order mode to iq with status {} ", status);
           throw std::runtime_error("Failure: skiq_write_iq_pack_mode");
@@ -334,8 +313,8 @@ sidekiq_tx_impl::sidekiq_tx_impl( int input_card,
     tx_buffers = std::make_shared<tx_buffer_pool>(
         num_blocks, tx_buffer_size * (dual_channel_packet ? 2 : 1));
 
-    message_port_register_in(CONTROL_MESSAGE_PORT);
-    set_msg_handler(CONTROL_MESSAGE_PORT, [this](pmt::pmt_t msg) { this->handle_control_message(msg); });
+    message_port_register_in(detail::command_port);
+    set_msg_handler(detail::command_port, [this](pmt::pmt_t msg) { this->handle_control_message(msg); });
 
     /* set the frequency and attenuation */
     set_tx_frequency(frequency);
@@ -345,7 +324,7 @@ sidekiq_tx_impl::sidekiq_tx_impl( int input_card,
 }
 
 /* Destructor, free all the memory allocated */
-sidekiq_tx_impl::~sidekiq_tx_impl() 
+sidekiq_tx_impl::~sidekiq_tx_impl()
 {
     d_logger->debug("in TX destructor");
 
@@ -353,35 +332,14 @@ sidekiq_tx_impl::~sidekiq_tx_impl()
     // independently by the pool in case a transport completes asynchronously.
     stop();
 
-    /* disable libsidekiq */
-    if (libsidekiq_init == true)
-    {
-        skiq_exit();
-    }
+
 }
 
-double sidekiq_tx_impl::get_double_from_pmt_dict(pmt_t dict, pmt_t key, pmt_t not_found = pmt::PMT_NIL) 
-{
-    auto message_value = pmt::dict_ref(dict, key, not_found);
-
-    return pmt::to_double(message_value);
-}
-
-
-void sidekiq_tx_impl::handle_control_message(pmt_t msg) 
+void sidekiq_tx_impl::handle_control_message(pmt_t msg)
 {
     d_logger->debug("in handle_control ");
 
-    // pmt_dict is a subclass of pmt_pair. Make sure we use pmt_pair!
-    // Old behavior was that these checks were interchangeable. Be aware of this change!
-    if (!(pmt::is_dict(msg)) && pmt::is_pair(msg)) {
-        d_logger->debug(
-            "Command message is pair, converting to dict: '{}': car({}), cdr({})",
-            pmt::write_string(msg),
-            pmt::write_string(pmt::car(msg)),
-            pmt::write_string(pmt::cdr(msg)));
-        msg = pmt::dict_add(pmt::make_dict(), pmt::car(msg), pmt::cdr(msg));
-     }
+    msg = detail::command_dict(msg);
 
      // Make sure, we use dicts!
      if (!pmt::is_dict(msg)) {
@@ -389,27 +347,26 @@ void sidekiq_tx_impl::handle_control_message(pmt_t msg)
          return;
      }
 
-    if (pmt::dict_has_key(msg, LO_FREQ_KEY)) 
+    if (pmt::dict_has_key(msg, detail::frequency_key))
     {
-        set_tx_frequency(get_double_from_pmt_dict(msg, LO_FREQ_KEY));
+        set_tx_frequency(detail::command_number(msg, detail::frequency_key));
     }
 
-    if (pmt::dict_has_key(msg, RATE_KEY)) 
+    if (pmt::dict_has_key(msg, detail::rate_key))
     {
-        set_tx_sample_rate(get_double_from_pmt_dict(msg, RATE_KEY));
+        set_tx_sample_rate(detail::command_number(msg, detail::rate_key));
     }
 
-    if (pmt::dict_has_key(msg, BANDWIDTH_KEY)) 
+    if (pmt::dict_has_key(msg, detail::bandwidth_key))
     {
-        set_tx_bandwidth(get_double_from_pmt_dict(msg, BANDWIDTH_KEY));
+        set_tx_bandwidth(detail::command_number(msg, detail::bandwidth_key));
     }
 
-    if (pmt::dict_has_key(msg, ATTENUATION_KEY)) 
+    if (pmt::dict_has_key(msg, detail::attenuation_key))
     {
-        set_tx_attenuation(get_double_from_pmt_dict(msg, ATTENUATION_KEY));
+        set_tx_attenuation(detail::command_number(msg, detail::attenuation_key));
     }
 }
-
 
 /* start streaming */
 bool sidekiq_tx_impl::start()
@@ -453,10 +410,10 @@ bool sidekiq_tx_impl::stop()
     return block::stop() && completion_error == 0;
 }
 
-/* set the sample rate 
+/* set the sample rate
  * this may be called from the flowgraph if the user changes the variable
  */
-void sidekiq_tx_impl::set_tx_sample_rate(double value) 
+void sidekiq_tx_impl::set_tx_sample_rate(double value)
 {
     double actual_rate;
     uint32_t requested_rate, requested_bw, actual_bw;
@@ -507,9 +464,9 @@ void sidekiq_tx_impl::set_tx_sample_rate(double value)
     new_bw = std::min(actual_bw, new_rate);
 
     status = skiq_write_tx_sample_rate_and_bandwidth(card, hdl, new_rate, new_bw);
-    if (status != 0) 
+    if (status != 0)
     {
-        d_logger->error( "Error: could not set sample_rate, status {}, {}", 
+        d_logger->error( "Error: could not set sample_rate, status {}, {}",
                 status, strerror(abs(status)) );
         throw std::runtime_error("Failure: set samplerate");
     }
@@ -527,11 +484,11 @@ void sidekiq_tx_impl::set_tx_sample_rate(double value)
     this->sample_rate = static_cast<uint32_t>(actual_rate);
     this->bandwidth = actual_bw;
 }
-  
+
 /* set the bandwidth
  * this may be called from the flowgraph if the user changes the variable
  */
-void sidekiq_tx_impl::set_tx_bandwidth(double value) 
+void sidekiq_tx_impl::set_tx_bandwidth(double value)
 {
     int status = 0;
     double actual_rate;
@@ -556,7 +513,6 @@ void sidekiq_tx_impl::set_tx_bandwidth(double value)
         d_logger->error("Error: could not set bandwidth {} on hdl, status {}, {}",
                 new_bw, status, strerror(abs(status)) );
         throw std::runtime_error("Failure: set bandwidth");
-        return;
     }
 
     status = skiq_read_tx_sample_rate_and_bandwidth(card, hdl,
@@ -584,7 +540,7 @@ void sidekiq_tx_impl::set_tx_bandwidth(double value)
 /* set the LO frequency
  * this may be called from the flowgraph if the user changes the variable
  */
-void sidekiq_tx_impl::set_tx_frequency(double value) 
+void sidekiq_tx_impl::set_tx_frequency(double value)
 {
     int status = 0;
     d_logger->debug("in set_tx_frequency() ");
@@ -592,22 +548,20 @@ void sidekiq_tx_impl::set_tx_frequency(double value)
     auto freq = static_cast<uint64_t>(value);
 
     status = skiq_write_tx_LO_freq(card, hdl, freq);
-    if (status != 0) 
+    if (status != 0)
     {
-        d_logger->error("Error: could not set frequency {}, status {}, {}", 
+        d_logger->error("Error: could not set frequency {}, status {}, {}",
                 freq, status, strerror(abs(status)) );
         throw std::runtime_error("Failure: set samplerate");
-        return;
     }
 
     this->frequency = freq;
 }
 
-
 /* set the attenuation
  * this may be called from the flowgraph if the user changes the variable
  */
-void sidekiq_tx_impl::set_tx_attenuation(double value) 
+void sidekiq_tx_impl::set_tx_attenuation(double value)
 {
     int status = 0;
     d_logger->debug("in set_tx_attenuation() ");
@@ -617,10 +571,9 @@ void sidekiq_tx_impl::set_tx_attenuation(double value)
     status = skiq_write_tx_attenuation(card, hdl, att);
     if (status != 0)
     {
-        d_logger->error( "Error: could not set TX attenuation to {} with status {}, {}", 
+        d_logger->error( "Error: could not set TX attenuation to {} with status {}, {}",
                 att, status, strerror(abs(status)) );
         throw std::runtime_error("Failure: skiq_write_tx_attenuation");
-        return;
     }
     this->attenuation = att;
 }
@@ -628,7 +581,7 @@ void sidekiq_tx_impl::set_tx_attenuation(double value)
 /* set the cal_mode
  * this may be called from the flowgraph if the user changes the variable
  */
-void sidekiq_tx_impl::set_tx_cal_mode(int value) 
+void sidekiq_tx_impl::set_tx_cal_mode(int value)
 {
     int status = 0;
     auto cal_mode = static_cast<skiq_tx_quadcal_mode_t>(value);
@@ -649,11 +602,11 @@ void sidekiq_tx_impl::set_tx_cal_mode(int value)
 /* run tx calibration
  * this may be called from the flowgraph if the user changes the variable
  */
-void sidekiq_tx_impl::run_tx_cal(int value) 
+void sidekiq_tx_impl::run_tx_cal(int value)
 {
     int status = 0;
 
-    if (value == CAL_ON )
+    if (value == cal_on )
     {
         if (calibration_mode == skiq_tx_quadcal_mode_manual)
         {
@@ -672,17 +625,17 @@ void sidekiq_tx_impl::run_tx_cal(int value)
     }
 }
 
-/* GNURadio will call this before each "work()" call.  It tells them the minimum size of the 
+/* GNURadio will call this before each "work()" call.  It tells them the minimum size of the
  * buffer they can send us send with samples.
  */
-void sidekiq_tx_impl::forecast(int noutput_items, gr_vector_int &ninput_items_required) 
+void sidekiq_tx_impl::forecast(int noutput_items, gr_vector_int &ninput_items_required)
 {
 
     (void)(noutput_items);
     ninput_items_required[0] = burst_tag_name.empty() ? tx_buffer_size : 1;
 }
 
-/* This will determine if we received any more underruns than already reported 
+/* This will determine if we received any more underruns than already reported
  * This is called after a defined number of samples are handled.
  * That way it is like a timer going off.
  */
@@ -690,18 +643,16 @@ void sidekiq_tx_impl::update_tx_error_count() {
     int status = 0;
     uint32_t num_tx_errors;
 
-
     status =  skiq_read_tx_num_underruns(card, hdl, &num_tx_errors);
     if (status != 0)
     {
         d_logger->error( "Error: skiq_read_tx_num_underruns failed with status {} ", status);
         throw std::runtime_error("Failure: skiq_write_tx_attenuation");
-        return;
     }
 
-    if (last_num_tx_errors != num_tx_errors) 
+    if (last_num_tx_errors != num_tx_errors)
     {
-        printf("TX underrun count: %u\n", num_tx_errors);
+        d_logger->warn("TX underrun count: {}", num_tx_errors);
         last_num_tx_errors = num_tx_errors;
 	}
 }
@@ -721,6 +672,8 @@ void sidekiq_tx_impl::submit_packet(const gr_complex* input, size_t count)
                           reinterpret_cast<const lv_32fc_t*>(temp_buffer.data()), count);
     for (;;) {
         boost::this_thread::interruption_point();
+        // Capture before submission: an async callback may run before the SDK
+        // call returns. Only an accepted packet transfers ownership to the SDK.
         const auto generation = tx_buffers->generation();
         int status;
         {
@@ -756,6 +709,8 @@ void sidekiq_tx_impl::finish_burst()
 int sidekiq_tx_impl::work_bursts(int count, const gr_complex* input)
 {
     std::vector<tag_t> tags;
+    // GNU Radio tag offsets are absolute; consumed is relative to this call.
+    // Persistent burst_packet/burst_remaining bridge scheduler boundaries.
     const auto base = nitems_read(0);
     get_tags_in_range(tags, 0, base, base + count, pmt::intern(burst_tag_name));
     std::stable_sort(tags.begin(), tags.end(), [](const tag_t& a, const tag_t& b) {
@@ -792,6 +747,8 @@ int sidekiq_tx_impl::work_bursts(int count, const gr_complex* input)
             consumed += available; // Samples outside tagged bursts are discarded.
             continue;
         }
+        // Stop at the next tag, the burst end, or the SDK packet boundary.
+        // Padding added by submit_packet must never consume the next input burst.
         const auto take = std::min<uint64_t>(
             std::min<uint64_t>(available, burst_remaining), tx_buffer_size - burst_packet.size());
         burst_packet.insert(burst_packet.end(), input + consumed, input + consumed + take);

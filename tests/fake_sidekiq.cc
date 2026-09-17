@@ -1,4 +1,11 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
+/*
+ * Hardware-independent implementation of the SDK calls used by the QA blocks.
+ * Models selected behaviors and failure paths, not FPGA timing or RF operation.
+ * Deferred TX retains caller buffers until completion so ownership bugs remain
+ * visible; RX reuses one storage area to exercise the SDK buffer-lifetime rule.
+ */
+
 #include "fake_sidekiq.h"
 #include <array>
 #include <cerrno>
@@ -37,6 +44,7 @@ struct state {
     std::vector<fake_sidekiq::rx_packet> rx_script;
     size_t rx_index = 0;
     bool rx_repeat = true;
+    std::map<skiq_rx_hdl_t, uint32_t> rx_cal_available;
     std::map<std::string, int32_t> failures;
 };
 state s;
@@ -59,6 +67,8 @@ void capture(const pending_packet& p)
 } // namespace
 
 namespace fake_sidekiq {
+void set_rx_cal_available(skiq_rx_hdl_t handle, uint32_t mask)
+{ std::lock_guard<std::mutex> lock(mutex); s.rx_cal_available[handle] = mask; }
 void reset() { std::lock_guard<std::mutex> lock(mutex); s = state{}; }
 std::vector<call> calls() { std::lock_guard<std::mutex> lock(mutex); return s.calls; }
 std::vector<tx_packet> transmitted() { std::lock_guard<std::mutex> lock(mutex); return s.transmitted; }
@@ -111,6 +121,15 @@ int32_t skiq_init(skiq_xport_type_t type, skiq_xport_init_level_t level, uint8_t
     if (s.initialized) return -EEXIST;
     s.initialized = true;
     return 0;
+}
+
+int32_t skiq_enable_cards(const uint8_t cards[], uint8_t count, skiq_xport_init_level_t)
+{
+    std::lock_guard<std::mutex> lock(mutex);
+    const auto status = record("skiq_enable_cards", count ? cards[0] : -1);
+    if (status) return status;
+    if (!s.initialized) return -EPERM;
+    return count == 1 && cards[0] < 2 ? 0 : -EINVAL;
 }
 
 int32_t skiq_read_parameters(uint8_t card, skiq_param_t* p_param)
@@ -485,7 +504,9 @@ int32_t skiq_read_rx_cal_types_avail(uint8_t card, skiq_rx_hdl_t hdl, uint32_t *
     const auto status = record("skiq_read_rx_cal_types_avail", hdl, 0);
     if (status) return status;
     if (card != 0) return -ENODEV;
-    *p_cal_mask = skiq_rx_cal_type_dc_offset | skiq_rx_cal_type_quadrature;
+    const auto it = s.rx_cal_available.find(hdl);
+    *p_cal_mask = it == s.rx_cal_available.end() ?
+        skiq_rx_cal_type_dc_offset | skiq_rx_cal_type_quadrature : it->second;
     return 0;
 }
 

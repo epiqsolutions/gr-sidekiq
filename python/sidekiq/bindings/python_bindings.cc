@@ -7,6 +7,12 @@
  *
  */
 
+/*
+ * Initialize the Python extension and register the RX/TX block bindings. NumPy
+ * and GNU Radio base types must be initialized before exposing derived blocks.
+ * The marked sections below are insertion points used by GNU Radio tooling.
+ */
+
 #include <pybind11/pybind11.h>
 
 #define NPY_NO_DEPRECATED_API NPY_1_7_API_VERSION

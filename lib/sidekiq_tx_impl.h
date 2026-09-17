@@ -5,40 +5,21 @@
  * SPDX-License-Identifier: GPL-3.0-or-later
  */
 
-#ifndef INCLUDED_SIDEKIQ_SIDEKIQ_TX_IMPL_H
-#define INCLUDED_SIDEKIQ_SIDEKIQ_TX_IMPL_H
+#pragma once
 
 #include <pmt/pmt.h>
 #include <gnuradio/sidekiq/sidekiq_tx.h>
 #include <sidekiq_api.h>
+#include "sidekiq_session.h"
+#include <memory>
 #include "tx_buffer_pool.h"
 #include <atomic>
 #include <mutex>
-
-#define NUM_BLOCKS              20    // number of tx blocks to allocate and use.
-
-#define CAL_ON                  1     // run_cal parameter if a manual calibration is requested
-
-
-using pmt::pmt_t;
+#include <vector>
 
 namespace gr {
 namespace sidekiq {
-
-    static const bool SIDEKIQ_IQ_PACK_MODE_UNPACKED{false};
-
-    static const double STATUS_UPDATE_RATE_SECONDS{2.0};
-
-    /* message and tag keys */
-    static const pmt_t CONTROL_MESSAGE_PORT{pmt::string_to_symbol("command")};
-
-    static const pmt_t LO_FREQ_KEY{pmt::string_to_symbol("lo_freq")};
-
-    static const pmt_t RATE_KEY{pmt::string_to_symbol("rate")};
-
-    static const pmt_t BANDWIDTH_KEY{pmt::string_to_symbol("bandwidth")};
-
-    static const pmt_t ATTENUATION_KEY{pmt::string_to_symbol("attenuation")};
+using pmt::pmt_t;
 
 class sidekiq_tx_impl : public sidekiq_tx
 {
@@ -56,16 +37,12 @@ public:
                     int buffer_size,
                     int cal_mode);
 
-
-
-
-    ~sidekiq_tx_impl();
+    ~sidekiq_tx_impl() override;
 
     // Where all the action really happens
     int work(int noutput_items,
              gr_vector_const_void_star& input_items,
              gr_vector_void_star& output_items) override;
-
 
     /* message handler */
     void handle_control_message(pmt_t message);
@@ -89,15 +66,17 @@ public:
     /* User sends 1 when it wants to run calibration */
     void run_tx_cal(int value) override;
 
-
-
 private:
+    static constexpr int default_num_blocks = 20;
+    static constexpr int cal_on = 1;
+    static constexpr double status_update_interval_seconds = 2.0;
+    // Declared first so it outlives all other members during destruction.
+    std::unique_ptr<sidekiq_session> session;
     /* method prototypes */
     int work_bursts(int count, const gr_complex* input);
     void submit_packet(const gr_complex* input, size_t count);
     void finish_burst();
     void update_tx_error_count();
-    double get_double_from_pmt_dict(pmt_t dict, pmt_t key, pmt_t not_found ); 
 
     /* passed in parameters */
     uint8_t card{};
@@ -110,9 +89,8 @@ private:
     skiq_tx_quadcal_mode_t calibration_mode{};
 
     /* flags */
-    bool libsidekiq_init{};
+
     std::atomic<bool> tx_streaming{false};
-    bool tx_second{};
 
     /* config */
     skiq_part_t card_part{};
@@ -124,7 +102,6 @@ private:
     bool dual_channel_packet = false;
     uint32_t num_blocks{};
 
-
     /* work() parameters */
     double dac_scaling{};
     size_t last_status_update_sample{};
@@ -133,20 +110,14 @@ private:
     uint32_t curr_block{};
     std::vector<gr_complex> temp_buffer;
     int32_t tx_buffer_size{};
-    uint64_t timestamp{};
 
     /* bursting */
+    // burst_remaining counts input samples still needed, excluding SDK padding.
+    // burst_packet owns an incomplete packet until more input arrives.
     uint64_t burst_remaining{};
     std::vector<gr_complex> burst_packet;
-
-
-
-    /* displaying info in work() needs to stop after a few calls */
-    uint32_t debug_ctr{};
 
 };
 
 } // namespace sidekiq
 } // namespace gr
-
-#endif /* INCLUDED_SIDEKIQ_SIDEKIQ_TX_IMPL_H */

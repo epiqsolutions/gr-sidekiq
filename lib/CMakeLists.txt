@@ -12,6 +12,7 @@
 include(GrPlatform) #define LIB_SUFFIX
 
 list(APPEND sidekiq_sources
+    sidekiq_session.cc
     sidekiq_handle_utils.cc
     sidekiq_tx_impl.cc
     sidekiq_rx_impl.cc
@@ -21,6 +22,8 @@ list(APPEND sidekiq_sources
 # This will run the FindSidekiq.cmake in cmake/Modules directory
 list(APPEND CMAKE_MODULE_PATH ${CMAKE_CURRENT_SOURCE_DIR})
 find_package(Sidekiq)
+find_package(Threads REQUIRED)
+find_package(Volk REQUIRED)
 
 
 if (NOT Sidekiq_FOUND)
@@ -47,12 +50,14 @@ if(NOT sidekiq_sources)
 endif(NOT sidekiq_sources)
 
 add_library(gnuradio-sidekiq SHARED ${sidekiq_sources})
+target_compile_features(gnuradio-sidekiq PUBLIC cxx_std_17)
 
-include_directories(sidekiq_sources)
 
 target_link_libraries(gnuradio-sidekiq
     gnuradio::gnuradio-runtime
     ${Sidekiq_LIBRARIES}
+    Threads::Threads
+    Volk::volk
 )
 
 target_include_directories(gnuradio-sidekiq
@@ -79,21 +84,4 @@ GR_LIBRARY_FOO(gnuradio-sidekiq)
 message(STATUS "Using install prefix: ${CMAKE_INSTALL_PREFIX}")
 message(STATUS "Building for version: ${VERSION} / ${LIBVER}")
 
-########################################################################
-# Build and register unit test
-########################################################################
-include(GrTest)
-
-# If your unit tests require special include paths, add them here
-#include_directories()
-# List all files that contain Boost.UTF unit tests here
-list(APPEND test_sidekiq_sources
-qa_sidekiq_tx.cc
-)
-# Anything we need to link to for the unit tests go here
-list(APPEND GR_TEST_TARGET_DEPS gnuradio-sidekiq)
-
-if(NOT test_sidekiq_sources)
-    MESSAGE(STATUS "No C++ unit tests... skipping")
-    return()
-endif(NOT test_sidekiq_sources)
+# Hardware-independent QA is configured through the top-level SIDEKIQ_QA_ONLY option.

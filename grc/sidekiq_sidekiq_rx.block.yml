@@ -167,7 +167,10 @@ documentation: |-
         resets on start, which retains the existing device timestamp reset.
 
         RX Calibration - Set the mode to manual or auto, if manual the block needs 
-        to set run_cal to 1.
+        to set run_cal to 1. Manual calibration runs once on each selected handle.
+        The requested calibration types are restricted to each handle's supported
+        subset; unrequested types are never enabled. A request with no supported
+        types reports an error.
 
         Configuration messages - The block also can receive the "freq", "rate", 
         "bandwidth", and "gain" messages to modify those parameters.

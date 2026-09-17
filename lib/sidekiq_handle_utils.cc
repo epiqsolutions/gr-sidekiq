@@ -3,6 +3,12 @@
  * SPDX-License-Identifier: GPL-3.0-or-later
  */
 
+/*
+ * Translate numeric and named handles used by public constructors, and locate
+ * their entries in SDK parameter arrays. Handle enum values must not be used as
+ * parameter-array indices: supported handles and ordering depend on topology.
+ */
+
 #include "sidekiq_handle_utils.h"
 
 #include <algorithm>
@@ -19,6 +25,8 @@ std::string normalize_handle_string(const std::string& value)
     std::string normalized;
     normalized.reserve(value.size());
 
+    // cctype functions require unsigned-char values (or EOF), even on systems
+    // where plain char is signed. Accept spacing/underscores for legacy names.
     for (const char ch : value)
     {
         if (!std::isspace(static_cast<unsigned char>(ch)) && ch != '_')

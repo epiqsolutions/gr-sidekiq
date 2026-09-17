@@ -17,6 +17,12 @@
 /* BINDTOOL_HEADER_FILE_HASH(fdaa6e115df5441125972683f5f54466)                     */
 /***********************************************************************************/
 
+/*
+ * Expose the C++ RX block factories and setters to Python/GNU Radio Companion.
+ * The overloads retain numeric/named handles and constructors with or without
+ * an explicit topology. Streaming and SDK ownership remain in the C++ block.
+ */
+
 #include <pybind11/complex.h>
 #include <pybind11/pybind11.h>
 #include <pybind11/stl.h>

@@ -78,6 +78,8 @@ public:
         ++occupied_;
         // No allocation per packet. Keep storage/context alive even if stop
         // fails and a callback arrives after the sink has been destroyed.
+        // release() breaks this temporary self-reference when occupied_ reaches
+        // zero. Missing SDK callbacks deliberately retain storage for safety.
         keepalive_ = shared_from_this();
         return lease(shared_from_this(), buffer);
     }
@@ -99,6 +101,8 @@ public:
         check_error();
     }
 
+    // Wait until SDK callbacks release all reservations. This is not proof
+    // that FPGA-buffered samples have aired. Cancellation interrupts the wait.
     bool drain()
     {
         std::unique_lock<std::mutex> lock(mutex_);
@@ -121,6 +125,7 @@ public:
         stopping_ = true;
         available_.notify_all();
     }
+    // Reusing a pool with outstanding callbacks would mix two stream lifetimes.
     void restart()
     {
         std::lock_guard<std::mutex> lock(mutex_);
