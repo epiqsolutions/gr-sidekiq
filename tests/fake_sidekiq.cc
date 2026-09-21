@@ -36,6 +36,9 @@ struct state {
     std::array<bool, skiq_tx_hdl_end> tx_started{};
     std::array<uint16_t, skiq_tx_hdl_end> block_words{};
     std::array<skiq_tx_transfer_mode_t, skiq_tx_hdl_end> transfer{};
+    std::array<skiq_tx_flow_mode_t, skiq_tx_hdl_end> flow{};
+    std::array<uint32_t, skiq_tx_hdl_end> late_counts{};
+    skiq_tx_timestamp_base_t timestamp_base = skiq_tx_rf_timestamp;
     std::array<radio_rate, skiq_tx_hdl_end> tx_rates{};
     std::array<radio_rate, skiq_rx_hdl_end> rx_rates{};
     std::vector<fake_sidekiq::call> calls;
@@ -74,6 +77,8 @@ std::vector<call> calls() { std::lock_guard<std::mutex> lock(mutex); return s.ca
 std::vector<tx_packet> transmitted() { std::lock_guard<std::mutex> lock(mutex); return s.transmitted; }
 void set_async_capacity(size_t value) { std::lock_guard<std::mutex> lock(mutex); s.capacity = value; }
 void set_auto_complete(bool value) { std::lock_guard<std::mutex> lock(mutex); s.auto_complete = value; }
+void set_tx_late_count(skiq_tx_hdl_t handle, uint32_t count)
+{ std::lock_guard<std::mutex> lock(mutex); s.late_counts.at(handle) = count; }
 size_t pending_count() { std::lock_guard<std::mutex> lock(mutex); return s.pending.size(); }
 void fail_next(const std::string& name, int32_t status)
 {
@@ -202,6 +207,7 @@ int32_t skiq_stop_tx_streaming(uint8_t card, skiq_tx_hdl_t hdl)
         if (status) return status;
         if (card != 0) return -ENODEV;
         s.tx_started.at(hdl) = false;
+        s.late_counts.at(hdl) = 0;
         for (auto it = s.pending.begin(); it != s.pending.end();) {
             if (it->handle == hdl) {
                 cancelled.push_back(*it);
@@ -220,7 +226,20 @@ int32_t skiq_write_tx_data_flow_mode(uint8_t card, skiq_tx_hdl_t hdl, skiq_tx_fl
     const auto status = record("skiq_write_tx_data_flow_mode", hdl, mode);
     if (status) return status;
     if (card != 0) return -ENODEV;
-    if (mode != skiq_tx_immediate_data_flow_mode) return -ENOTSUP;
+    if (mode != skiq_tx_immediate_data_flow_mode &&
+        mode != skiq_tx_with_timestamps_data_flow_mode) return -ENOTSUP;
+    s.flow.at(hdl) = mode;
+    return 0;
+}
+
+int32_t skiq_write_tx_timestamp_base(uint8_t card, skiq_tx_timestamp_base_t timestamp_base)
+{
+    std::lock_guard<std::mutex> lock(mutex);
+    const auto status = record("skiq_write_tx_timestamp_base", -1, timestamp_base);
+    if (status) return status;
+    if (card != 0) return -ENODEV;
+    if (timestamp_base != skiq_tx_rf_timestamp) return -ENOTSUP;
+    s.timestamp_base = timestamp_base;
     return 0;
 }
 
@@ -375,6 +394,17 @@ int32_t skiq_read_tx_num_underruns(uint8_t card, skiq_tx_hdl_t hdl, uint32_t *p_
     if (status) return status;
     if (card != 0) return -ENODEV;
     *p_num_underrun = 0;
+    return 0;
+}
+
+int32_t skiq_read_tx_num_late_timestamps(uint8_t card, skiq_tx_hdl_t hdl,
+                                         uint32_t *p_num_late)
+{
+    std::lock_guard<std::mutex> lock(mutex);
+    const auto status = record("skiq_read_tx_num_late_timestamps", hdl, 0);
+    if (status) return status;
+    if (card != 0) return -ENODEV;
+    *p_num_late = s.late_counts.at(hdl);
     return 0;
 }
 

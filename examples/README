@@ -26,7 +26,18 @@ bursting.grc - Shows bursting transmit.  There is a message to stop and start th
     The tx_block will assume no_bursting, but the edit message box will pass in, 
     buy default, a 1, which will turn on bursting capability.
 
+tx_timed_burst.grc - Sends one finite, RF-timestamped tone burst. It uses the
+    same `tx_time` tuple as the UHD sink and a `packet_len` length tag. Timed TX
+    is strict: the FPGA discards late packets. Set `tx_time_seconds` and
+    `tx_time_fraction` far enough ahead of the current Sidekiq RF timestamp for
+    flowgraph startup and host buffering. The default 5-second timestamp is
+    intended for a freshly initialized card whose timestamp is near zero; if
+    another process/session has kept the card active, first obtain the current
+    TX RF timestamp (for example with `skiq_read_curr_tx_timestamp`) and choose
+    a later value. Confirm the burst start and duration on a scope or analyzer.
+    To validate late handling, deliberately choose a past timestamp and check
+    for the `TX late timestamp count` warning and no transmitted RF burst.
+
 tx_message.grc - Shows rate and frequency messages being sent into the tx_block.
 
 tx_cli.py - CLI-only TX example. Uses command-line arguments instead of Qt widgets.
-

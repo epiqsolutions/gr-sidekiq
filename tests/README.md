@@ -85,6 +85,14 @@ It also covers stopping during that wait, signed integer lengths, unrelated tags
 and restarting after an incomplete burst. Assertions compare both I and Q samples
 against the tagged input ranges and check packet/start/stop counts.
 
+The `tx_timed_bursts` suite covers strict Sidekiq timestamp mode and the UHD
+stream-tag contract. It checks `(uint64 seconds, double fractional seconds)`
+conversion using the active TX sample rate, per-packet timestamp progression,
+length-tag precedence over SOB/EOB, inclusive EOB behavior, one-sample bursts,
+partial-packet zero padding, shared-session rate readback, missing/malformed
+timestamps, timestamp-configuration failures, and late-count reporting before
+the SDK clears that count on stop.
+
 The `rx_correctness` suite exercises uneven handle arrivals (12 A1 packets then
 12 A2 packets), compares every output I/Q sample, and checks each timestamp at
 its packet's first sample. It also checks idle shutdown, discontinuity diagnostics
@@ -92,7 +100,7 @@ across work calls, restart with a new timestamp epoch, and retry after an SDK st
 failure. The `calibration` suite checks selected-handle execution, manual/auto/off
 trigger gating, preservation of requested calibration subsets, per-handle
 capabilities, unsupported requests, and SDK read/write/run errors. These tests
-do not validate RF calibration quality or timed transmission.
+do not validate RF calibration quality or hardware timestamp accuracy.
 
 Run the TX safety cases alone with:
 
@@ -191,7 +199,8 @@ packet is discarded; full packets already submitted cannot be recalled.
 
 Zero, negative, noninteger, duplicate-at-one-offset, and overlapping burst tags
 are rejected with an error rather than replacing an active burst silently.
-No `tx_time`, SOB/EOB interface, or timestamp mode is introduced here.
+This legacy example leaves Timed TX disabled; use `examples/tx_timed_burst.grc`
+for the timestamped interface.
 
 ## Normal burst completion versus explicit stop
 
@@ -206,8 +215,24 @@ build/qa/tests/qa_sidekiq --run_test=burst_completion --log_level=test_suite
 ```
 
 A completed callback permits reuse of the host buffer; it does not establish that
-the final sample has aired. Check RF tail delivery on hardware. Timed TX is not
-implemented in this branch.
+the final sample has aired. Check RF tail delivery on hardware.
+
+## Timed TX: hardware validation
+
+Build/install the normal module and regenerate `examples/tx_timed_burst.grc`.
+The example enables Timed TX and places `packet_len` and `tx_time` on its first
+sample. `tx_time` uses the UHD tuple convention; this block converts seconds to
+the Sidekiq RF sample counter at the actual TX sample rate. Set the scheduled
+time comfortably ahead of the current RF timestamp. The default of 5 seconds is
+only suitable when the card has just initialized near timestamp zero.
+
+Capture the output with suitable attenuation and verify both the scheduled start
+and `burst_len / sample_rate` duration. Repeat with a non-buffer-aligned length to
+verify the final physical SDK packet contains a zero-IQ tail. Then deliberately
+use a past timestamp: strict Sidekiq mode should discard it, and the block should
+log `TX late timestamp count` before stopping the interface. Fake QA verifies the
+host-side timestamps and SDK calls; it cannot establish FPGA clock accuracy,
+transport lead-time requirements, or RF timing.
 
 ## RX correctness: hardware validation
 

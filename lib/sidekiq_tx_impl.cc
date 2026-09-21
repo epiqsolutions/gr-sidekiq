@@ -6,14 +6,16 @@
  */
 /*
  * GNU Radio sink backed by libsidekiq TX. Converts complex input into fixed-size
- * SDK packets for immediate transmission or the existing length-tag bursts.
- * The buffer pool protects asynchronous transfers; the session protects SDK
- * lifetime. Length tags select input samples and do not schedule RF timestamps.
+ * SDK packets for immediate transmission, length-tag bursts, or UHD-compatible
+ * timed SOB/EOB bursts. The buffer pool protects asynchronous transfers; the
+ * session protects SDK lifetime.
  */
 
 #include <gnuradio/io_signature.h>
 #include <volk/volk.h>
 #include <algorithm>
+#include <cmath>
+#include <limits>
 
 #include "sidekiq_handle_utils.h"
 #include "sidekiq_common.h"
@@ -33,7 +35,8 @@ sidekiq_tx::sptr sidekiq_tx::make(int card,
                                   std::string burst_tag,
                                   int threads,
                                   int buffer_size,
-                                  int cal_mode)
+                                  int cal_mode,
+                                  int timed_tx)
 {
     return sidekiq_tx::make(card,
                             0,
@@ -45,7 +48,8 @@ sidekiq_tx::sptr sidekiq_tx::make(int card,
                             burst_tag,
                             threads,
                             buffer_size,
-                            cal_mode);
+                            cal_mode,
+                            timed_tx);
 }
 
 sidekiq_tx::sptr sidekiq_tx::make(int card,
@@ -58,7 +62,8 @@ sidekiq_tx::sptr sidekiq_tx::make(int card,
                                   std::string burst_tag,
                                   int threads,
                                   int buffer_size,
-                                  int cal_mode)
+                                  int cal_mode,
+                                  int timed_tx)
 {
     /* then make instantiates the tx_block */
     return gnuradio::make_block_sptr<sidekiq_tx_impl>(
@@ -72,7 +77,8 @@ sidekiq_tx::sptr sidekiq_tx::make(int card,
                                   burst_tag,
                                   threads,
                                   buffer_size,
-                                  cal_mode);
+                                  cal_mode,
+                                  timed_tx);
 }
 
 sidekiq_tx::sptr sidekiq_tx::make(int card,
@@ -84,7 +90,8 @@ sidekiq_tx::sptr sidekiq_tx::make(int card,
                                   std::string burst_tag,
                                   int threads,
                                   int buffer_size,
-                                  int cal_mode)
+                                  int cal_mode,
+                                  int timed_tx)
 {
     return sidekiq_tx::make(card,
                             0,
@@ -96,7 +103,8 @@ sidekiq_tx::sptr sidekiq_tx::make(int card,
                             burst_tag,
                             threads,
                             buffer_size,
-                            cal_mode);
+                            cal_mode,
+                            timed_tx);
 }
 
 sidekiq_tx::sptr sidekiq_tx::make(int card,
@@ -109,7 +117,8 @@ sidekiq_tx::sptr sidekiq_tx::make(int card,
                                   std::string burst_tag,
                                   int threads,
                                   int buffer_size,
-                                  int cal_mode)
+                                  int cal_mode,
+                                  int timed_tx)
 {
     return sidekiq_tx::make(card,
                             topology,
@@ -121,7 +130,8 @@ sidekiq_tx::sptr sidekiq_tx::make(int card,
                             burst_tag,
                             threads,
                             buffer_size,
-                            cal_mode);
+                            cal_mode,
+                            timed_tx);
 }
 
 /* constructor
@@ -137,7 +147,8 @@ sidekiq_tx_impl::sidekiq_tx_impl( int input_card,
                                   std::string burst_tag,
                                   int threads,
                                   int buffer_size,
-                                  int cal_mode)
+                                  int cal_mode,
+                                  int timed_tx)
     : gr::sync_block("sidekiq_tx",
                      gr::io_signature::make( 1 /* min inputs */, 1 /* max inputs */, sizeof(gr_complex)),
                      gr::io_signature::make(0, 0, 0))   //sync block
@@ -157,6 +168,7 @@ sidekiq_tx_impl::sidekiq_tx_impl( int input_card,
     num_blocks = default_num_blocks;
 
     burst_tag_name = burst_tag;
+    this->timed_tx = timed_tx != 0;
     d_logger->debug("burst_tag_name: {}", burst_tag_name);
 
     session = std::make_unique<sidekiq_session>(card);
@@ -194,6 +206,21 @@ sidekiq_tx_impl::sidekiq_tx_impl( int input_card,
         set_tx_sample_rate(sample_rate);
         set_tx_bandwidth(bandwidth);
     }
+    else
+    {
+        uint32_t requested_rate = 0;
+        uint32_t requested_bandwidth = 0;
+        uint32_t actual_bandwidth = 0;
+        double actual_rate = 0;
+        status = skiq_read_tx_sample_rate_and_bandwidth(
+            card, hdl, &requested_rate, &actual_rate, &requested_bandwidth, &actual_bandwidth);
+        if (status != 0 || actual_rate <= 0) {
+            d_logger->error("Error: unable to read active TX sample rate with status {}", status);
+            throw std::runtime_error("Failure: read active TX sample rate");
+        }
+        this->sample_rate = static_cast<uint32_t>(actual_rate);
+        this->bandwidth = actual_bandwidth;
+    }
 
     status = skiq_read_tx_iq_resolution(card, &iq_resolution);
     if (status != 0)
@@ -204,8 +231,16 @@ sidekiq_tx_impl::sidekiq_tx_impl( int input_card,
     dac_scaling = (pow(2.0f, iq_resolution) / 2.0)-1;
     d_logger->info("Info: dac scaling {}", dac_scaling);
 
-    /* always use immediate mode */
-    status = skiq_write_tx_data_flow_mode(card, hdl, skiq_tx_immediate_data_flow_mode);
+    if (this->timed_tx) {
+        status = skiq_write_tx_timestamp_base(card, skiq_tx_rf_timestamp);
+        if (status != 0) {
+            d_logger->error("Error: could not set TX timestamp base with status {}", status);
+            throw std::runtime_error("Failure: skiq_write_tx_timestamp_base");
+        }
+    }
+    const auto flow_mode = this->timed_tx ? skiq_tx_with_timestamps_data_flow_mode
+                                          : skiq_tx_immediate_data_flow_mode;
+    status = skiq_write_tx_data_flow_mode(card, hdl, flow_mode);
     if (status != 0)
     {
         d_logger->error( "Error: could not set TX dataflow mode with status {}", status);
@@ -376,7 +411,10 @@ bool sidekiq_tx_impl::start()
     tx_buffers->restart();
     burst_remaining = 0;
     burst_packet.clear();
-    if (burst_tag_name.empty()) {
+    sob_eob_burst_active = false;
+    next_tx_timestamp = 0;
+    last_num_tx_errors = 0;
+    if (burst_tag_name.empty() && !timed_tx) {
         const auto status = skiq_start_tx_streaming(card, hdl);
         if (status != 0) {
             d_logger->error("Error: could not start TX streaming, status {}", status);
@@ -632,10 +670,10 @@ void sidekiq_tx_impl::forecast(int noutput_items, gr_vector_int &ninput_items_re
 {
 
     (void)(noutput_items);
-    ninput_items_required[0] = burst_tag_name.empty() ? tx_buffer_size : 1;
+    ninput_items_required[0] = (burst_tag_name.empty() && !timed_tx) ? tx_buffer_size : 1;
 }
 
-/* This will determine if we received any more underruns than already reported
+/* This will determine if we received any more underruns/late timestamps than already reported
  * This is called after a defined number of samples are handled.
  * That way it is like a timer going off.
  */
@@ -643,16 +681,19 @@ void sidekiq_tx_impl::update_tx_error_count() {
     int status = 0;
     uint32_t num_tx_errors;
 
-    status =  skiq_read_tx_num_underruns(card, hdl, &num_tx_errors);
+    status = timed_tx ? skiq_read_tx_num_late_timestamps(card, hdl, &num_tx_errors)
+                      : skiq_read_tx_num_underruns(card, hdl, &num_tx_errors);
     if (status != 0)
     {
-        d_logger->error( "Error: skiq_read_tx_num_underruns failed with status {} ", status);
-        throw std::runtime_error("Failure: skiq_write_tx_attenuation");
+        d_logger->error("Error: unable to read TX {} count, status {}",
+                        timed_tx ? "late timestamp" : "underrun", status);
+        throw std::runtime_error("Failure: read TX error count");
     }
 
     if (last_num_tx_errors != num_tx_errors)
     {
-        d_logger->warn("TX underrun count: {}", num_tx_errors);
+        d_logger->warn("TX {} count: {}", timed_tx ? "late timestamp" : "underrun",
+                       num_tx_errors);
         last_num_tx_errors = num_tx_errors;
 	}
 }
@@ -665,6 +706,7 @@ void sidekiq_tx_impl::submit_packet(const gr_complex* input, size_t count)
     auto* payload = buffer.block()->data;
     std::fill_n(payload, 2 * tx_buffer_size * (dual_channel_packet ? 2 : 1), int16_t{0});
     if (dual_channel_packet) payload += 2 * tx_buffer_size;
+    if (timed_tx) skiq_tx_set_block_timestamp(buffer.block(), next_tx_timestamp);
     volk_32f_s32f_multiply_32f(reinterpret_cast<float*>(temp_buffer.data()),
                              reinterpret_cast<const float*>(input), dac_scaling,
                              static_cast<unsigned int>(2 * count));
@@ -684,6 +726,7 @@ void sidekiq_tx_impl::submit_packet(const gr_complex* input, size_t count)
         }
         if (status == 0) {
             if (in_async_mode) buffer.handoff();
+            if (timed_tx) next_tx_timestamp += tx_buffer_size;
             break;
         }
         if (status != SKIQ_TX_ASYNC_SEND_QUEUE_FULL)
@@ -698,6 +741,8 @@ void sidekiq_tx_impl::finish_burst()
     // A normal burst boundary must not cancel outstanding host transfers.
     // This is a transport drain, not a guarantee of completion at the antenna.
     if (!tx_buffers->drain()) throw boost::thread_interrupted();
+    // The SDK clears this counter when timestamped streaming stops.
+    if (timed_tx) update_tx_error_count();
     std::lock_guard<std::mutex> lock(tx_lifecycle_mutex);
     if (tx_buffers->stopping()) throw boost::thread_interrupted();
     const auto status = skiq_stop_tx_streaming(card, hdl);
@@ -706,21 +751,76 @@ void sidekiq_tx_impl::finish_burst()
     tx_streaming = false;
 }
 
+uint64_t sidekiq_tx_impl::parse_tx_time(const pmt_t& value) const
+{
+    if (!pmt::is_tuple(value) || pmt::length(value) != 2)
+        throw std::runtime_error("tx_time must be a (uint64 seconds, real fractional seconds) tuple");
+    const auto seconds_value = pmt::tuple_ref(value, 0);
+    const auto fraction_value = pmt::tuple_ref(value, 1);
+    uint64_t seconds;
+    if (pmt::is_uint64(seconds_value)) {
+        seconds = pmt::to_uint64(seconds_value);
+    } else if (pmt::is_integer(seconds_value) && pmt::to_long(seconds_value) >= 0) {
+        seconds = static_cast<uint64_t>(pmt::to_long(seconds_value));
+    } else {
+        throw std::runtime_error("tx_time seconds must be a non-negative integer");
+    }
+    if (!pmt::is_real(fraction_value))
+        throw std::runtime_error("tx_time fractional seconds must be real");
+    const double fraction = pmt::to_double(fraction_value);
+    if (!std::isfinite(fraction) || fraction < 0.0 || fraction >= 1.0)
+        throw std::runtime_error("tx_time fractional seconds must be in [0, 1)");
+    if (seconds > std::numeric_limits<uint64_t>::max() / sample_rate)
+        throw std::runtime_error("tx_time is outside the RF timestamp range");
+    uint64_t timestamp = seconds * sample_rate;
+    auto fractional_samples = static_cast<uint64_t>(std::llround(fraction * sample_rate));
+    if (fractional_samples == sample_rate) {
+        if (timestamp > std::numeric_limits<uint64_t>::max() - sample_rate)
+            throw std::runtime_error("tx_time is outside the RF timestamp range");
+        fractional_samples = 0;
+        timestamp += sample_rate;
+    }
+    if (timestamp > std::numeric_limits<uint64_t>::max() - fractional_samples)
+        throw std::runtime_error("tx_time is outside the RF timestamp range");
+    return timestamp + fractional_samples;
+}
+
+void sidekiq_tx_impl::start_burst(uint64_t timestamp)
+{
+    std::lock_guard<std::mutex> lock(tx_lifecycle_mutex);
+    if (tx_buffers->stopping()) throw boost::thread_interrupted();
+    const auto status = skiq_start_tx_streaming(card, hdl);
+    if (status != 0)
+        throw std::runtime_error("Failure: burst start, status " + std::to_string(status));
+    tx_streaming = true;
+    next_tx_timestamp = timestamp;
+}
+
 int sidekiq_tx_impl::work_bursts(int count, const gr_complex* input)
 {
     std::vector<tag_t> tags;
+    std::vector<tag_t> time_tags;
     // GNU Radio tag offsets are absolute; consumed is relative to this call.
     // Persistent burst_packet/burst_remaining bridge scheduler boundaries.
     const auto base = nitems_read(0);
     get_tags_in_range(tags, 0, base, base + count, pmt::intern(burst_tag_name));
+    if (timed_tx)
+        get_tags_in_range(time_tags, 0, base, base + count, pmt::intern("tx_time"));
     std::stable_sort(tags.begin(), tags.end(), [](const tag_t& a, const tag_t& b) {
         return a.offset < b.offset;
     });
+    std::stable_sort(time_tags.begin(), time_tags.end(), [](const tag_t& a, const tag_t& b) {
+        return a.offset < b.offset;
+    });
     size_t next = 0;
+    size_t next_time = 0;
     int consumed = 0;
     while (consumed < count) {
         boost::this_thread::interruption_point();
         const auto offset = base + consumed;
+        if (timed_tx && next_time < time_tags.size() && time_tags[next_time].offset == offset &&
+            (next >= tags.size() || tags[next].offset != offset))
+            throw std::runtime_error("tx_time tag must coincide with a TX burst length tag");
         if (next < tags.size() && tags[next].offset == offset) {
             if (burst_remaining)
                 throw std::runtime_error("Overlapping TX burst tags");
@@ -732,16 +832,20 @@ int sidekiq_tx_impl::work_bursts(int count, const gr_complex* input)
             if (!length) throw std::runtime_error("TX burst length must be a positive integer");
             if (next < tags.size() && tags[next].offset == offset)
                 throw std::runtime_error("Duplicate TX burst tags");
-            {
-                std::lock_guard<std::mutex> lock(tx_lifecycle_mutex);
-                if (tx_buffers->stopping()) throw boost::thread_interrupted();
-                const auto status = skiq_start_tx_streaming(card, hdl);
-                if (status != 0) throw std::runtime_error("Failure: burst start");
-                tx_streaming = true;
+            uint64_t timestamp = 0;
+            if (timed_tx) {
+                if (next_time >= time_tags.size() || time_tags[next_time].offset != offset)
+                    throw std::runtime_error("Timed TX burst is missing a tx_time tag");
+                timestamp = parse_tx_time(time_tags[next_time++].value);
+                if (next_time < time_tags.size() && time_tags[next_time].offset == offset)
+                    throw std::runtime_error("Duplicate tx_time tags");
             }
+            start_burst(timestamp);
             burst_remaining = length;
         }
-        const auto boundary = next < tags.size() ? tags[next].offset : base + count;
+        auto boundary = next < tags.size() ? tags[next].offset : base + count;
+        if (timed_tx && next_time < time_tags.size())
+            boundary = std::min(boundary, time_tags[next_time].offset);
         const auto available = boundary - offset;
         if (!burst_remaining) {
             consumed += available; // Samples outside tagged bursts are discarded.
@@ -763,6 +867,88 @@ int sidekiq_tx_impl::work_bursts(int count, const gr_complex* input)
     return consumed;
 }
 
+int sidekiq_tx_impl::work_sob_eob_bursts(int count, const gr_complex* input)
+{
+    std::vector<tag_t> tags;
+    const auto base = nitems_read(0);
+    get_tags_in_range(tags, 0, base, base + count);
+    tags.erase(std::remove_if(tags.begin(), tags.end(), [](const tag_t& tag) {
+        return !pmt::eq(tag.key, pmt::intern("tx_sob")) &&
+               !pmt::eq(tag.key, pmt::intern("tx_eob")) &&
+               !pmt::eq(tag.key, pmt::intern("tx_time"));
+    }), tags.end());
+    std::stable_sort(tags.begin(), tags.end(), [](const tag_t& a, const tag_t& b) {
+        return a.offset < b.offset;
+    });
+
+    size_t next = 0;
+    int consumed = 0;
+    while (consumed < count) {
+        boost::this_thread::interruption_point();
+        const auto offset = base + consumed;
+        bool sob = false;
+        bool eob = false;
+        size_t sob_count = 0;
+        size_t eob_count = 0;
+        size_t time_count = 0;
+        pmt_t time_value = pmt::PMT_NIL;
+        while (next < tags.size() && tags[next].offset == offset) {
+            const auto& tag = tags[next++];
+            if (pmt::eq(tag.key, pmt::intern("tx_time"))) {
+                ++time_count;
+                time_value = tag.value;
+            } else {
+                if (!pmt::is_bool(tag.value))
+                    throw std::runtime_error("tx_sob and tx_eob tag values must be boolean");
+                const bool enabled = pmt::to_bool(tag.value);
+                if (pmt::eq(tag.key, pmt::intern("tx_sob"))) {
+                    if (enabled) ++sob_count;
+                    sob = sob || enabled;
+                } else {
+                    if (enabled) ++eob_count;
+                    eob = eob || enabled;
+                }
+            }
+        }
+        if (sob_count > 1) throw std::runtime_error("Duplicate tx_sob tags");
+        if (eob_count > 1) throw std::runtime_error("Duplicate tx_eob tags");
+
+        if (!sob_eob_burst_active) {
+            if (eob && !sob) throw std::runtime_error("tx_eob received outside a TX burst");
+            if (time_count && !sob) throw std::runtime_error("tx_time tag must coincide with tx_sob");
+            if (sob) {
+                if (time_count != 1)
+                    throw std::runtime_error(time_count ? "Duplicate tx_time tags"
+                                                        : "Timed TX burst is missing a tx_time tag");
+                start_burst(parse_tx_time(time_value));
+                sob_eob_burst_active = true;
+            }
+        } else {
+            if (sob) throw std::runtime_error("Overlapping tx_sob tags");
+            if (time_count) throw std::runtime_error("tx_time tag must coincide with tx_sob");
+        }
+
+        const auto boundary = next < tags.size() ? tags[next].offset : base + count;
+        if (!sob_eob_burst_active) {
+            consumed += boundary - offset;
+            continue;
+        }
+        const auto available = eob ? uint64_t{1} : boundary - offset;
+        const auto take = std::min<uint64_t>(available, tx_buffer_size - burst_packet.size());
+        burst_packet.insert(burst_packet.end(), input + consumed, input + consumed + take);
+        consumed += take;
+        if (burst_packet.size() == static_cast<size_t>(tx_buffer_size) || eob) {
+            submit_packet(burst_packet.data(), burst_packet.size());
+            burst_packet.clear();
+        }
+        if (eob) {
+            finish_burst();
+            sob_eob_burst_active = false;
+        }
+    }
+    return consumed;
+}
+
 int sidekiq_tx_impl::work(int noutput_items,
                           gr_vector_const_void_star& input_items,
                           gr_vector_void_star& output_items)
@@ -772,6 +958,8 @@ int sidekiq_tx_impl::work(int noutput_items,
     int consumed = 0;
     if (!burst_tag_name.empty()) {
         consumed = work_bursts(noutput_items, input);
+    } else if (timed_tx) {
+        consumed = work_sob_eob_bursts(noutput_items, input);
     } else {
         // Preserve immediate mode's complete-packet consumption contract.
         while (noutput_items - consumed >= tx_buffer_size) {
@@ -779,9 +967,9 @@ int sidekiq_tx_impl::work(int noutput_items,
             consumed += tx_buffer_size;
         }
     }
-    if (nitems_read(0) - last_status_update_sample > status_update_rate_in_samples) {
+    if (nitems_read(0) + consumed - last_status_update_sample > status_update_rate_in_samples) {
         update_tx_error_count();
-        last_status_update_sample = nitems_read(0);
+        last_status_update_sample = nitems_read(0) + consumed;
     }
     return consumed;
 }

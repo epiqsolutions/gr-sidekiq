@@ -1,0 +1,180 @@
+options:
+  parameters:
+    author: Epiq Solutions
+    catch_exceptions: 'True'
+    category: '[Sidekiq Examples]'
+    cmake_opt: ''
+    comment: ''
+    copyright: ''
+    description: One RF-timestamped Sidekiq TX burst using UHD-compatible tx_time and length tags.
+    gen_cmake: 'On'
+    gen_linking: dynamic
+    generate_options: no_gui
+    hier_block_src_path: '.:'
+    id: tx_timed_burst
+    max_nouts: '0'
+    output_language: python
+    placement: (0,0)
+    qt_qss_theme: ''
+    realtime_scheduling: ''
+    run: 'True'
+    run_command: '{python} -u {filename}'
+    run_options: prompt
+    sizing_mode: fixed
+    thread_safe_setters: ''
+    title: Sidekiq Timed TX Burst
+    window_size: (1000,700)
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [8, 8]
+    rotation: 0
+    state: enabled
+
+blocks:
+- name: sample_rate
+  id: variable
+  parameters:
+    comment: TX RF sample-counter rate
+    value: 1e6
+  states:
+    coordinate: [24, 32]
+    rotation: 0
+    state: enabled
+- name: burst_len
+  id: variable
+  parameters:
+    comment: Complex samples in the burst
+    value: '100000'
+  states:
+    coordinate: [160, 32]
+    rotation: 0
+    state: enabled
+- name: tx_time_seconds
+  id: variable
+  parameters:
+    comment: Whole seconds on the Sidekiq RF timestamp clock
+    value: '5'
+  states:
+    coordinate: [296, 32]
+    rotation: 0
+    state: enabled
+- name: tx_time_fraction
+  id: variable
+  parameters:
+    comment: Fractional seconds in [0, 1)
+    value: '0.0'
+  states:
+    coordinate: [472, 32]
+    rotation: 0
+    state: enabled
+- name: frequency
+  id: variable
+  parameters:
+    comment: TX LO frequency
+    value: 1000e6
+  states:
+    coordinate: [648, 32]
+    rotation: 0
+    state: enabled
+- name: tone_frequency
+  id: variable
+  parameters:
+    comment: Complex tone offset from the LO
+    value: 50e3
+  states:
+    coordinate: [784, 32]
+    rotation: 0
+    state: enabled
+- name: packet_len_tag
+  id: variable_tag_object
+  parameters:
+    comment: UHD tagged-stream-style burst length
+    key: pmt.intern("packet_len")
+    offset: '0'
+    src: pmt.intern("tx_timed_burst")
+    value: pmt.from_uint64(burst_len)
+  states:
+    coordinate: [24, 144]
+    rotation: 0
+    state: enabled
+- name: tx_time_tag
+  id: variable_tag_object
+  parameters:
+    comment: UHD-compatible (whole seconds, fractional seconds) tuple
+    key: pmt.intern("tx_time")
+    offset: '0'
+    src: pmt.intern("tx_timed_burst")
+    value: pmt.make_tuple(pmt.from_uint64(tx_time_seconds), pmt.from_double(tx_time_fraction))
+  states:
+    coordinate: [240, 144]
+    rotation: 0
+    state: enabled
+- name: import_numpy
+  id: import
+  parameters:
+    alias: ''
+    comment: ''
+    imports: import numpy
+  states:
+    coordinate: [648, 112]
+    rotation: 0
+    state: enabled
+- name: import_pmt
+  id: import
+  parameters:
+    alias: ''
+    comment: ''
+    imports: import pmt
+  states:
+    coordinate: [760, 112]
+    rotation: 0
+    state: enabled
+- name: blocks_vector_source_x_0
+  id: blocks_vector_source_x
+  parameters:
+    affinity: ''
+    alias: ''
+    comment: Finite 0.25-amplitude complex tone
+    maxoutbuf: '0'
+    minoutbuf: '0'
+    repeat: 'False'
+    tags: '[packet_len_tag, tx_time_tag]'
+    type: complex
+    vector: 0.25*numpy.exp(2j*numpy.pi*tone_frequency*numpy.arange(burst_len)/sample_rate)
+    vlen: '1'
+  states:
+    coordinate: [144, 288]
+    rotation: 0
+    state: enabled
+- name: sidekiq_sidekiq_tx_0
+  id: sidekiq_sidekiq_tx
+  parameters:
+    affinity: ''
+    alias: ''
+    attenuation: '125'
+    bandwidth: 0.8*sample_rate
+    buffer_size: '4092'
+    burst_tag: packet_len
+    cal_mode: '0'
+    card: '0'
+    comment: Timed mode requires packet_len and tx_time at the first sample
+    frequency: frequency
+    handle: '0'
+    run_cal: '0'
+    sample_rate: sample_rate
+    threads: '1'
+    timed_tx: '1'
+    topology: '0'
+  states:
+    coordinate: [568, 272]
+    rotation: 0
+    state: enabled
+
+connections:
+- [blocks_vector_source_x_0, '0', sidekiq_sidekiq_tx_0, '0']
+
+metadata:
+  file_format: 1
+  grc_version: 3.10.11.0

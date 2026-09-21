@@ -32,6 +32,7 @@ std::vector<tx_packet> transmitted();
 // buffer pointer until complete_one(), just as async callers must retain data.
 void set_async_capacity(size_t capacity);
 void set_auto_complete(bool enabled);
+void set_tx_late_count(skiq_tx_hdl_t handle, uint32_t count);
 bool complete_one(int32_t status = 0);
 size_t buffer_reuse_count();
 size_t pending_count();

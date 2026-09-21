@@ -580,6 +580,195 @@ BOOST_AUTO_TEST_CASE(restart_after_incomplete_burst)
 }
 BOOST_AUTO_TEST_SUITE_END()
 
+namespace {
+gr::tag_t tx_tag(uint64_t offset, const char* key, const pmt::pmt_t& value)
+{
+    gr::tag_t tag;
+    tag.offset = offset;
+    tag.key = pmt::intern(key);
+    tag.value = value;
+    return tag;
+}
+pmt::pmt_t tx_time(uint64_t seconds, double fractional_seconds)
+{
+    return pmt::make_tuple(pmt::from_uint64(seconds), pmt::from_double(fractional_seconds));
+}
+auto make_timed_tx(const std::string& length_tag = "")
+{
+    return gr::sidekiq::sidekiq_tx::make(0, "A1", 1e6, 800e3, 915e6,
+                                         100, length_tag, 1, tx_samples, 1, 1);
+}
+}
+
+BOOST_FIXTURE_TEST_SUITE(tx_timed_bursts, fixture)
+BOOST_AUTO_TEST_CASE(length_tag_timestamps_packets_and_zero_padding)
+{
+    const uint64_t length = 2 * tx_samples + 23;
+    std::vector<gr::tag_t> tags{
+        tx_tag(11, "burst", pmt::from_uint64(length)),
+        tx_tag(11, "tx_time", tx_time(7, 0.25)),
+        // Tagged-stream mode follows UHD and ignores SOB/EOB markers.
+        tx_tag(11, "tx_sob", pmt::PMT_T),
+        tx_tag(11 + length - 1, "tx_eob", pmt::PMT_T),
+    };
+    std::vector<gr_complex> samples(11 + length + 9, {0.25f, -0.25f});
+    auto graph = gr::make_top_block("qa_timed_length_burst");
+    auto source = gr::blocks::vector_source_c::make(samples, false, 1, tags);
+    auto sink = make_timed_tx("burst");
+    graph->connect(source, 0, sink, 0);
+    graph->run(257);
+
+    const auto packets = fake_sidekiq::transmitted();
+    BOOST_REQUIRE_EQUAL(packets.size(), 3);
+    for (size_t i = 0; i < packets.size(); ++i)
+        BOOST_CHECK_EQUAL(packets[i].timestamp, 7250000 + i * tx_samples);
+    for (size_t i = 23; i < tx_samples; ++i) {
+        BOOST_CHECK_EQUAL(packets.back().iq[2 * i], 0);
+        BOOST_CHECK_EQUAL(packets.back().iq[2 * i + 1], 0);
+    }
+    const auto calls = fake_sidekiq::calls();
+    BOOST_CHECK(std::any_of(calls.begin(), calls.end(), [](const auto& c) {
+        return c.name == "skiq_write_tx_data_flow_mode" &&
+               c.value == skiq_tx_with_timestamps_data_flow_mode;
+    }));
+    BOOST_CHECK_EQUAL(count_calls("skiq_write_tx_timestamp_base"), 1);
+}
+
+BOOST_AUTO_TEST_CASE(sob_eob_tags_define_inclusive_burst)
+{
+    const uint64_t begin = 5;
+    const uint64_t end = begin + tx_samples + 10;
+    std::vector<gr::tag_t> tags{
+        tx_tag(begin, "tx_sob", pmt::PMT_T),
+        tx_tag(begin, "tx_time", tx_time(3, 0.5)),
+        tx_tag(end, "tx_eob", pmt::PMT_T),
+    };
+    std::vector<gr_complex> samples(end + 8);
+    for (size_t i = 0; i < samples.size(); ++i) samples[i] = {float(i % 17) / 20, 0};
+    auto graph = gr::make_top_block("qa_timed_sob_eob");
+    auto source = gr::blocks::vector_source_c::make(samples, false, 1, tags);
+    auto sink = make_timed_tx();
+    graph->connect(source, 0, sink, 0);
+    graph->run(127);
+
+    const auto packets = fake_sidekiq::transmitted();
+    BOOST_REQUIRE_EQUAL(packets.size(), 2);
+    BOOST_CHECK_EQUAL(packets[0].timestamp, 3500000);
+    BOOST_CHECK_EQUAL(packets[1].timestamp, 3500000 + tx_samples);
+    BOOST_CHECK_EQUAL(count_calls("skiq_start_tx_streaming"), 1);
+    BOOST_CHECK_EQUAL(count_calls("skiq_stop_tx_streaming"), 1);
+    // EOB is inclusive, so the second packet has eleven non-padding samples.
+    for (size_t i = 11; i < tx_samples; ++i)
+        BOOST_CHECK_EQUAL(packets[1].iq[2 * i], 0);
+}
+
+BOOST_AUTO_TEST_CASE(single_sample_sob_eob_burst)
+{
+    std::vector<gr::tag_t> tags{
+        tx_tag(2, "tx_sob", pmt::PMT_T), tx_tag(2, "tx_eob", pmt::PMT_T),
+        tx_tag(2, "tx_time", tx_time(1, 0.0)),
+    };
+    auto graph = gr::make_top_block("qa_one_sample_timed_burst");
+    auto source = gr::blocks::vector_source_c::make(
+        std::vector<gr_complex>(4, {0.5f, 0}), false, 1, tags);
+    auto sink = make_timed_tx();
+    graph->connect(source, 0, sink, 0);
+    graph->run(1);
+    const auto packets = fake_sidekiq::transmitted();
+    BOOST_REQUIRE_EQUAL(packets.size(), 1);
+    BOOST_CHECK_EQUAL(packets[0].timestamp, 1000000);
+    BOOST_CHECK_NE(packets[0].iq[0], 0);
+    BOOST_CHECK_EQUAL(packets[0].iq[2], 0);
+}
+
+BOOST_AUTO_TEST_CASE(shared_session_uses_active_tx_sample_rate)
+{
+    auto session_owner = gr::sidekiq::sidekiq_tx::make(
+        0, "A1", 2e6, 800e3, 915e6, 100, "", 1, tx_samples, 1);
+    std::vector<gr::tag_t> tags{
+        tx_tag(0, "burst", pmt::from_uint64(1)),
+        tx_tag(0, "tx_time", tx_time(1, 0.25)),
+    };
+    auto graph = gr::make_top_block("qa_shared_timed_rate");
+    auto source = gr::blocks::vector_source_c::make(
+        std::vector<gr_complex>(1, {0.25f, 0}), false, 1, tags);
+    auto sink = make_timed_tx("burst");
+    graph->connect(source, 0, sink, 0);
+    graph->run(1);
+    const auto packets = fake_sidekiq::transmitted();
+    BOOST_REQUIRE_EQUAL(packets.size(), 1);
+    BOOST_CHECK_EQUAL(packets[0].timestamp, 2500000);
+}
+
+BOOST_AUTO_TEST_CASE(missing_and_malformed_time_are_rejected)
+{
+    auto run = [](const std::vector<gr::tag_t>& tags) {
+        auto graph = gr::make_top_block("qa_invalid_timed_burst");
+        auto source = gr::blocks::vector_source_c::make(
+            std::vector<gr_complex>(8, {0.25f, 0}), false, 1, tags);
+        auto sink = make_timed_tx("burst");
+        graph->connect(source, 0, sink, 0);
+        graph->run(1);
+        BOOST_CHECK(fake_sidekiq::transmitted().empty());
+    };
+    // GNU Radio's scheduler logs work() exceptions and terminates the worker.
+    run({tx_tag(0, "burst", pmt::from_uint64(4))});
+    run({tx_tag(0, "burst", pmt::from_uint64(4)),
+         tx_tag(0, "tx_time", pmt::from_uint64(7))});
+    BOOST_CHECK_EQUAL(count_calls("skiq_start_tx_streaming"), 0);
+}
+
+BOOST_AUTO_TEST_CASE(invalid_sob_eob_sequences_transmit_nothing)
+{
+    auto run = [](const std::vector<gr::tag_t>& tags) {
+        auto graph = gr::make_top_block("qa_invalid_sob_eob");
+        auto source = gr::blocks::vector_source_c::make(
+            std::vector<gr_complex>(4, {0.25f, 0}), false, 1, tags);
+        auto sink = make_timed_tx();
+        graph->connect(source, 0, sink, 0);
+        graph->run(1);
+        BOOST_CHECK(fake_sidekiq::transmitted().empty());
+    };
+    run({tx_tag(0, "tx_sob", pmt::PMT_T)});
+    run({tx_tag(0, "tx_eob", pmt::PMT_T)});
+    BOOST_CHECK_EQUAL(count_calls("skiq_start_tx_streaming"), 0);
+}
+
+BOOST_AUTO_TEST_CASE(late_timestamp_count_is_reported_before_stop)
+{
+    std::ostringstream messages;
+    auto capture = std::make_shared<spdlog::sinks::ostream_sink_mt>(messages);
+    auto backend = std::dynamic_pointer_cast<spdlog::sinks::dist_sink_mt>(
+        gr::logging::singleton().default_backend());
+    BOOST_REQUIRE(backend);
+    backend->add_sink(capture);
+    struct detach_t {
+        std::shared_ptr<spdlog::sinks::dist_sink_mt> backend;
+        spdlog::sink_ptr sink;
+        ~detach_t() { backend->remove_sink(sink); }
+    } detach{backend, capture};
+    fake_sidekiq::set_tx_late_count(skiq_tx_hdl_A1, 2);
+    std::vector<gr::tag_t> tags{
+        tx_tag(0, "burst", pmt::from_uint64(4)), tx_tag(0, "tx_time", tx_time(0, 0.0))};
+    auto graph = gr::make_top_block("qa_late_timed_burst");
+    auto source = gr::blocks::vector_source_c::make(
+        std::vector<gr_complex>(4, {0.25f, 0}), false, 1, tags);
+    auto sink = make_timed_tx("burst");
+    graph->connect(source, 0, sink, 0);
+    graph->run(1);
+    BOOST_CHECK(messages.str().find("TX late timestamp count: 2") != std::string::npos);
+    BOOST_CHECK_EQUAL(count_calls("skiq_read_tx_num_late_timestamps"), 1);
+}
+
+BOOST_AUTO_TEST_CASE(timestamp_configuration_failures_are_reported)
+{
+    fake_sidekiq::fail_next("skiq_write_tx_timestamp_base", -EIO);
+    BOOST_CHECK_THROW(make_timed_tx("burst"), std::runtime_error);
+    fake_sidekiq::fail_next("skiq_write_tx_data_flow_mode", -EIO);
+    BOOST_CHECK_THROW(make_timed_tx("burst"), std::runtime_error);
+}
+BOOST_AUTO_TEST_SUITE_END()
+
 BOOST_FIXTURE_TEST_SUITE(rx_correctness, fixture)
 BOOST_AUTO_TEST_CASE(uneven_handles_preserve_samples_and_tags)
 {

@@ -33,7 +33,8 @@ public:
                         std::string burst_tag,
                         int threads,
                         int buffer_size,
-                        int cal_mode);
+                        int cal_mode,
+                        int timed_tx = 0);
 
     static sptr make(
                         int card,
@@ -46,7 +47,8 @@ public:
                         std::string burst_tag,
                         int threads,
                         int buffer_size,
-                        int cal_mode);
+                        int cal_mode,
+                        int timed_tx = 0);
 
     static sptr make(
                         int card,
@@ -58,7 +60,8 @@ public:
                         std::string burst_tag,
                         int threads,
                         int buffer_size,
-                        int cal_mode);
+                        int cal_mode,
+                        int timed_tx = 0);
 
     static sptr make(
                         int card,
@@ -71,7 +74,8 @@ public:
                         std::string burst_tag,
                         int threads,
                         int buffer_size,
-                        int cal_mode);
+                        int cal_mode,
+                        int timed_tx = 0);
 
             virtual void set_tx_sample_rate(double value) = 0;
 

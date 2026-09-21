@@ -35,7 +35,8 @@ public:
                     std::string burst_tag,
                     int threads,
                     int buffer_size,
-                    int cal_mode);
+                    int cal_mode,
+                    int timed_tx);
 
     ~sidekiq_tx_impl() override;
 
@@ -74,9 +75,12 @@ private:
     std::unique_ptr<sidekiq_session> session;
     /* method prototypes */
     int work_bursts(int count, const gr_complex* input);
+    int work_sob_eob_bursts(int count, const gr_complex* input);
     void submit_packet(const gr_complex* input, size_t count);
     void finish_burst();
     void update_tx_error_count();
+    uint64_t parse_tx_time(const pmt_t& value) const;
+    void start_burst(uint64_t timestamp);
 
     /* passed in parameters */
     uint8_t card{};
@@ -87,6 +91,7 @@ private:
     uint32_t attenuation{};
     std::string burst_tag_name{};
     skiq_tx_quadcal_mode_t calibration_mode{};
+    bool timed_tx{};
 
     /* flags */
 
@@ -116,6 +121,8 @@ private:
     // burst_packet owns an incomplete packet until more input arrives.
     uint64_t burst_remaining{};
     std::vector<gr_complex> burst_packet;
+    uint64_t next_tx_timestamp{};
+    bool sob_eob_burst_active{};
 
 };
 

@@ -51,6 +51,7 @@ void bind_sidekiq_tx(py::module& m)
                                         std::string,
                                         int,
                                         int,
+                                        int,
                                         int>(&sidekiq_tx::make)),
            py::arg("card"),
            py::arg("handle"),
@@ -62,6 +63,7 @@ void bind_sidekiq_tx(py::module& m)
            py::arg("threads"),
            py::arg("buffer_size"),
            py::arg("cal_mode"),
+           py::arg("timed_tx") = 0,
            D(sidekiq_tx,make)
         )
         .def(py::init(py::overload_cast<int,
@@ -72,6 +74,7 @@ void bind_sidekiq_tx(py::module& m)
                                         double,
                                         double,
                                         std::string,
+                                        int,
                                         int,
                                         int,
                                         int>(&sidekiq_tx::make)),
@@ -86,6 +89,7 @@ void bind_sidekiq_tx(py::module& m)
            py::arg("threads"),
            py::arg("buffer_size"),
            py::arg("cal_mode"),
+           py::arg("timed_tx") = 0,
            D(sidekiq_tx,make)
         )
         .def(py::init(py::overload_cast<int,
@@ -95,6 +99,7 @@ void bind_sidekiq_tx(py::module& m)
                                         double,
                                         double,
                                         std::string,
+                                        int,
                                         int,
                                         int,
                                         int>(&sidekiq_tx::make)),
@@ -107,7 +112,8 @@ void bind_sidekiq_tx(py::module& m)
            py::arg("burst_tag"),
            py::arg("threads"),
            py::arg("buffer_size"),
-           py::arg("cal_mode")
+           py::arg("cal_mode"),
+           py::arg("timed_tx") = 0
         )
         .def(py::init(py::overload_cast<int,
                                         int,
@@ -117,6 +123,7 @@ void bind_sidekiq_tx(py::module& m)
                                         double,
                                         double,
                                         std::string,
+                                        int,
                                         int,
                                         int,
                                         int>(&sidekiq_tx::make)),
@@ -130,7 +137,8 @@ void bind_sidekiq_tx(py::module& m)
            py::arg("burst_tag"),
            py::arg("threads"),
            py::arg("buffer_size"),
-           py::arg("cal_mode")
+           py::arg("cal_mode"),
+           py::arg("timed_tx") = 0
         )
         
 
@@ -184,6 +192,5 @@ void bind_sidekiq_tx(py::module& m)
 
 
 }
-
 
 

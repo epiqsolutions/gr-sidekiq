@@ -4,7 +4,7 @@ category: '[sidekiq]'
 
 templates:
   imports: from gnuradio import sidekiq
-  make: sidekiq.sidekiq_tx(${card}, ${topology}, ${handle}, ${sample_rate}, ${bandwidth}, ${frequency}, ${attenuation}, ${burst_tag}, ${threads}, ${buffer_size}, ${cal_mode})
+  make: sidekiq.sidekiq_tx(${card}, ${topology}, ${handle}, ${sample_rate}, ${bandwidth}, ${frequency}, ${attenuation}, ${burst_tag}, ${threads}, ${buffer_size}, ${cal_mode}, ${timed_tx})
 
   callbacks:
   - set_tx_sample_rate(${sample_rate})
@@ -62,6 +62,13 @@ parameters:
   label: Bursting Tag Name 
   dtype: string
   default: "" 
+
+- id: timed_tx
+  label: Timed TX
+  dtype: enum
+  options: ['0', '1']
+  option_labels: ['Disabled', 'Enabled']
+  default: '0'
 
 - id: threads
   label: Threads
@@ -135,7 +142,7 @@ documentation: |-
 
         Bursting TX - To transmit a burst, the block needs to receive 
         the <burst_tag_name> stream tag.
-        If the name is "" then no bursting is enabled.
+        If the name is "" then length-tag bursting is disabled.
         It uses the <burst_tag_name> stream tag to indicate the start-of-burst and length.
         The tag is attached to the first sample and its value is a positive integer
         count of complex samples. Samples outside bursts are discarded. Bursts may
@@ -145,7 +152,17 @@ documentation: |-
         Normal burst completion waits for async transfer callbacks before stopping.
         This does not guarantee completion at the antenna. User stop aborts pending
         transfers. An incomplete burst at end-of-input is not automatically completed.
-        These are immediate bursts; tx_time and SOB/EOB scheduling are not supported.
+        Timed TX - Disabled by default for compatibility. When enabled, Sidekiq uses
+        strict RF-timestamp mode. A tx_time tag must contain the UHD-compatible PMT
+        tuple (uint64 seconds, double fractional seconds). The time is converted to
+        the RF sample counter using the actual TX sample rate. Late packets are
+        discarded by the FPGA and reported by the block.
+
+        With Burst Tag Name set, every length tag must have a tx_time tag at the
+        same sample. As in UHD tagged-stream mode, the length tag defines the burst
+        and tx_sob/tx_eob tags are ignored. With Burst Tag Name empty, true tx_sob
+        and tx_eob tags define each timed burst; tx_time must coincide with tx_sob.
+        The sample carrying tx_eob is included in the burst.
 
         Configuration messages - The block also can receive the "lo_freq", "rate", 
         "bandwidth" and "attenuation" messages to modify those parameters.
@@ -169,7 +186,10 @@ documentation: |-
          Attenuation: The attenuation of the port. 
 
          Burst Tag Name: The name of the burst tag key that will be received to do bursting.
-         If the value is "" or empty, then no bursting enabled.
+         If empty, length-tag bursting is disabled; Timed TX may still use tx_sob/tx_eob.
+
+         Timed TX: Enable UHD-compatible tx_time scheduling. With no Burst Tag Name,
+         true tx_sob/tx_eob tags delimit bursts.
 
          Threads: The number of threads. If '1' or '0' then it is running in sync mode. 
 
