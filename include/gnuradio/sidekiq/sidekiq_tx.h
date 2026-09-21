@@ -34,7 +34,8 @@ public:
                         int threads,
                         int buffer_size,
                         int cal_mode,
-                        int timed_tx = 0);
+                        int timed_tx = 0,
+                        int reset_timestamps_on_start = 0);
 
     static sptr make(
                         int card,
@@ -48,7 +49,8 @@ public:
                         int threads,
                         int buffer_size,
                         int cal_mode,
-                        int timed_tx = 0);
+                        int timed_tx = 0,
+                        int reset_timestamps_on_start = 0);
 
     static sptr make(
                         int card,
@@ -61,7 +63,8 @@ public:
                         int threads,
                         int buffer_size,
                         int cal_mode,
-                        int timed_tx = 0);
+                        int timed_tx = 0,
+                        int reset_timestamps_on_start = 0);
 
     static sptr make(
                         int card,
@@ -75,7 +78,8 @@ public:
                         int threads,
                         int buffer_size,
                         int cal_mode,
-                        int timed_tx = 0);
+                        int timed_tx = 0,
+                        int reset_timestamps_on_start = 0);
 
             virtual void set_tx_sample_rate(double value) = 0;
 

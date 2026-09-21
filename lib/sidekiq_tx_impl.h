@@ -36,7 +36,8 @@ public:
                     int threads,
                     int buffer_size,
                     int cal_mode,
-                    int timed_tx);
+                    int timed_tx,
+                    int reset_timestamps_on_start);
 
     ~sidekiq_tx_impl() override;
 
@@ -92,6 +93,7 @@ private:
     std::string burst_tag_name{};
     skiq_tx_quadcal_mode_t calibration_mode{};
     bool timed_tx{};
+    bool reset_timestamps_on_start{};
 
     /* flags */
 

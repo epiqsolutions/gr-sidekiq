@@ -238,6 +238,9 @@ sidekiq_rx_impl::sidekiq_rx_impl(
     /* initialize libsidekiq */
     session = std::make_unique<sidekiq_session>(card);
 
+    /* Topology APIs were added in SDK 4.26.  Older SDKs retain their legacy
+     * channel-mode behavior and can still use topology 0. */
+#if LIBSIDEKIQ_VERSION >= 42600
     /* set topology if it has changed from default (0) */
     if (input_topology != 0)
     {
@@ -257,6 +260,17 @@ sidekiq_rx_impl::sidekiq_rx_impl(
             d_logger->info("Info: Topology is not supported. Ignoring requested topology\n");
         }
     }
+#else
+    if (input_topology != 0)
+    {
+        d_logger->warn(
+            "Sidekiq SDK {}.{}.{} does not support topology selection; ignoring topology {}",
+            LIBSIDEKIQ_VERSION_MAJOR,
+            LIBSIDEKIQ_VERSION_MINOR,
+            LIBSIDEKIQ_VERSION_PATCH,
+            input_topology);
+    }
+#endif
 
     set_rx_sample_rate(sample_rate);
     set_rx_bandwidth(bandwidth);

@@ -5,6 +5,10 @@
 #  Sidekiq_INCLUDE_DIRS - The Sidekiq include directories
 #  Sidekiq_PKG_LIBRARY_DIRS - The Sidekiq support library directory
 #  Sidekiq_BUILD_CONFIG - The Sidekiq SDK build config selected by sidekiq-config
+#
+# SDK 4.26 and newer provide sidekiq-config.  Older SDKs are discovered from
+# their conventional include/lib layout and linked with the dependencies listed
+# by the SDK's example makefiles.
 
 if(NOT Sidekiq_FOUND)
 
@@ -63,12 +67,112 @@ if(NOT Sidekiq_FOUND)
 
         set(OTHER_LIBS "")
         set(PKGCONFIG_LIBS "")
+    else()
+        message(STATUS
+            "sidekiq-config not found in ${_Sidekiq_SDK_DIR_HINT}/bin; "
+            "trying the legacy SDK layout")
+
+        find_path(Sidekiq_INCLUDE_DIR
+            NAMES sidekiq_api.h
+            HINTS
+                "${_Sidekiq_SDK_DIR_HINT}/sidekiq_core/inc"
+                "${_Sidekiq_SDK_DIR_HINT}/include"
+            NO_DEFAULT_PATH)
+
+        if(DEFINED SIDEKIQ_BUILD_CONFIG AND NOT "${SIDEKIQ_BUILD_CONFIG}" STREQUAL "")
+            set(Sidekiq_BUILD_CONFIG "${SIDEKIQ_BUILD_CONFIG}")
+        elseif(DEFINED ENV{SIDEKIQ_BUILD_CONFIG} AND NOT "$ENV{SIDEKIQ_BUILD_CONFIG}" STREQUAL "")
+            set(Sidekiq_BUILD_CONFIG "$ENV{SIDEKIQ_BUILD_CONFIG}")
+        elseif(DEFINED SUFFIX AND NOT "${SUFFIX}" STREQUAL "" AND NOT "${SUFFIX}" STREQUAL "none")
+            # Preserve the platform selector used by the original finder.
+            set(Sidekiq_BUILD_CONFIG "${SUFFIX}")
+        elseif(CMAKE_SYSTEM_PROCESSOR MATCHES "^(x86_64|amd64|AMD64)$")
+            set(Sidekiq_BUILD_CONFIG "x86_64.gcc")
+        elseif(CMAKE_SYSTEM_PROCESSOR MATCHES "^(aarch64|arm64)$")
+            set(Sidekiq_BUILD_CONFIG "aarch64")
+        endif()
+
+        if(Sidekiq_BUILD_CONFIG)
+            set(_Sidekiq_LEGACY_LIBRARY
+                "${_Sidekiq_SDK_DIR_HINT}/lib/libsidekiq__${Sidekiq_BUILD_CONFIG}.a")
+            if(EXISTS "${_Sidekiq_LEGACY_LIBRARY}")
+                set(Sidekiq_LIBRARY "${_Sidekiq_LEGACY_LIBRARY}")
+            endif()
+
+            set(Sidekiq_PKG_LIBRARY_DIRS
+                "${_Sidekiq_SDK_DIR_HINT}/lib/support/${Sidekiq_BUILD_CONFIG}/usr/lib/epiq")
+        endif()
+
+        if(Sidekiq_INCLUDE_DIR)
+            file(STRINGS "${Sidekiq_INCLUDE_DIR}/sidekiq_api.h"
+                _Sidekiq_VERSION_MAJOR_LINE
+                REGEX "^#define[ \t]+LIBSIDEKIQ_VERSION_MAJOR[ \t]+[0-9]+")
+            file(STRINGS "${Sidekiq_INCLUDE_DIR}/sidekiq_api.h"
+                _Sidekiq_VERSION_MINOR_LINE
+                REGEX "^#define[ \t]+LIBSIDEKIQ_VERSION_MINOR[ \t]+[0-9]+")
+            file(STRINGS "${Sidekiq_INCLUDE_DIR}/sidekiq_api.h"
+                _Sidekiq_VERSION_PATCH_LINE
+                REGEX "^#define[ \t]+LIBSIDEKIQ_VERSION_PATCH[ \t]+[0-9]+")
+
+            if(_Sidekiq_VERSION_MAJOR_LINE AND
+               _Sidekiq_VERSION_MINOR_LINE AND
+               _Sidekiq_VERSION_PATCH_LINE)
+                string(REGEX REPLACE ".*[ \t]([0-9]+).*" "\\1"
+                    _Sidekiq_VERSION_MAJOR "${_Sidekiq_VERSION_MAJOR_LINE}")
+                string(REGEX REPLACE ".*[ \t]([0-9]+).*" "\\1"
+                    _Sidekiq_VERSION_MINOR "${_Sidekiq_VERSION_MINOR_LINE}")
+                string(REGEX REPLACE ".*[ \t]([0-9]+).*" "\\1"
+                    _Sidekiq_VERSION_PATCH "${_Sidekiq_VERSION_PATCH_LINE}")
+                set(Sidekiq_VERSION
+                    "${_Sidekiq_VERSION_MAJOR}.${_Sidekiq_VERSION_MINOR}.${_Sidekiq_VERSION_PATCH}")
+            endif()
+        endif()
+
+        if(Sidekiq_LIBRARY)
+            # libsidekiq is static in legacy SDKs.  Keep it first, followed by
+            # the transitive libraries documented by those SDKs.
+            set(Sidekiq_LINK_LIBRARIES
+                "${Sidekiq_LIBRARY}"
+                "-L${Sidekiq_PKG_LIBRARY_DIRS}"
+                "-Wl,-rpath-link=${Sidekiq_PKG_LIBRARY_DIRS}"
+                "-Wl,--enable-new-dtags"
+                "-Wl,-rpath,/usr/lib/epiq")
+
+            if(Sidekiq_BUILD_CONFIG MATCHES "^(z2-armhf|z3u|arm_cortex-a9.*|aarch64\\.gcc6\\.3)$")
+                list(APPEND Sidekiq_LINK_LIBRARIES iio)
+            elseif(Sidekiq_BUILD_CONFIG STREQUAL "msiq-g20g40")
+                list(APPEND Sidekiq_LINK_LIBRARIES hmc704x)
+            elseif(Sidekiq_BUILD_CONFIG STREQUAL "msiq-x40")
+                find_program(_Sidekiq_PKG_CONFIG_EXECUTABLE pkg-config)
+                if(_Sidekiq_PKG_CONFIG_EXECUTABLE)
+                    execute_process(
+                        COMMAND "${CMAKE_COMMAND}" -E env
+                            "PKG_CONFIG_PATH=${Sidekiq_PKG_LIBRARY_DIRS}/pkgconfig"
+                            "${_Sidekiq_PKG_CONFIG_EXECUTABLE}"
+                            --libs-only-l grpc++ protobuf
+                        RESULT_VARIABLE _Sidekiq_PKG_CONFIG_RESULT
+                        OUTPUT_VARIABLE _Sidekiq_X40_LIBS
+                        OUTPUT_STRIP_TRAILING_WHITESPACE)
+                    if(_Sidekiq_PKG_CONFIG_RESULT EQUAL 0)
+                        separate_arguments(_Sidekiq_X40_LIBS UNIX_COMMAND "${_Sidekiq_X40_LIBS}")
+                        list(APPEND Sidekiq_LINK_LIBRARIES ${_Sidekiq_X40_LIBS} gpiod)
+                    endif()
+                endif()
+            elseif(Sidekiq_BUILD_CONFIG STREQUAL "z4")
+                list(APPEND Sidekiq_LINK_LIBRARIES gpiod)
+            endif()
+
+            list(APPEND Sidekiq_LINK_LIBRARIES
+                usb-1.0 glib-2.0 tirpc pthread rt m stdc++ dl)
+            set(Sidekiq_INCLUDE_DIRS "${Sidekiq_INCLUDE_DIR}")
+            set(SIDEKIQ_SDK_DIR "${_Sidekiq_SDK_DIR_HINT}"
+                CACHE PATH "Path to the Sidekiq SDK" FORCE)
+        endif()
     endif()
 
     include(FindPackageHandleStandardArgs)
     find_package_handle_standard_args(Sidekiq
         REQUIRED_VARS
-            Sidekiq_CONFIG_EXECUTABLE
             Sidekiq_INCLUDE_DIRS
             Sidekiq_LINK_LIBRARIES
         VERSION_VAR Sidekiq_VERSION)

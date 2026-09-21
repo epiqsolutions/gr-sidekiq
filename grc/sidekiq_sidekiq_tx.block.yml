@@ -4,7 +4,7 @@ category: '[sidekiq]'
 
 templates:
   imports: from gnuradio import sidekiq
-  make: sidekiq.sidekiq_tx(${card}, ${topology}, ${handle}, ${sample_rate}, ${bandwidth}, ${frequency}, ${attenuation}, ${burst_tag}, ${threads}, ${buffer_size}, ${cal_mode}, ${timed_tx})
+  make: sidekiq.sidekiq_tx(${card}, ${topology}, ${handle}, ${sample_rate}, ${bandwidth}, ${frequency}, ${attenuation}, ${burst_tag}, ${threads}, ${buffer_size}, ${cal_mode}, ${timed_tx}, ${reset_timestamps_on_start})
 
   callbacks:
   - set_tx_sample_rate(${sample_rate})
@@ -65,6 +65,13 @@ parameters:
 
 - id: timed_tx
   label: Timed TX
+  dtype: enum
+  options: ['0', '1']
+  option_labels: ['Disabled', 'Enabled']
+  default: '0'
+
+- id: reset_timestamps_on_start
+  label: Reset Timestamps on Start
   dtype: enum
   options: ['0', '1']
   option_labels: ['Disabled', 'Enabled']
@@ -188,8 +195,12 @@ documentation: |-
          Burst Tag Name: The name of the burst tag key that will be received to do bursting.
          If empty, length-tag bursting is disabled; Timed TX may still use tx_sob/tx_eob.
 
-         Timed TX: Enable UHD-compatible tx_time scheduling. With no Burst Tag Name,
-         true tx_sob/tx_eob tags delimit bursts.
+        Timed TX: Enable UHD-compatible tx_time scheduling. With no Burst Tag Name,
+        true tx_sob/tx_eob tags delimit bursts.
+
+         Reset Timestamps on Start: Reset the card's shared RX, TX, and system
+         timestamps when this block starts. Leave disabled when coordinating with
+         another block, process, or external timing reference.
 
          Threads: The number of threads. If '1' or '0' then it is running in sync mode. 
 

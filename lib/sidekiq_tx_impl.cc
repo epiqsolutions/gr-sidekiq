@@ -36,7 +36,8 @@ sidekiq_tx::sptr sidekiq_tx::make(int card,
                                   int threads,
                                   int buffer_size,
                                   int cal_mode,
-                                  int timed_tx)
+                                  int timed_tx,
+                                  int reset_timestamps_on_start)
 {
     return sidekiq_tx::make(card,
                             0,
@@ -49,7 +50,8 @@ sidekiq_tx::sptr sidekiq_tx::make(int card,
                             threads,
                             buffer_size,
                             cal_mode,
-                            timed_tx);
+                            timed_tx,
+                            reset_timestamps_on_start);
 }
 
 sidekiq_tx::sptr sidekiq_tx::make(int card,
@@ -63,7 +65,8 @@ sidekiq_tx::sptr sidekiq_tx::make(int card,
                                   int threads,
                                   int buffer_size,
                                   int cal_mode,
-                                  int timed_tx)
+                                  int timed_tx,
+                                  int reset_timestamps_on_start)
 {
     /* then make instantiates the tx_block */
     return gnuradio::make_block_sptr<sidekiq_tx_impl>(
@@ -78,7 +81,8 @@ sidekiq_tx::sptr sidekiq_tx::make(int card,
                                   threads,
                                   buffer_size,
                                   cal_mode,
-                                  timed_tx);
+                                  timed_tx,
+                                  reset_timestamps_on_start);
 }
 
 sidekiq_tx::sptr sidekiq_tx::make(int card,
@@ -91,7 +95,8 @@ sidekiq_tx::sptr sidekiq_tx::make(int card,
                                   int threads,
                                   int buffer_size,
                                   int cal_mode,
-                                  int timed_tx)
+                                  int timed_tx,
+                                  int reset_timestamps_on_start)
 {
     return sidekiq_tx::make(card,
                             0,
@@ -104,7 +109,8 @@ sidekiq_tx::sptr sidekiq_tx::make(int card,
                             threads,
                             buffer_size,
                             cal_mode,
-                            timed_tx);
+                            timed_tx,
+                            reset_timestamps_on_start);
 }
 
 sidekiq_tx::sptr sidekiq_tx::make(int card,
@@ -118,7 +124,8 @@ sidekiq_tx::sptr sidekiq_tx::make(int card,
                                   int threads,
                                   int buffer_size,
                                   int cal_mode,
-                                  int timed_tx)
+                                  int timed_tx,
+                                  int reset_timestamps_on_start)
 {
     return sidekiq_tx::make(card,
                             topology,
@@ -131,7 +138,8 @@ sidekiq_tx::sptr sidekiq_tx::make(int card,
                             threads,
                             buffer_size,
                             cal_mode,
-                            timed_tx);
+                            timed_tx,
+                            reset_timestamps_on_start);
 }
 
 /* constructor
@@ -148,7 +156,8 @@ sidekiq_tx_impl::sidekiq_tx_impl( int input_card,
                                   int threads,
                                   int buffer_size,
                                   int cal_mode,
-                                  int timed_tx)
+                                  int timed_tx,
+                                  int reset_timestamps_on_start)
     : gr::sync_block("sidekiq_tx",
                      gr::io_signature::make( 1 /* min inputs */, 1 /* max inputs */, sizeof(gr_complex)),
                      gr::io_signature::make(0, 0, 0))   //sync block
@@ -169,6 +178,7 @@ sidekiq_tx_impl::sidekiq_tx_impl( int input_card,
 
     burst_tag_name = burst_tag;
     this->timed_tx = timed_tx != 0;
+    this->reset_timestamps_on_start = reset_timestamps_on_start != 0;
     d_logger->debug("burst_tag_name: {}", burst_tag_name);
 
     session = std::make_unique<sidekiq_session>(card);
@@ -181,10 +191,14 @@ sidekiq_tx_impl::sidekiq_tx_impl( int input_card,
     }
     card_part = param.card_param.part_type;
 
+    bool topology_supported = false;
+#if LIBSIDEKIQ_VERSION >= 42600
+    topology_supported = skiq_is_topology_supported(card);
+
     /* set topology if it has changed from default (0) */
     if (topology != 0)
     {
-        if (skiq_is_topology_supported(card))
+        if (topology_supported)
         {
             status = skiq_apply_topology(card, topology);
             if (status != 0)
@@ -200,6 +214,17 @@ sidekiq_tx_impl::sidekiq_tx_impl( int input_card,
             d_logger->info("Info: Topology is not supported. Ignoring requested topology\n");
         }
     }
+#else
+    if (topology != 0)
+    {
+        d_logger->warn(
+            "Sidekiq SDK {}.{}.{} does not support topology selection; ignoring topology {}",
+            LIBSIDEKIQ_VERSION_MAJOR,
+            LIBSIDEKIQ_VERSION_MINOR,
+            LIBSIDEKIQ_VERSION_PATCH,
+            topology);
+    }
+#endif
 
     if (session->initialized_card())
     {
@@ -247,8 +272,11 @@ sidekiq_tx_impl::sidekiq_tx_impl( int input_card,
         throw std::runtime_error("Failure: skiq_write_tx_flow_mode");
     }
 
-    if ( !skiq_is_topology_supported(card) ||
-         card_part == skiq_nv100 || card_part == skiq_nvm2)
+    bool use_legacy_channel_mode = !topology_supported || card_part == skiq_nv100;
+#if LIBSIDEKIQ_VERSION >= 41900
+    use_legacy_channel_mode = use_legacy_channel_mode || card_part == skiq_nvm2;
+#endif
+    if (use_legacy_channel_mode)
     {
         /* if A2 or B2 is used, we need to set the channel mode to dual */
         if (hdl == skiq_tx_hdl_A2 || hdl == skiq_tx_hdl_B2)
@@ -408,6 +436,13 @@ bool sidekiq_tx_impl::start()
 {
     std::lock_guard<std::mutex> lock(tx_lifecycle_mutex);
     if (tx_streaming) return block::start();
+    if (reset_timestamps_on_start) {
+        const auto status = skiq_reset_timestamps(card);
+        if (status != 0) {
+            d_logger->error("Error: could not reset timestamps, status {}", status);
+            throw std::runtime_error("Failure: skiq_reset_timestamps");
+        }
+    }
     tx_buffers->restart();
     burst_remaining = 0;
     burst_packet.clear();

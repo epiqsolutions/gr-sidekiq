@@ -7,13 +7,20 @@ Epiq Solutions radios.
 
 - GNU Radio 3.10 or newer
 - CMake 3.8 or newer
-- Sidekiq SDK v 4.26.0 or newer
+- Sidekiq SDK (v4.26.0 or newer preferred)
+
+SDK v4.26 and newer are configured through `sidekiq-config`. Older SDKs use a
+legacy static-library fallback; topology selection is unavailable before v4.26,
+but legacy channel-mode operation remains supported.
 
 The build locates the Sidekiq SDK in this order:
 
 1. `-DSIDEKIQ_SDK_DIR=/path/to/sdk`
 2. `SIDEKIQ_SDK_DIR=/path/to/sdk`
 3. `$HOME/sidekiq_sdk_current`
+
+For a legacy embedded or cross-compiled SDK, set `SIDEKIQ_BUILD_CONFIG` to the
+suffix used by its static library, such as `z3u`, `msiq-x40`, or `aarch64`.
 
 If you are using the Python bindings or GNU Radio Companion blocks, build in an
 environment where the GNU Radio Python components are available.

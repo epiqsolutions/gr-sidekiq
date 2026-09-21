@@ -6,7 +6,8 @@ options:
     cmake_opt: ''
     comment: ''
     copyright: ''
-    description: One RF-timestamped Sidekiq TX burst using UHD-compatible tx_time and length tags.
+    description: One RF-timestamped Sidekiq TX burst using UHD-compatible tx_time
+      and length tags.
     gen_cmake: 'On'
     gen_linking: dynamic
     generate_options: no_gui
@@ -19,7 +20,7 @@ options:
     realtime_scheduling: ''
     run: 'True'
     run_command: '{python} -u {filename}'
-    run_options: prompt
+    run_options: run
     sizing_mode: fixed
     thread_safe_setters: ''
     title: Sidekiq Timed TX Burst
@@ -33,40 +34,16 @@ options:
     state: enabled
 
 blocks:
-- name: sample_rate
-  id: variable
-  parameters:
-    comment: TX RF sample-counter rate
-    value: 1e6
-  states:
-    coordinate: [24, 32]
-    rotation: 0
-    state: enabled
 - name: burst_len
   id: variable
   parameters:
-    comment: Complex samples in the burst
-    value: '100000'
+    comment: Complex samples for a 1.5-second burst
+    value: int(1.5*sample_rate)
   states:
-    coordinate: [160, 32]
-    rotation: 0
-    state: enabled
-- name: tx_time_seconds
-  id: variable
-  parameters:
-    comment: Whole seconds on the Sidekiq RF timestamp clock
-    value: '5'
-  states:
-    coordinate: [296, 32]
-    rotation: 0
-    state: enabled
-- name: tx_time_fraction
-  id: variable
-  parameters:
-    comment: Fractional seconds in [0, 1)
-    value: '0.0'
-  states:
-    coordinate: [472, 32]
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [1168, 28.0]
     rotation: 0
     state: enabled
 - name: frequency
@@ -75,77 +52,99 @@ blocks:
     comment: TX LO frequency
     value: 1000e6
   states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
     coordinate: [648, 32]
+    rotation: 0
+    state: enabled
+- name: sample_rate
+  id: variable
+  parameters:
+    comment: TX RF sample-counter rate
+    value: 20e6
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [976, 28.0]
     rotation: 0
     state: enabled
 - name: tone_frequency
   id: variable
   parameters:
     comment: Complex tone offset from the LO
-    value: 50e3
+    value: 2e6
   states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
     coordinate: [784, 32]
     rotation: 0
     state: enabled
-- name: packet_len_tag
-  id: variable_tag_object
+- name: tx_time_fraction
+  id: variable
   parameters:
-    comment: UHD tagged-stream-style burst length
-    key: pmt.intern("packet_len")
-    offset: '0'
-    src: pmt.intern("tx_timed_burst")
-    value: pmt.from_uint64(burst_len)
+    comment: Fractional seconds in [0, 1)
+    value: '0.0'
   states:
-    coordinate: [24, 144]
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [472, 32]
     rotation: 0
     state: enabled
-- name: tx_time_tag
-  id: variable_tag_object
+- name: tx_time_seconds
+  id: variable
   parameters:
-    comment: UHD-compatible (whole seconds, fractional seconds) tuple
-    key: pmt.intern("tx_time")
-    offset: '0'
-    src: pmt.intern("tx_timed_burst")
-    value: pmt.make_tuple(pmt.from_uint64(tx_time_seconds), pmt.from_double(tx_time_fraction))
+    comment: Whole seconds on the Sidekiq RF timestamp clock
+    value: '5'
   states:
-    coordinate: [240, 144]
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [296, 32]
     rotation: 0
     state: enabled
-- name: import_numpy
-  id: import
-  parameters:
-    alias: ''
-    comment: ''
-    imports: import numpy
-  states:
-    coordinate: [648, 112]
-    rotation: 0
-    state: enabled
-- name: import_pmt
-  id: import
-  parameters:
-    alias: ''
-    comment: ''
-    imports: import pmt
-  states:
-    coordinate: [760, 112]
-    rotation: 0
-    state: enabled
-- name: blocks_vector_source_x_0
-  id: blocks_vector_source_x
+- name: analog_sig_source_x_0
+  id: analog_sig_source_x
   parameters:
     affinity: ''
     alias: ''
-    comment: Finite 0.25-amplitude complex tone
+    amp: '0.9'
+    comment: Streaming complex tone; Head controls duration
+    freq: tone_frequency
     maxoutbuf: '0'
     minoutbuf: '0'
-    repeat: 'False'
-    tags: '[packet_len_tag, tx_time_tag]'
+    offset: '0'
+    phase: '0'
+    samp_rate: sample_rate
+    showports: 'False'
     type: complex
-    vector: 0.25*numpy.exp(2j*numpy.pi*tone_frequency*numpy.arange(burst_len)/sample_rate)
+    waveform: analog.GR_COS_WAVE
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [48, 284.0]
+    rotation: 0
+    state: enabled
+- name: blocks_head_0
+  id: blocks_head
+  parameters:
+    affinity: ''
+    alias: ''
+    comment: Limit the streaming tone to exactly 1.5 seconds
+    maxoutbuf: '0'
+    minoutbuf: '0'
+    num_items: burst_len
+    type: complex
     vlen: '1'
   states:
-    coordinate: [144, 288]
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [352, 324.0]
     rotation: 0
     state: enabled
 - name: sidekiq_sidekiq_tx_0
@@ -153,28 +152,77 @@ blocks:
   parameters:
     affinity: ''
     alias: ''
-    attenuation: '125'
+    attenuation: '100'
     bandwidth: 0.8*sample_rate
     buffer_size: '4092'
     burst_tag: packet_len
     cal_mode: '0'
-    card: '0'
+    card: '1'
     comment: Timed mode requires packet_len and tx_time at the first sample
     frequency: frequency
     handle: '0'
+    reset_timestamps_on_start: '1'
     run_cal: '0'
     sample_rate: sample_rate
     threads: '1'
     timed_tx: '1'
     topology: '0'
   states:
-    coordinate: [568, 272]
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [920, 212.0]
+    rotation: 0
+    state: enabled
+- name: timed_burst_tagger
+  id: epy_block
+  parameters:
+    _source_code: "import numpy as np\nfrom gnuradio import gr\nimport pmt\n\nclass\
+      \ blk(gr.sync_block):\n    \"\"\"Attach packet_len and tx_time to the first\
+      \ sample of each run.\"\"\"\n\n    def __init__(self, burst_len=1, tx_time_seconds=0,\
+      \ tx_time_fraction=0.0):\n        gr.sync_block.__init__(\n            self,\n\
+      \            name='Timed Burst Tagger',\n            in_sig=[np.complex64],\n\
+      \            out_sig=[np.complex64])\n        self.burst_len = int(burst_len)\n\
+      \        self.tx_time_seconds = int(tx_time_seconds)\n        self.tx_time_fraction\
+      \ = float(tx_time_fraction)\n        self._tagged = False\n\n    def start(self):\n\
+      \        self._tagged = False\n        return True\n\n    def set_burst_len(self,\
+      \ burst_len):\n        self.burst_len = int(burst_len)\n\n    def set_tx_time_seconds(self,\
+      \ seconds):\n        self.tx_time_seconds = int(seconds)\n\n    def set_tx_time_fraction(self,\
+      \ fraction):\n        self.tx_time_fraction = float(fraction)\n\n    def work(self,\
+      \ input_items, output_items):\n        output_items[0][:] = input_items[0]\n\
+      \        if len(output_items[0]) and not self._tagged:\n            offset =\
+      \ self.nitems_written(0)\n            source = pmt.intern('tx_timed_burst')\n\
+      \            self.add_item_tag(\n                0, offset, pmt.intern('packet_len'),\n\
+      \                pmt.from_uint64(self.burst_len), source)\n            self.add_item_tag(\n\
+      \                0, offset, pmt.intern('tx_time'),\n                pmt.make_tuple(\n\
+      \                    pmt.from_uint64(self.tx_time_seconds),\n              \
+      \      pmt.from_double(self.tx_time_fraction)),\n                source)\n \
+      \           self._tagged = True\n        return len(output_items[0])"
+    affinity: ''
+    alias: ''
+    burst_len: burst_len
+    comment: Add UHD-compatible burst length and scheduled-time tags
+    maxoutbuf: '0'
+    minoutbuf: '0'
+    tx_time_fraction: tx_time_fraction
+    tx_time_seconds: tx_time_seconds
+  states:
+    _io_cache: ('Timed Burst Tagger', 'blk', [('burst_len', '1'), ('tx_time_seconds',
+      '0'), ('tx_time_fraction', '0.0')], [('0', 'complex', 1)], [('0', 'complex',
+      1)], 'Attach packet_len and tx_time to the first sample of each run.', ['burst_len',
+      'tx_time_fraction', 'tx_time_seconds'])
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [600, 308.0]
     rotation: 0
     state: enabled
 
 connections:
-- [blocks_vector_source_x_0, '0', sidekiq_sidekiq_tx_0, '0']
+- [analog_sig_source_x_0, '0', blocks_head_0, '0']
+- [blocks_head_0, '0', timed_burst_tagger, '0']
+- [timed_burst_tagger, '0', sidekiq_sidekiq_tx_0, '0']
 
 metadata:
   file_format: 1
-  grc_version: 3.10.11.0
+  grc_version: v3.11.0.0git-605-g9b22fd38

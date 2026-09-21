@@ -15,7 +15,7 @@ Do not reuse a production build directory for QA.
 
 - CMake, a C++17 compiler, GNU Radio 3.10+ development files including gr-blocks,
   VOLK development files, and Boost.Test development files.
-- Sidekiq SDK headers compatible with this repository (SDK 4.26+). Supply the
+- Sidekiq SDK headers compatible with this repository. Supply the
   directory containing `sidekiq_api.h`, `sidekiq_types.h`, `sidekiq_params.h`, and
   `sidekiq_xport_types.h`. Headers are not copied into this repository.
 - GNU Radio development packages provide the C++ QA framework; Python QA scripts
@@ -90,7 +90,8 @@ stream-tag contract. It checks `(uint64 seconds, double fractional seconds)`
 conversion using the active TX sample rate, per-packet timestamp progression,
 length-tag precedence over SOB/EOB, inclusive EOB behavior, one-sample bursts,
 partial-packet zero padding, shared-session rate readback, missing/malformed
-timestamps, timestamp-configuration failures, and late-count reporting before
+timestamps, optional start-time timestamp reset, timestamp-configuration failures,
+and late-count reporting before
 the SDK clears that count on stop.
 
 The `rx_correctness` suite exercises uneven handle arrivals (12 A1 packets then
@@ -222,9 +223,9 @@ the final sample has aired. Check RF tail delivery on hardware.
 Build/install the normal module and regenerate `examples/tx_timed_burst.grc`.
 The example enables Timed TX and places `packet_len` and `tx_time` on its first
 sample. `tx_time` uses the UHD tuple convention; this block converts seconds to
-the Sidekiq RF sample counter at the actual TX sample rate. Set the scheduled
-time comfortably ahead of the current RF timestamp. The default of 5 seconds is
-only suitable when the card has just initialized near timestamp zero.
+the Sidekiq RF sample counter at the actual TX sample rate. The example explicitly
+resets the card's shared timestamps when the TX block starts, then schedules its
+0.5-second tone at timestamp 5 seconds.
 
 Capture the output with suitable attenuation and verify both the scheduled start
 and `burst_len / sample_rate` duration. Repeat with a non-buffer-aligned length to

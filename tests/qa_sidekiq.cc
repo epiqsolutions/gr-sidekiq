@@ -593,14 +593,27 @@ pmt::pmt_t tx_time(uint64_t seconds, double fractional_seconds)
 {
     return pmt::make_tuple(pmt::from_uint64(seconds), pmt::from_double(fractional_seconds));
 }
-auto make_timed_tx(const std::string& length_tag = "")
+auto make_timed_tx(const std::string& length_tag = "", bool reset_timestamps = false)
 {
     return gr::sidekiq::sidekiq_tx::make(0, "A1", 1e6, 800e3, 915e6,
-                                         100, length_tag, 1, tx_samples, 1, 1);
+                                         100, length_tag, 1, tx_samples, 1, 1,
+                                         reset_timestamps ? 1 : 0);
 }
 }
 
 BOOST_FIXTURE_TEST_SUITE(tx_timed_bursts, fixture)
+BOOST_AUTO_TEST_CASE(optional_timestamp_reset_runs_at_block_start)
+{
+    auto sink = make_timed_tx("burst", true);
+    BOOST_CHECK(sink->start());
+    BOOST_CHECK_EQUAL(count_calls("skiq_reset_timestamps"), 1);
+    BOOST_CHECK(sink->stop());
+
+    fake_sidekiq::fail_next("skiq_reset_timestamps", -EIO);
+    auto failing_sink = make_timed_tx("burst", true);
+    BOOST_CHECK_THROW(failing_sink->start(), std::runtime_error);
+}
+
 BOOST_AUTO_TEST_CASE(length_tag_timestamps_packets_and_zero_padding)
 {
     const uint64_t length = 2 * tx_samples + 23;

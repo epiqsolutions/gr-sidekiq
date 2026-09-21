@@ -28,13 +28,9 @@ bursting.grc - Shows bursting transmit.  There is a message to stop and start th
 
 tx_timed_burst.grc - Sends one finite, RF-timestamped tone burst. It uses the
     same `tx_time` tuple as the UHD sink and a `packet_len` length tag. Timed TX
-    is strict: the FPGA discards late packets. Set `tx_time_seconds` and
-    `tx_time_fraction` far enough ahead of the current Sidekiq RF timestamp for
-    flowgraph startup and host buffering. The default 5-second timestamp is
-    intended for a freshly initialized card whose timestamp is near zero; if
-    another process/session has kept the card active, first obtain the current
-    TX RF timestamp (for example with `skiq_read_curr_tx_timestamp`) and choose
-    a later value. Confirm the burst start and duration on a scope or analyzer.
+    is strict: the FPGA discards late packets. This example resets the card's
+    timestamps when the flowgraph starts, then transmits a 0.5-second tone at
+    timestamp 5 seconds. Confirm the burst start and duration on a scope or analyzer.
     To validate late handling, deliberately choose a past timestamp and check
     for the `TX late timestamp count` warning and no transmitted RF burst.
 

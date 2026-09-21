@@ -5,7 +5,7 @@ find_package(Threads REQUIRED)
 find_package(Volk REQUIRED)
 set(SIDEKIQ_QA_SDK_INCLUDE_DIR "" CACHE PATH "Directory containing Sidekiq SDK headers (no library required)")
 if(NOT EXISTS "${SIDEKIQ_QA_SDK_INCLUDE_DIR}/sidekiq_api.h")
-    message(FATAL_ERROR "Set -DSIDEKIQ_QA_SDK_INCLUDE_DIR=/path/to/sdk/sidekiq_core/inc (SDK 4.26+ headers). QA never links libsidekiq.")
+    message(FATAL_ERROR "Set -DSIDEKIQ_QA_SDK_INCLUDE_DIR=/path/to/sdk/sidekiq_core/inc. QA never links libsidekiq.")
 endif()
 message(STATUS "QA ONLY: fake Sidekiq backend; no radio access and no install targets")
 add_library(sidekiq_qa_blocks STATIC

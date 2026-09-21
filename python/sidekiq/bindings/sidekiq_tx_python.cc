@@ -14,7 +14,7 @@
 /* BINDTOOL_GEN_AUTOMATIC(0)                                                       */
 /* BINDTOOL_USE_PYGCCXML(0)                                                        */
 /* BINDTOOL_HEADER_FILE(sidekiq_tx.h)                                        */
-/* BINDTOOL_HEADER_FILE_HASH(c49d736745adb71b35fb26fcaea01a87)                     */
+/* BINDTOOL_HEADER_FILE_HASH(de78c499af6e4f508eef89e34c5fe2ef)                     */
 /***********************************************************************************/
 
 /*
@@ -52,6 +52,7 @@ void bind_sidekiq_tx(py::module& m)
                                         int,
                                         int,
                                         int,
+                                        int,
                                         int>(&sidekiq_tx::make)),
            py::arg("card"),
            py::arg("handle"),
@@ -64,6 +65,7 @@ void bind_sidekiq_tx(py::module& m)
            py::arg("buffer_size"),
            py::arg("cal_mode"),
            py::arg("timed_tx") = 0,
+           py::arg("reset_timestamps_on_start") = 0,
            D(sidekiq_tx,make)
         )
         .def(py::init(py::overload_cast<int,
@@ -74,6 +76,7 @@ void bind_sidekiq_tx(py::module& m)
                                         double,
                                         double,
                                         std::string,
+                                        int,
                                         int,
                                         int,
                                         int,
@@ -90,6 +93,7 @@ void bind_sidekiq_tx(py::module& m)
            py::arg("buffer_size"),
            py::arg("cal_mode"),
            py::arg("timed_tx") = 0,
+           py::arg("reset_timestamps_on_start") = 0,
            D(sidekiq_tx,make)
         )
         .def(py::init(py::overload_cast<int,
@@ -99,6 +103,7 @@ void bind_sidekiq_tx(py::module& m)
                                         double,
                                         double,
                                         std::string,
+                                        int,
                                         int,
                                         int,
                                         int,
@@ -113,7 +118,8 @@ void bind_sidekiq_tx(py::module& m)
            py::arg("threads"),
            py::arg("buffer_size"),
            py::arg("cal_mode"),
-           py::arg("timed_tx") = 0
+           py::arg("timed_tx") = 0,
+           py::arg("reset_timestamps_on_start") = 0
         )
         .def(py::init(py::overload_cast<int,
                                         int,
@@ -123,6 +129,7 @@ void bind_sidekiq_tx(py::module& m)
                                         double,
                                         double,
                                         std::string,
+                                        int,
                                         int,
                                         int,
                                         int,
@@ -138,7 +145,8 @@ void bind_sidekiq_tx(py::module& m)
            py::arg("threads"),
            py::arg("buffer_size"),
            py::arg("cal_mode"),
-           py::arg("timed_tx") = 0
+           py::arg("timed_tx") = 0,
+           py::arg("reset_timestamps_on_start") = 0
         )
         
 
@@ -192,5 +200,3 @@ void bind_sidekiq_tx(py::module& m)
 
 
 }
-
-
