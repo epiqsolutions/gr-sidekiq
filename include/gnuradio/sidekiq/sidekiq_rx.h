@@ -88,11 +88,32 @@ public:
           int cal_type
           );
 
+  // Each selected handle gets one output and its own initial LO frequency.
+  // Use skiq_rx_hdl_end (or "none") for unused trailing handles.
+  static sptr make(int input_card, int input_topology,
+                   int port1_handle, double frequency1,
+                   int port2_handle, double frequency2,
+                   int port3_handle, double frequency3,
+                   int port4_handle, double frequency4,
+                   double sample_rate, double bandwidth, uint8_t gain_mode,
+                   int gain_index, int timestamp_tags, int trigger_src,
+                   int pps_source, int cal_mode, int cal_type);
+  static sptr make(int input_card, int input_topology,
+                   const std::string& port1_handle, double frequency1,
+                   const std::string& port2_handle, double frequency2,
+                   const std::string& port3_handle, double frequency3,
+                   const std::string& port4_handle, double frequency4,
+                   double sample_rate, double bandwidth, uint8_t gain_mode,
+                   int gain_index, int timestamp_tags, int trigger_src,
+                   int pps_source, int cal_mode, int cal_type);
+
             virtual void set_rx_sample_rate(double value) = 0;
 
             virtual void set_rx_bandwidth(double value) = 0;
 
             virtual void set_rx_frequency(double value) = 0;
+
+            virtual void set_rx_frequency_for_hdl(int handle, double value) = 0;
 
             virtual void set_rx_gain_mode(double value) = 0;
 

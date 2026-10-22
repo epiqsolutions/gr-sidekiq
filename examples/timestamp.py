@@ -98,7 +98,7 @@ class timestamp(gr.top_block, Qt.QWidget):
         self._bandwidth_range = Range(1e5, 250e6, 1e6, sample_rate * .8, 200)
         self._bandwidth_win = RangeWidget(self._bandwidth_range, self.set_bandwidth, "'bandwidth'", "counter_slider", float, QtCore.Qt.Horizontal)
         self.top_layout.addWidget(self._bandwidth_win)
-        self.sidekiq_sidekiq_rx_0 = sidekiq.sidekiq_rx(2, 0, 100, sample_rate, bandwidth, frequency, 1, gain_index, 1, 2, 0)
+        self.sidekiq_sidekiq_rx_0 = sidekiq.sidekiq_rx(2, -1, 0, frequency, 100, 1000e6, 100, 1000e6, 100, 1000e6, sample_rate, bandwidth, 1, gain_index, 1, 0, 0, 2, 0)
         self.sidekiq_sidekiq_rx_0.set_min_output_buffer(8000)
         self.sidekiq_sidekiq_rx_0.set_max_output_buffer(32000)
         _run_rx_calibration_push_button = Qt.QPushButton('Run RX Calibration')
@@ -258,7 +258,7 @@ class timestamp(gr.top_block, Qt.QWidget):
     def set_frequency(self, frequency):
         self.frequency = frequency
         self.qtgui_freq_sink_x_0.set_frequency_range(self.frequency, self.sample_rate)
-        self.sidekiq_sidekiq_rx_0.set_rx_frequency(self.frequency)
+        self.sidekiq_sidekiq_rx_0.set_rx_frequency_for_hdl(0, self.frequency)
 
     def get_bandwidth(self):
         return self.bandwidth

@@ -113,7 +113,7 @@ class fm_radio(gr.top_block, Qt.QWidget):
         self._frequency_button_group.buttonClicked[int].connect(
             lambda i: self.set_frequency(self._frequency_options[i]))
         self.top_layout.addWidget(self._frequency_group_box)
-        self.sidekiq_sidekiq_rx_0 = sidekiq.sidekiq_rx(1, 0, 100, sample_rate, bandwidth, frequency, 1, 1, 1, 0)
+        self.sidekiq_sidekiq_rx_0 = sidekiq.sidekiq_rx(1, -1, 0, frequency, 100, 1000e6, 100, 1000e6, 100, 1000e6, sample_rate, bandwidth, 1, 1, 0, 0, 0, 1, 0)
         self.sidekiq_sidekiq_rx_0.set_max_output_buffer(16000)
         self.blocks_multiply_const_vxx_0 = blocks.multiply_const_ff(volume)
         self.audio_sink_0 = audio.sink(48000, '', True)
@@ -164,7 +164,7 @@ class fm_radio(gr.top_block, Qt.QWidget):
     def set_frequency(self, frequency):
         self.frequency = frequency
         self._frequency_callback(self.frequency)
-        self.sidekiq_sidekiq_rx_0.set_rx_frequency(self.frequency)
+        self.sidekiq_sidekiq_rx_0.set_rx_frequency_for_hdl(0, self.frequency)
 
     def get_bandwidth(self):
         return self.bandwidth

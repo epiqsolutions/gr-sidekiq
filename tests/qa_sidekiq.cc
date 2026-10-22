@@ -104,6 +104,28 @@ BOOST_AUTO_TEST_CASE(rx_single_channel_samples)
     BOOST_CHECK_EQUAL(count_calls("skiq_stop_rx_streaming_multi_on_trigger"), 1);
 }
 
+BOOST_AUTO_TEST_CASE(explicit_topology_zero_is_applied)
+{
+    fake_sidekiq::set_topology_supported(true);
+    {
+        auto rx = gr::sidekiq::sidekiq_rx::make(
+            0, "A1", "none", 1e6, 800e3, 915e6, 0, 10, 0, 0, 0, 2, 0);
+        auto tx = make_tx();
+        BOOST_CHECK_EQUAL(count_calls("skiq_apply_topology"), 0);
+    }
+    {
+        auto rx = gr::sidekiq::sidekiq_rx::make(
+            0, 0, "A1", "none", 1e6, 800e3, 915e6, 0, 10, 0, 0, 0, 2, 0);
+        auto tx = gr::sidekiq::sidekiq_tx::make(
+            0, 0, "A1", 1e6, 800e3, 915e6, 100, "", 1, tx_samples, 1);
+    }
+    const auto calls = fake_sidekiq::calls();
+    const auto applied = std::count_if(calls.begin(), calls.end(), [](const auto& c) {
+        return c.name == "skiq_apply_topology" && c.value == 0;
+    });
+    BOOST_CHECK_EQUAL(applied, 2);
+}
+
 BOOST_AUTO_TEST_CASE(tx_setters_forward_values)
 {
     auto sink = make_tx();
@@ -581,6 +603,128 @@ BOOST_AUTO_TEST_CASE(restart_after_incomplete_burst)
 BOOST_AUTO_TEST_SUITE_END()
 
 BOOST_FIXTURE_TEST_SUITE(rx_correctness, fixture)
+BOOST_AUTO_TEST_CASE(unsupported_iq_order_swaps_samples_in_software)
+{
+    std::vector<int16_t> iq(2 * rx_samples);
+    for (int i = 0; i < rx_samples; ++i) {
+        iq[2 * i] = 100;
+        iq[2 * i + 1] = 200;
+    }
+    fake_sidekiq::set_rx_script({{skiq_rx_hdl_A1, 1000, iq}});
+    fake_sidekiq::fail_next("skiq_write_iq_order_mode", -ENOTSUP);
+    auto graph = gr::make_top_block("qa_rx_iq_swap");
+    auto source = gr::sidekiq::sidekiq_rx::make(
+        0, "A1", "none", 1e6, 800e3, 915e6, 0, 10, 0, 0, 0, 2, 0);
+    auto head = gr::blocks::head::make(sizeof(gr_complex), rx_samples);
+    auto sink = gr::blocks::vector_sink_c::make();
+    graph->connect(source, 0, head, 0);
+    graph->connect(head, 0, sink, 0);
+    graph->run(rx_samples);
+    BOOST_REQUIRE_EQUAL(sink->data().size(), rx_samples);
+    BOOST_CHECK_SMALL(sink->data()[0].real() - 200.0f / 2047.0f, 1e-6f);
+    BOOST_CHECK_SMALL(sink->data()[0].imag() - 100.0f / 2047.0f, 1e-6f);
+}
+
+BOOST_AUTO_TEST_CASE(four_handles_have_independent_outputs_and_frequencies)
+{
+    fake_sidekiq::set_rx_channel_count(6);
+    const skiq_rx_hdl_t selected_handles[] = {
+        skiq_rx_hdl_A1, skiq_rx_hdl_A2, skiq_rx_hdl_B1, skiq_rx_hdl_D1};
+    std::vector<fake_sidekiq::rx_packet> script;
+    for (int port = 0; port < 4; ++port) {
+        for (int packet = 0; packet < 3; ++packet) {
+            script.push_back({selected_handles[port],
+                              uint64_t(10000 * (port + 1) + packet * rx_samples),
+                              std::vector<int16_t>(2 * rx_samples, 100 + port * 10 + packet)});
+        }
+    }
+    fake_sidekiq::set_rx_script(script);
+    auto graph = gr::make_top_block("qa_rx_four");
+    auto source = gr::sidekiq::sidekiq_rx::make(
+        0, -1, "A1", 910e6, "A2", 920e6,
+        "B1", 930e6, "D1", 940e6,
+        1e6, 800e3, 0, 10, 1, 0, 0, 2, 0);
+    std::vector<gr::blocks::vector_sink_c::sptr> sinks;
+    for (int port = 0; port < 4; ++port) {
+        auto head = gr::blocks::head::make(sizeof(gr_complex), 3 * rx_samples);
+        auto sink = gr::blocks::vector_sink_c::make();
+        graph->connect(source, port, head, 0);
+        graph->connect(head, 0, sink, 0);
+        sinks.push_back(sink);
+    }
+    graph->run(rx_samples);
+    for (int port = 0; port < 4; ++port) {
+        const auto data = sinks[port]->data();
+        const auto tags = sinks[port]->tags();
+        BOOST_REQUIRE_EQUAL(data.size(), 3 * rx_samples);
+        BOOST_REQUIRE_EQUAL(tags.size(), 3);
+        for (int packet = 0; packet < 3; ++packet) {
+            const float expected = (100 + port * 10 + packet) / 2047.0f;
+            BOOST_CHECK_SMALL(data[packet * rx_samples].real() - expected, 1e-6f);
+            BOOST_CHECK_SMALL(data[packet * rx_samples].imag() - expected, 1e-6f);
+            BOOST_CHECK_EQUAL(tags[packet].offset, packet * rx_samples);
+            BOOST_CHECK_EQUAL(pmt::to_uint64(tags[packet].value),
+                              10000 * (port + 1) + packet * rx_samples);
+        }
+    }
+    const auto calls = fake_sidekiq::calls();
+    for (int port = 0; port < 4; ++port) {
+        BOOST_CHECK(std::any_of(calls.begin(), calls.end(), [&](const auto& call) {
+            return call.name == "skiq_write_rx_LO_freq" &&
+                   call.handle == selected_handles[port] &&
+                   call.value == uint64_t((910 + 10 * port) * 1000000);
+        }));
+        uint32_t requested_rate, requested_bw, actual_bw;
+        double actual_rate;
+        BOOST_REQUIRE_EQUAL(skiq_read_rx_sample_rate_and_bandwidth(
+            0, selected_handles[port], &requested_rate, &actual_rate,
+            &requested_bw, &actual_bw), 0);
+        BOOST_CHECK_EQUAL(requested_rate, 1000000);
+        BOOST_CHECK_EQUAL(actual_bw, 800000);
+        BOOST_CHECK(std::any_of(calls.begin(), calls.end(), [&](const auto& call) {
+            return call.name == "skiq_write_rx_gain" &&
+                   call.handle == selected_handles[port] && call.value == 10;
+        }));
+    }
+    BOOST_CHECK(std::any_of(calls.begin(), calls.end(), [](const auto& call) {
+        return call.name == "skiq_start_rx_streaming_multi_on_trigger" && call.value == 4;
+    }));
+    BOOST_CHECK(std::any_of(calls.begin(), calls.end(), [](const auto& call) {
+        return call.name == "skiq_write_rx_sample_rate_and_bandwidth_multi" &&
+               call.value == 4;
+    }));
+}
+
+BOOST_AUTO_TEST_CASE(four_handle_validation_and_tuning)
+{
+    auto make = [](int first, int second, int third, int fourth) {
+        return gr::sidekiq::sidekiq_rx::make(
+            0, -1, first, 910e6, second, 920e6,
+            third, 930e6, fourth, 940e6,
+            1e6, 800e3, 0, 10, 0, 0, 0, 2, 0);
+    };
+    BOOST_CHECK_THROW(make(0, 2, 2, 5), std::invalid_argument);
+    BOOST_CHECK_THROW(make(100, 2, 3, 5), std::invalid_argument);
+    BOOST_CHECK_THROW(make(0, 2, 3, 5), std::runtime_error);
+    fake_sidekiq::set_rx_channel_count(6);
+    auto source = make(0, 2, 3, 5);
+    source->set_rx_frequency_for_hdl(5, 950e6);
+    BOOST_CHECK_THROW(source->set_rx_frequency_for_hdl(1, 950e6), std::invalid_argument);
+    auto* implementation = dynamic_cast<gr::sidekiq::sidekiq_rx_impl*>(source.get());
+    BOOST_REQUIRE(implementation);
+    implementation->handle_control_message(pmt::dict_add(
+        pmt::make_dict(), pmt::intern("lo_freq_rxb1"), pmt::from_double(960e6)));
+    const auto calls = fake_sidekiq::calls();
+    BOOST_CHECK(std::any_of(calls.begin(), calls.end(), [](const auto& call) {
+        return call.name == "skiq_write_rx_LO_freq" && call.handle == 5 &&
+               call.value == 950000000;
+    }));
+    BOOST_CHECK(std::any_of(calls.begin(), calls.end(), [](const auto& call) {
+        return call.name == "skiq_write_rx_LO_freq" && call.handle == 2 &&
+               call.value == 960000000;
+    }));
+}
+
 BOOST_AUTO_TEST_CASE(uneven_handles_preserve_samples_and_tags)
 {
     std::vector<fake_sidekiq::rx_packet> script;

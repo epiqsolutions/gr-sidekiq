@@ -333,7 +333,7 @@ blocks:
     run_cal: '0'
     sample_rate: samp_rate
     timestamp_tags: '0'
-    topology: '0'
+    topology: '-1'
     trigger_src: '0'
   states:
     bus_sink: false
@@ -359,7 +359,7 @@ blocks:
     run_cal: '0'
     sample_rate: samp_rate
     threads: '0'
-    topology: '0'
+    topology: '-1'
   states:
     bus_sink: false
     bus_source: false

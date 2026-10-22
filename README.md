@@ -50,7 +50,10 @@ sudo ldconfig
 ## Examples
 
 The [`examples/`](examples/) directory contains basic receive, transmit, dual
-channel, timestamp, message-control, and burst-mode flowgraphs.
+and four-channel receive, timestamp, message-control, and burst-mode flowgraphs.
+The RX block supports up to four distinct handles, each with its own LO frequency.
+In GRC, Topology `-1` leaves the current topology unchanged; `0` explicitly
+applies topology ID 0 on cards that support it.
 
 ## Testing and development
 

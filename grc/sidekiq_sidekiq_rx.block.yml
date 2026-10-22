@@ -5,11 +5,14 @@ category: '[sidekiq]'
 
 templates:
   imports: from gnuradio import sidekiq
-  make: sidekiq.sidekiq_rx(${card}, ${topology}, ${handle1}, ${handle2}, ${sample_rate}, ${bandwidth}, ${frequency}, ${gain_mode}, ${gain_index}, ${timestamp_tags}, ${trigger_src}, ${pps_source}, ${cal_mode}, ${cal_type})
+  make: sidekiq.sidekiq_rx(${card}, ${topology}, ${handle1}, ${frequency}, ${handle2}, ${frequency2}, ${handle3}, ${frequency3}, ${handle4}, ${frequency4}, ${sample_rate}, ${bandwidth}, ${gain_mode}, ${gain_index}, ${timestamp_tags}, ${trigger_src}, ${pps_source}, ${cal_mode}, ${cal_type})
   callbacks:
   - set_rx_sample_rate(${sample_rate})
   - set_rx_bandwidth(${bandwidth})
-  - set_rx_frequency(${frequency})
+  - set_rx_frequency_for_hdl(${handle1}, ${frequency})
+  - set_rx_frequency_for_hdl(${handle2}, ${frequency2})
+  - set_rx_frequency_for_hdl(${handle3}, ${frequency3})
+  - set_rx_frequency_for_hdl(${handle4}, ${frequency4})
   - set_rx_gain_mode(${gain_mode})
   - set_rx_gain_index(${gain_index})
   - set_rx_cal_mode(${cal_mode})
@@ -32,7 +35,7 @@ parameters:
 - id: topology
   label: Topology
   dtype: int
-  default: 0
+  default: -1
 
 - id: handle1
   label: Handle Id1
@@ -43,6 +46,20 @@ parameters:
 
 - id: handle2
   label: Handle Id2
+  dtype: enum
+  options: ['100', '0', '1', '2', '3', '4', '5']
+  option_labels: ['None', 'RxA1', 'RxA2', 'RxB1', 'RxB2', 'RxC1', 'RxD1']
+  default: 100
+
+- id: handle3
+  label: Handle Id3
+  dtype: enum
+  options: ['100', '0', '1', '2', '3', '4', '5']
+  option_labels: ['None', 'RxA1', 'RxA2', 'RxB1', 'RxB2', 'RxC1', 'RxD1']
+  default: 100
+
+- id: handle4
+  label: Handle Id4
   dtype: enum
   options: ['100', '0', '1', '2', '3', '4', '5']
   option_labels: ['None', 'RxA1', 'RxA2', 'RxB1', 'RxB2', 'RxC1', 'RxD1']
@@ -60,9 +77,27 @@ parameters:
   default: 18e6
 
 - id: frequency
-  label: Frequency
+  label: Frequency 1
   dtype: real
   default: 1000e6
+
+- id: frequency2
+  label: Frequency 2
+  dtype: real
+  default: 1000e6
+  hide: ${ 'all' if handle2 == '100' else 'none' }
+
+- id: frequency3
+  label: Frequency 3
+  dtype: real
+  default: 1000e6
+  hide: ${ 'all' if handle3 == '100' else 'none' }
+
+- id: frequency4
+  label: Frequency 4
+  dtype: real
+  default: 1000e6
+  hide: ${ 'all' if handle4 == '100' else 'none' }
 
 - id: gain_mode
   label: Gain Mode
@@ -142,8 +177,7 @@ outputs:
 - label: Samples
   domain: stream
   dtype: complex
-  multiplicity: ${ (2 if (handle2 != '100') else 1) }
-  #  multiplicity: 2
+  multiplicity: ${ 1 + (handle2 != '100') + (handle3 != '100') + (handle4 != '100') }
   optional: false
 
 #- label: ...
@@ -156,9 +190,10 @@ documentation: |-
     A Source Block for Epiq Sidekiq SDRs.
 
     Block features:
-        Dual Port - The Handles define how many ports are used on the card.  
-        One or two ports can be used.  If the handle is not available on the card, 
-        an error will occur when run. Each output preserves its handle's arrival
+        Handles - One to four distinct RX handles can be selected. Each selected
+        handle has its own frequency and output, ordered by the handle fields.
+        If a handle is not available in the active topology, construction fails.
+        Each output preserves its handle's arrival
         order independently. Equal output offsets do not guarantee RF-time alignment.
 
         Timestamp Tags - rf_timestamp is attached to the first sample of each
@@ -172,8 +207,10 @@ documentation: |-
         subset; unrequested types are never enabled. A request with no supported
         types reports an error.
 
-        Configuration messages - The block also can receive the "freq", "rate", 
-        "bandwidth", and "gain" messages to modify those parameters.
+        Configuration messages - The block also can receive the "lo_freq", "rate",
+        "bandwidth", and "gain" messages to modify those parameters. The
+        lo_freq_rxa1, lo_freq_rxa2, lo_freq_rxb1, lo_freq_rxb2, lo_freq_rxc1,
+        and lo_freq_rxd1 keys tune individual selected handles.
 
         Transceive - The block can be used with the TX block to allow Transceive mode.  
         There will be a warning when the second block initializes.
@@ -181,15 +218,16 @@ documentation: |-
     Parameters:
          Card: The card number of the Sidekiq card.
 
-         Topology: If card supports topologies, this topology will be activated.  Ignored on non-topology capable cards.
+         Topology: -1 leaves the current topology unchanged. On cards that support topologies,
+         0 and other valid IDs apply that topology. Ignored on non-topology capable cards.
 
-         Handle: The handle (port) to use. There are two variables if dual port is used.
+         Handle: Select up to four distinct RX handles; None disables an optional handle.
 
          Sample_rate: The sample rate of the card.
 
          Bandwidth: The bandwidth of the card.
 
-         Frequency: The LO frequency of the port.
+         Frequency: The LO frequency of each selected handle.
 
          Gain Mode: Auto or Manual, if Manual the gain_index must be set.
 

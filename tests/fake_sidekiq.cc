@@ -28,6 +28,8 @@ struct pending_packet {
 struct state {
     bool initialized = false;
     bool rx_started = false;
+    bool topology_supported = false;
+    int rx_channel_count = 2;
     bool auto_complete = true;
     size_t capacity = 20;
     size_t reused_buffers = 0;
@@ -69,6 +71,15 @@ void capture(const pending_packet& p)
 namespace fake_sidekiq {
 void set_rx_cal_available(skiq_rx_hdl_t handle, uint32_t mask)
 { std::lock_guard<std::mutex> lock(mutex); s.rx_cal_available[handle] = mask; }
+void set_topology_supported(bool supported)
+{ std::lock_guard<std::mutex> lock(mutex); s.topology_supported = supported; }
+void set_rx_channel_count(int count)
+{
+    if (count < 1 || count > skiq_rx_hdl_end)
+        throw std::invalid_argument("Invalid fake RX channel count");
+    std::lock_guard<std::mutex> lock(mutex);
+    s.rx_channel_count = count;
+}
 void reset() { std::lock_guard<std::mutex> lock(mutex); s = state{}; }
 std::vector<call> calls() { std::lock_guard<std::mutex> lock(mutex); return s.calls; }
 std::vector<tx_packet> transmitted() { std::lock_guard<std::mutex> lock(mutex); return s.transmitted; }
@@ -141,12 +152,14 @@ int32_t skiq_read_parameters(uint8_t card, skiq_param_t* p_param)
     *p_param = {};
     p_param->card_param.part_type = skiq_m2;
     p_param->rf_param.num_tx_channels = 2;
-    p_param->rf_param.num_rx_channels = 2;
+    p_param->rf_param.num_rx_channels = s.rx_channel_count;
     for (int i = 0; i < 2; ++i) {
         p_param->rf_param.tx_handles[i] = static_cast<skiq_tx_hdl_t>(i);
-        p_param->rf_param.rx_handles[i] = static_cast<skiq_rx_hdl_t>(i);
         p_param->tx_param[i].sample_rate_min = 1000;
         p_param->tx_param[i].sample_rate_max = 61440000;
+    }
+    for (int i = 0; i < s.rx_channel_count; ++i) {
+        p_param->rf_param.rx_handles[i] = static_cast<skiq_rx_hdl_t>(i);
         p_param->rx_param[i].sample_rate_min = 1000;
         p_param->rx_param[i].sample_rate_max = 61440000;
     }
@@ -165,7 +178,7 @@ int32_t skiq_exit(void)
 int32_t skiq_start_rx_streaming_multi_on_trigger(uint8_t card, skiq_rx_hdl_t handles[], uint8_t nr_handles, skiq_trigger_src_t trigger, uint64_t sys_timestamp)
 {
     std::lock_guard<std::mutex> lock(mutex);
-    const auto status = record("skiq_start_rx_streaming_multi_on_trigger", -1, 0);
+    const auto status = record("skiq_start_rx_streaming_multi_on_trigger", -1, nr_handles);
     if (status) return status;
     if (card != 0) return -ENODEV;
     s.rx_started = true;
@@ -271,6 +284,25 @@ int32_t skiq_write_rx_sample_rate_and_bandwidth(uint8_t card, skiq_rx_hdl_t hdl,
     if (status) return status;
     if (card != 0) return -ENODEV;
     s.rx_rates.at(hdl) = {rate, bandwidth};
+    return 0;
+}
+
+int32_t skiq_write_rx_sample_rate_and_bandwidth_multi(
+    uint8_t card, skiq_rx_hdl_t handles[], uint8_t nr_handles,
+    uint32_t rates[], uint32_t bandwidths[])
+{
+    std::lock_guard<std::mutex> lock(mutex);
+    const auto status = record("skiq_write_rx_sample_rate_and_bandwidth_multi", -1, nr_handles);
+    if (status) return status;
+    if (card != 0) return -ENODEV;
+    if (!handles || !rates || !bandwidths || nr_handles == 0 || nr_handles > s.rx_channel_count)
+        return -EINVAL;
+    for (uint8_t i = 0; i < nr_handles; ++i) {
+        if (handles[i] < 0 || handles[i] >= skiq_rx_hdl_end)
+            return -EINVAL;
+    }
+    for (uint8_t i = 0; i < nr_handles; ++i)
+        s.rx_rates.at(handles[i]) = {rates[i], bandwidths[i]};
     return 0;
 }
 
@@ -524,16 +556,16 @@ bool skiq_is_topology_supported(uint8_t card)
 {
     std::lock_guard<std::mutex> lock(mutex);
     record("skiq_is_topology_supported");
-    return false;
+    return s.topology_supported;
 }
 
 int32_t skiq_apply_topology(uint8_t card, uint8_t topology_id)
 {
     std::lock_guard<std::mutex> lock(mutex);
-    const auto status = record("skiq_apply_topology", -1, 0);
+    const auto status = record("skiq_apply_topology", -1, topology_id);
     if (status) return status;
     if (card != 0) return -ENODEV;
-    return -ENOTSUP;
+    return s.topology_supported ? 0 : -ENOTSUP;
 }
 
 skiq_rx_status_t skiq_receive(uint8_t card, skiq_rx_hdl_t* handle,

@@ -36,7 +36,7 @@ sidekiq_tx::sptr sidekiq_tx::make(int card,
                                   int cal_mode)
 {
     return sidekiq_tx::make(card,
-                            0,
+                            -1,
                             handle,
                             sample_rate,
                             bandwidth,
@@ -87,7 +87,7 @@ sidekiq_tx::sptr sidekiq_tx::make(int card,
                                   int cal_mode)
 {
     return sidekiq_tx::make(card,
-                            0,
+                            -1,
                             handle,
                             sample_rate,
                             bandwidth,
@@ -169,8 +169,12 @@ sidekiq_tx_impl::sidekiq_tx_impl( int input_card,
     }
     card_part = param.card_param.part_type;
 
-    /* set topology if it has changed from default (0) */
-    if (topology != 0)
+    /* Topology 0 is valid; -1 means the caller omitted the topology argument. */
+    if (topology < -1 || topology > UINT8_MAX)
+    {
+        throw std::invalid_argument("Invalid TX topology ID");
+    }
+    if (topology >= 0)
     {
         if (skiq_is_topology_supported(card))
         {

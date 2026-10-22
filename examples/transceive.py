@@ -82,7 +82,7 @@ class transceive(gr.top_block, Qt.QWidget):
         ##################################################
 
         self.sidekiq_sidekiq_tx_0 = sidekiq.sidekiq_tx(card, 0, samp_rate, (samp_rate * .8), frequency, 100, '', 6, 16380, 0)
-        self.sidekiq_sidekiq_rx_0 = sidekiq.sidekiq_rx(card, 0, 100, samp_rate, (samp_rate * .8), frequency, 0, 10, 0, 0)
+        self.sidekiq_sidekiq_rx_0 = sidekiq.sidekiq_rx(card, -1, 0, frequency, 100, 1000e6, 100, 1000e6, 100, 1000e6, samp_rate, (samp_rate * .8), 0, 10, 0, 0, 0, 0, 0)
         self.sidekiq_sidekiq_rx_0.set_max_output_buffer(32000)
         self.qtgui_time_sink_x_0 = qtgui.time_sink_c(
             1024, #size
@@ -213,7 +213,7 @@ class transceive(gr.top_block, Qt.QWidget):
     def set_frequency(self, frequency):
         self.frequency = frequency
         self.qtgui_freq_sink_x_0.set_frequency_range(self.frequency, self.samp_rate)
-        self.sidekiq_sidekiq_rx_0.set_rx_frequency(self.frequency)
+        self.sidekiq_sidekiq_rx_0.set_rx_frequency_for_hdl(0, self.frequency)
         self.sidekiq_sidekiq_tx_0.set_tx_frequency(self.frequency)
 
     def get_card(self):

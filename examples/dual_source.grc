@@ -298,6 +298,7 @@ blocks:
     card: '2'
     comment: ''
     frequency: frequency
+    frequency2: frequency
     gain_index: '1'
     gain_mode: '1'
     handle1: '0'

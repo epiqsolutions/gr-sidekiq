@@ -22,6 +22,13 @@ source_test.grc - Shows sidekiq_rx_block working
 
 dual_source.grc - Shows 2 RX ports with sidekiq_rx_block
 
+quad_source.grc / quad_source.py - Shows four independently tunable RX ports.
+Choose four distinct handles supported by the card's active topology. The
+frequency controls tune each selected handle separately.
+
+In RX and TX GRC blocks, Topology -1 leaves the current card topology unchanged.
+Topology 0 is a valid ID and is applied on cards that support topologies.
+
 bursting.grc - Shows bursting transmit.  There is a message to stop and start the bursting feature. 
     The tx_block will assume no_bursting, but the edit message box will pass in, 
     buy default, a 1, which will turn on bursting capability.

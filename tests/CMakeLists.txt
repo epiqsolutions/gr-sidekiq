@@ -25,3 +25,16 @@ set(GR_TEST_TARGET_DEPS sidekiq_qa_blocks)
 set(GR_TEST_ENVIRONS "UBSAN_OPTIONS=halt_on_error=1:print_stacktrace=1")
 GR_ADD_CPP_TEST(qa_sidekiq qa_sidekiq.cc)
 set_tests_properties(qa_sidekiq PROPERTIES TIMEOUT 30 LABELS "qa;hardware-independent")
+
+find_package(Python3 COMPONENTS Interpreter QUIET)
+if(Python3_Interpreter_FOUND)
+    execute_process(
+        COMMAND ${Python3_EXECUTABLE} -c "import gnuradio.grc"
+        RESULT_VARIABLE SIDEKIQ_GRC_AVAILABLE
+        OUTPUT_QUIET ERROR_QUIET)
+    if(SIDEKIQ_GRC_AVAILABLE EQUAL 0)
+        add_test(NAME qa_examples
+            COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/check_examples.py)
+        set_tests_properties(qa_examples PROPERTIES TIMEOUT 30 LABELS "qa;examples")
+    endif()
+endif()

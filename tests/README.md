@@ -18,8 +18,9 @@ Do not reuse a production build directory for QA.
 - Sidekiq SDK headers compatible with this repository (SDK 4.26+). Supply the
   directory containing `sidekiq_api.h`, `sidekiq_types.h`, `sidekiq_params.h`, and
   `sidekiq_xport_types.h`. Headers are not copied into this repository.
-- GNU Radio development packages provide the C++ QA framework; Python QA scripts
-  and generated example Python files are not used in this first suite.
+- GNU Radio development packages provide the C++ QA framework. When the GRC
+  Python package is present, the separate example check generates flowgraphs
+  without running them or accessing hardware.
 
 ## Configure, build, and test
 
@@ -34,7 +35,12 @@ cmake --build build/qa -j4
 ctest --test-dir build/qa --output-on-failure
 ```
 
-Expected result: **1 CTest test passes**, with all Boost.Test cases successful.
+Expected result: **2 CTest tests pass** when GNU Radio Companion's Python
+package is installed: the Boost.Test suite and a GRC example generation check.
+The example check loads this checkout's block definitions, generates every
+`examples/*.grc` flowgraph in a temporary directory, and compiles the generated
+Python for syntax. On systems without the GRC Python package, only the C++ QA
+test is registered.
 CTest applies a 30-second timeout so a scheduler or callback deadlock fails the
 run rather than hanging indefinitely. Nonzero exit status means failure.
 
@@ -89,7 +95,9 @@ The `rx_correctness` suite exercises uneven handle arrivals (12 A1 packets then
 12 A2 packets), compares every output I/Q sample, and checks each timestamp at
 its packet's first sample. It also checks idle shutdown, discontinuity diagnostics
 across work calls, restart with a new timestamp epoch, and retry after an SDK stop
-failure. The `calibration` suite checks selected-handle execution, manual/auto/off
+failure. It also covers four independently tuned handles, their outputs and tags,
+handle validation, and software I/Q swapping when the SDK cannot set I/Q order.
+The `calibration` suite checks selected-handle execution, manual/auto/off
 trigger gating, preservation of requested calibration subsets, per-handle
 capabilities, unsupported requests, and SDK read/write/run errors. These tests
 do not validate RF calibration quality or timed transmission.
@@ -213,7 +221,9 @@ implemented in this branch.
 
 Use the normal build linked to libsidekiq. Regenerate `examples/source_test.grc`
 for single-channel checks and `examples/dual_source.grc` for two supported RX
-handles. Select the actual card, frequency, gain, and supported sample rate.
+handles. Use `examples/quad_source.grc` on a card/topology with four supported
+RX handles. Select the actual card, topology, per-handle frequencies, gain, and
+supported sample rate.
 Feed known signals into the RX ports and check each output for the expected tone
 and amplitude, then repeat start/stop and test at the intended operating rate.
 
@@ -224,7 +234,7 @@ timestamps advance by the packet's complex sample count. Deliberately interrupt
 reception or cause a hardware overrun and verify that any timestamp gap is
 reported; the source does not insert replacement samples or realign channels.
 
-For dual RX, capture identifiable sample sequences from both handles and check
+For multi-handle RX, capture identifiable sample sequences from each handle and check
 for missing or duplicated sections. Independent production preserves arrival
 order within each handle; it does not promise that equal output offsets represent
 the same RF time. Downstream processing must use the timestamps if alignment is

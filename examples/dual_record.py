@@ -80,7 +80,7 @@ class dual_record(gr.top_block, Qt.QWidget):
         # Blocks
         ##################################################
 
-        self.sidekiq_sidekiq_rx_0 = sidekiq.sidekiq_rx(3, 0, 1, samp_rate, (samp_rate* 0.9), 1000e6, 1, 1, 0, 0, 1, 0)
+        self.sidekiq_sidekiq_rx_0 = sidekiq.sidekiq_rx(3, -1, 0, 1000e6, 1, 1000e6, 100, 1000e6, 100, 1000e6, samp_rate, (samp_rate* 0.9), 1, 1, 0, 0, 0, 1, 0)
         self.qtgui_freq_sink_x_0_0 = qtgui.freq_sink_c(
             1024, #size
             window.WIN_BLACKMAN_hARRIS, #wintype

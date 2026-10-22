@@ -14,7 +14,7 @@
 /* BINDTOOL_GEN_AUTOMATIC(0)                                                       */
 /* BINDTOOL_USE_PYGCCXML(0)                                                        */
 /* BINDTOOL_HEADER_FILE(sidekiq_rx.h)                                        */
-/* BINDTOOL_HEADER_FILE_HASH(fdaa6e115df5441125972683f5f54466)                     */
+/* BINDTOOL_HEADER_FILE_HASH(613fd0c507c0b859dbe05a076c7d5ddf)                     */
 /***********************************************************************************/
 
 /*
@@ -156,6 +156,38 @@ void bind_sidekiq_rx(py::module& m)
            py::arg("cal_mode"),
            py::arg("cal_type")
         )
+
+        .def(py::init(py::overload_cast<int, int,
+                                        int, double, int, double,
+                                        int, double, int, double,
+                                        double, double, uint8_t,
+                                        int, int, int, int, int, int>(&sidekiq_rx::make)),
+           py::arg("input_card"), py::arg("input_topology"),
+           py::arg("port1_handle"), py::arg("frequency1"),
+           py::arg("port2_handle"), py::arg("frequency2"),
+           py::arg("port3_handle"), py::arg("frequency3"),
+           py::arg("port4_handle"), py::arg("frequency4"),
+           py::arg("sample_rate"), py::arg("bandwidth"),
+           py::arg("gain_mode"), py::arg("gain_index"),
+           py::arg("timestamp_tags"), py::arg("trigger_src"),
+           py::arg("pps_source"), py::arg("cal_mode"), py::arg("cal_type"))
+
+        .def(py::init(py::overload_cast<int, int,
+                                        const std::string&, double,
+                                        const std::string&, double,
+                                        const std::string&, double,
+                                        const std::string&, double,
+                                        double, double, uint8_t,
+                                        int, int, int, int, int, int>(&sidekiq_rx::make)),
+           py::arg("input_card"), py::arg("input_topology"),
+           py::arg("port1_handle"), py::arg("frequency1"),
+           py::arg("port2_handle"), py::arg("frequency2"),
+           py::arg("port3_handle"), py::arg("frequency3"),
+           py::arg("port4_handle"), py::arg("frequency4"),
+           py::arg("sample_rate"), py::arg("bandwidth"),
+           py::arg("gain_mode"), py::arg("gain_index"),
+           py::arg("timestamp_tags"), py::arg("trigger_src"),
+           py::arg("pps_source"), py::arg("cal_mode"), py::arg("cal_type"))
         
 
 
@@ -180,6 +212,10 @@ void bind_sidekiq_rx(py::module& m)
             py::arg("value"),
             D(sidekiq_rx,set_rx_frequency)
         )
+
+        .def("set_rx_frequency_for_hdl", &sidekiq_rx::set_rx_frequency_for_hdl,
+             py::arg("handle"), py::arg("value"),
+             D(sidekiq_rx,set_rx_frequency_for_hdl))
 
 
         

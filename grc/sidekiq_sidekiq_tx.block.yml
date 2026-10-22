@@ -29,7 +29,7 @@ parameters:
 - id: topology
   label: Topology
   dtype: int
-  default: 0
+  default: -1
 
 - id: handle
   label: Handle Id
@@ -156,7 +156,8 @@ documentation: |-
     Parameters:
          Card: The card number of the Sidekiq card.
 
-         Topology: If card supports topologies, this topology will be activated.  Ignored on non-topology capable cards.
+         Topology: -1 leaves the current topology unchanged. On cards that support topologies,
+         0 and other valid IDs apply that topology. Ignored on non-topology capable cards.
 
          Handle: The handle (port) to use.
 

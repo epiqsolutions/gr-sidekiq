@@ -66,7 +66,8 @@ def build_arg_parser():
         formatter_class=ArgumentDefaultsHelpFormatter,
     )
     parser.add_argument("--card", type=intx, default=0, help="Sidekiq card index")
-    parser.add_argument("--topology", type=intx, default=0, help="Sidekiq topology index")
+    parser.add_argument("--topology", type=intx, default=-1,
+                        help="Sidekiq topology ID; -1 leaves the current topology unchanged")
     parser.add_argument(
         "--handle",
         default="TxA1",
